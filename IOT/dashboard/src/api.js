@@ -55,6 +55,24 @@ export const api = {
   },
   deleteRule: (id) => request(`/rules/${id}`, { method: 'DELETE' }),
   toggleRule: (id) => request(`/rules/${id}/toggle`, { method: 'POST' }),
+  // 겹친 무활동 규칙 중 이 규칙을 쓰고 나머지는 끈다
+  async keepRule(id) {
+    const res = await fetch(`${BASE}/rules/${id}/keep`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+  },
+  // 예외 대상 후보가 여럿일 때 고른 규칙에 {세대, 값} 예외를 붙인다 (AI 다시 안 부름)
+  async overrideRule(id, home, value) {
+    const res = await fetch(`${BASE}/rules/${id}/override`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ home, value }),
+    })
+    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+  },
   async transcribeSpeech(blob) {
     const form = new FormData()
     const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'

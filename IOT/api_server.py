@@ -6,6 +6,7 @@ import json
 import os
 from datetime import datetime
 
+import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -93,6 +94,21 @@ def delete_rule(rule_id):
     rules = [r for r in engine.load_rules() if r["id"] != rule_id]
     engine.save_rules(rules)
     return jsonify({"ok": True})
+
+
+@app.route("/api/rules/<int:rule_id>/keep", methods=["POST"])
+def keep_rule(rule_id):
+    """겹친 규칙 중 이 규칙을 쓰고 나머지를 끈다 (지우지 않고 대체 기록을 남긴다)."""
+    result = engine.keep_rule(rule_id)
+    return jsonify(result), (200 if result["ok"] else 409)
+
+
+@app.route("/api/rules/<int:rule_id>/override", methods=["POST"])
+def override_rule(rule_id):
+    """예외 대상 후보가 여럿일 때 복지사가 고른 규칙에 {세대, 값} 예외를 붙인다. AI 를 다시 부르지 않는다."""
+    body = request.get_json(silent=True) or {}
+    result = engine.apply_override_to(rule_id, body.get("home", ""), body.get("value", ""))
+    return jsonify(result), (200 if result["ok"] else 422)
 
 
 @app.route("/api/rules/<int:rule_id>/toggle", methods=["POST"])
@@ -210,6 +226,11 @@ def care_state():
     if updated:
         stale = (datetime.now() - datetime.fromisoformat(updated)).total_seconds() > ENGINE_STALE_SEC
     data["stale"] = stale     # 판정이 멈춰 있으면 화면이 옛 상태를 최신처럼 보여주면 안 된다
+    # 겹친 규칙은 규칙 파일로 바로 계산한다 — 복지사가 하나를 고르면 엔진 한 바퀴를 기다리지 않고 사라져야 한다
+    try:
+        data["rule_conflicts"] = engine.rule_conflict_groups(engine.load_rules(), iot.read_tree(AE))
+    except requests.RequestException:
+        data["rule_conflicts"] = []
     return jsonify(data)
 
 

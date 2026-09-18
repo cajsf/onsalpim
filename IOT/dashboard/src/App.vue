@@ -290,7 +290,7 @@ async function submitRule() {
   if (!text) return
   lastSentence.value = text
   loading.value = true
-  ruleError.value = ''; clarify.value = ''; ruleWarnings.value = []
+  ruleError.value = ''; clarify.value = ''; ruleWarnings.value = []; ruleNotice.value = ''
   rulePlan.value = ''; lastResult.value = null
   pipelineSteps.value = [
     { id: 'translate', label: 'LLM 번역', status: 'running', detail: 'Gemini에 문장 전송 중…' },
@@ -306,7 +306,7 @@ async function submitRule() {
     rulePlan.value = result.plan || ''
     lastResult.value = result
 
-    if (result.status === 'needs_clarification') {
+    if (result.status === 'needs_clarification' || result.status === 'needs_choice') {
       clarify.value = result.questions?.join(' ') || '기준값을 지정해 주세요.'
     } else if (!result.ok) {
       ruleError.value = result.errors?.join(' ') || '규칙 생성에 실패했습니다.'
@@ -320,6 +320,32 @@ async function submitRule() {
   } finally {
     loading.value = false
   }
+}
+
+/* 예외 대상 후보 중 하나를 고른다 — 번역은 이미 끝났으니 AI 를 다시 부르지 않는다 */
+const ruleNotice = ref('')
+async function chooseOverride(c) {
+  const ch = lastResult.value?.choice
+  if (!ch || ruleBusy.value) return
+  ruleBusy.value = c.id
+  const res = await api.overrideRule(c.id, ch.home, ch.value)
+  ruleBusy.value = null
+  if (!res.ok) { ruleError.value = res.errors?.join(' ') || '예외를 적용하지 못했습니다.'; return }
+  ruleError.value = ''; clarify.value = ''; lastResult.value = null; sentence.value = ''
+  ruleNotice.value = `규칙 #${c.id}에 ${ch.home}호 예외 ${fmtMinutes(ch.value)}을(를) 적용했습니다.`
+  await refresh()
+}
+
+/* 겹친 규칙 중 하나를 쓴다 — 나머지는 지우지 않고 끄고 대체 기록을 남긴다 */
+async function keepRule(id) {
+  if (ruleBusy.value) return
+  ruleBusy.value = id
+  const res = await api.keepRule(id)
+  ruleBusy.value = null
+  if (!res.ok) { ruleError.value = res.errors?.join(' ') || '처리하지 못했습니다.'; return }
+  ruleError.value = ''
+  ruleNotice.value = `규칙 #${id}을(를) 쓰고 #${res.turned_off.join(', #')}은(는) 껐습니다.`
+  await refresh()
 }
 
 async function approve(id, value, replace = false) {
@@ -452,8 +478,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       <p class="stamp">{{ nowText }}</p>
       <p v-if="care.rule_conflicts && care.rule_conflicts.length" class="banner warn">
         같은 세대에 같은 위험도의 무활동 규칙이 겹쳐 있습니다
-        ({{ care.rule_conflicts.map((p) => '#' + p.join('·#')).join(', ') }}). 더 짧은 기준을 적용 중입니다 —
-        <a href="#" @click.prevent="activeView = 'rules'">규칙 관리</a>에서 하나를 끄거나 지워 주세요.
+        ({{ care.rule_conflicts.map((g) => '#' + g.ids.join('·#')).join(', ') }}). 더 짧은 기준을 적용 중입니다 —
+        <a href="#" @click.prevent="activeView = 'rules'">규칙 관리</a>에서 어떤 규칙을 쓸지 골라 주세요.
       </p>
       <p v-if="connectionError" class="banner err">{{ connectionError }}</p>
       <p v-else-if="!engineRunning" class="banner warn">
@@ -550,10 +576,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                     v-if="r.questions && r.questions.length"
                     v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
                   />
-                  <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? '한 번 더 누르면 거부' : '거부' }}</button>
+                  <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? (((r.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((r.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
                   <button class="btn primary" :disabled="(r.conflicts || []).some((c) => !c.covers_all)"
                       @click="approve(r.id, fillValue || undefined, !!(r.conflicts || []).length)">
-                {{ (r.conflicts || []).length ? '기존 규칙 대체' : '승인하기' }}
+                {{ (r.conflicts || []).length ? '새 규칙 적용 (기존 끄기)' : '승인하기' }}
               </button>
                 </div>
               </article>
@@ -669,6 +695,15 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 
             <p v-if="ruleError" class="msg err">{{ ruleError }}</p>
             <p v-if="clarify" class="msg clarify">{{ clarify }}</p>
+            <p v-if="ruleNotice" class="msg info">{{ ruleNotice }}</p>
+            <div v-if="lastResult && lastResult.status === 'needs_choice'" class="choices">
+              <button v-for="c in lastResult.candidates" :key="c.id" class="choice"
+                      :disabled="ruleBusy === c.id" @click="chooseOverride(c)">
+                <strong>#{{ c.id }}에 적용</strong>
+                <span>"{{ c.sentence }}"</span>
+                <span class="muted">{{ c.summary }}</span>
+              </button>
+            </div>
             <p v-for="w in ruleWarnings" :key="w" class="msg warn">{{ w }}</p>
 
             <!-- 파이프라인 -->
@@ -711,10 +746,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   v-if="lastResult.status === 'needs_clarification'"
                   v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
                 />
-                <button class="btn ghost" :class="{ danger: confirmingId === lastResult.id }" :disabled="ruleBusy === lastResult.id" @click="reject(lastResult.id)">{{ confirmingId === lastResult.id ? '한 번 더 누르면 거부' : '거부' }}</button>
+                <button class="btn ghost" :class="{ danger: confirmingId === lastResult.id }" :disabled="ruleBusy === lastResult.id" @click="reject(lastResult.id)">{{ confirmingId === lastResult.id ? (((lastResult.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((lastResult.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
                 <button class="btn primary" :disabled="(lastResult.conflicts || []).some((c) => !c.covers_all)"
                         @click="approve(lastResult.id, fillValue || undefined, !!(lastResult.conflicts || []).length)">
-                  {{ (lastResult.conflicts || []).length ? '기존 규칙 대체' : '승인하기' }}
+                  {{ (lastResult.conflicts || []).length ? '새 규칙 적용 (기존 끄기)' : '승인하기' }}
                 </button>
               </div>
             </div>
@@ -765,6 +800,25 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 
       <!-- ────────── 규칙 관리 ────────── -->
       <main v-else-if="activeView === 'rules'" class="content">
+        <section v-for="g in care.rule_conflicts || []" :key="g.ids.join('-')" class="card conflict-card">
+          <div class="card-head">
+            <div>
+              <h2>⚠ 겹치는 규칙이 있습니다 — 어떤 규칙을 쓸까요?</h2>
+              <p class="hint">
+                같은 세대에 같은 위험도의 무활동 기준이 {{ g.ids.length }}개 켜져 있어, 지금은 더 짧은 기준을 적용 중입니다.
+                고른 규칙만 남기고 나머지는 꺼 둡니다(지우지 않고 대체 기록을 남깁니다).
+              </p>
+            </div>
+          </div>
+          <div class="choices">
+            <button v-for="c in g.rules" :key="c.id" class="choice" :disabled="ruleBusy === c.id" @click="keepRule(c.id)">
+              <strong>#{{ c.id }} 유지</strong>
+              <span>"{{ c.sentence }}"</span>
+              <span class="muted">{{ c.summary }}</span>
+            </button>
+          </div>
+        </section>
+        <p v-if="ruleNotice && activeView === 'rules'" class="msg info">{{ ruleNotice }}</p>
         <section class="card">
           <div class="card-head">
             <div>
@@ -797,10 +851,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 v-if="r.questions && r.questions.length"
                 v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
               />
-              <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? '한 번 더 누르면 거부' : '거부' }}</button>
+              <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? (((r.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((r.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
               <button class="btn primary" :disabled="(r.conflicts || []).some((c) => !c.covers_all)"
                       @click="approve(r.id, fillValue || undefined, !!(r.conflicts || []).length)">
-                {{ (r.conflicts || []).length ? '기존 규칙 대체' : '승인하기' }}
+                {{ (r.conflicts || []).length ? '새 규칙 적용 (기존 끄기)' : '승인하기' }}
               </button>
             </div>
           </article>
@@ -1202,6 +1256,12 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .pstep.ok .pico { color: var(--normal); }
 .pstep.fail .pico { color: var(--urgent); }
 .pstep.warn .pico { color: var(--watch); }
+.choices { display: grid; gap: 0.5rem; margin-top: 0.6rem; }
+.choice { display: grid; gap: 0.15rem; text-align: left; padding: 0.65rem 0.8rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; font-size: 0.8rem; color: var(--text-2); }
+.choice strong { color: var(--brand-dim); }
+.choice:hover:not(:disabled) { border-color: var(--brand); background: var(--brand-soft); }
+.choice:disabled { opacity: 0.6; cursor: wait; }
+.conflict-card { border-color: var(--watch); }
 .msg.warn { background: var(--watch-soft); color: var(--text); }
 .pstep.skip { opacity: 0.5; }
 .pnum { color: var(--muted); font-size: 0.68rem; }

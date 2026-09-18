@@ -136,11 +136,30 @@ def _apply_override(sentence, out, devices, steps):
                      [f"'{ov_type}' 기준을 쓰는 공통 규칙이 없습니다. "
                       f"먼저 전체 세대 규칙을 만들어 주세요."])
     if len(matches) > 1:
-        ids = ", ".join(f'#{r["id"]} "{r["sentence"]}"' for r in matches)
-        return _stop(steps, OVERRIDE_STEPS, [],
-                     questions=[f"예외를 적용할 규칙을 골라 주세요: {ids}"])
+        # 되묻기만 하면 복지사가 할 수 있는 게 없다 — 후보를 돌려주고 화면에서 고르게 한다.
+        # 고른 뒤에는 AI 를 다시 부르지 않고 이 {세대, 값}을 그 규칙에 그대로 붙인다 (apply_override_to).
+        result = _stop(steps, OVERRIDE_STEPS, [],
+                       questions=[f"{home}호 예외를 적용할 규칙이 {len(matches)}개입니다. 하나를 골라 주세요."])
+        result["status"] = "needs_choice"
+        result["choice"] = {"home": home, "type": ov_type, "value": value}
+        result["candidates"] = [{"id": r["id"], "sentence": r["sentence"],
+                                 "summary": scope.describe_rule(r["rule"], devices)} for r in matches]
+        return result
 
-    target = matches[0]
+    return _attach_override(matches[0], rules, home, value, devices, steps)
+
+
+def apply_override_to(rule_id, home, value, devices=None):
+    """복지사가 고른 규칙에 세대 예외를 붙인다 — 예외 대상 후보가 여럿이었을 때."""
+    rules = load_rules()
+    target = next((r for r in rules if r["id"] == rule_id), None)
+    if target is None or not is_active(target):
+        return {"ok": False, "errors": [f"규칙 #{rule_id}은(는) 적용 중인 규칙이 아닙니다."]}
+    devices = devices if devices is not None else iot.read_tree("byeongari")
+    return _attach_override(target, rules, str(home).strip(), str(value).strip(), devices, [])
+
+
+def _attach_override(target, rules, home, value, devices, steps):
     steps.append({
         "id": "match", "label": STEP_LABELS["match"], "status": "ok",
         "detail": f'규칙 #{target["id"]} "{target["sentence"]}" 에 적용',
@@ -392,6 +411,43 @@ def approve_rule(rule_id, fill_value=None, by="복지사", replace=False, device
     target["approved_at"] = datetime.now().isoformat(timespec="seconds")
     save_rules(rules)
     return {"ok": True, "errors": [], "rule": target}
+
+
+def keep_rule(keep_id, by="복지사", devices=None):
+    """겹친 무활동 규칙 중 이 규칙을 쓰고, 같은 세대·같은 위험도로 겹치는 나머지는 끈다.
+    지우지 않는다 — 누가·언제 무엇으로 대체했는지 남긴다."""
+    rules = load_rules()
+    keep = next((r for r in rules if r["id"] == keep_id), None)
+    if keep is None or not is_active(keep):
+        return {"ok": False, "errors": [f"규칙 #{keep_id}은(는) 적용 중인 규칙이 아닙니다."]}
+    devices = devices if devices is not None else iot.read_tree("byeongari")
+    overlaps = scope.idle_overlaps(keep["rule"], devices, [r for r in rules if r["id"] != keep_id])
+    now = datetime.now().isoformat(timespec="seconds")
+    for o in overlaps:
+        old = next(r for r in rules if r["id"] == o["id"])
+        old["enabled"] = False
+        old["superseded_by"] = keep_id
+        old["superseded_at"] = now
+        old["superseded_who"] = by
+    save_rules(rules)
+    return {"ok": True, "errors": [], "turned_off": [o["id"] for o in overlaps]}
+
+
+def rule_conflict_groups(rules, devices):
+    """지금 켜져 있는데 같은 세대·같은 위험도로 겹치는 무활동 규칙 묶음 — 화면에서 하나를 고르게 한다."""
+    _, pairs = effective_idle_levels(rules, devices)
+    by_id = {r["id"]: r for r in rules}
+    groups = []
+    for pair in pairs:
+        g = next((g for g in groups if set(pair) & set(g)), None)
+        if g is None:
+            groups.append(list(pair))
+        else:
+            g.extend(i for i in pair if i not in g)
+    return [{"ids": sorted(g), "rules": [
+                {"id": i, "sentence": by_id[i]["sentence"],
+                 "summary": scope.describe_rule(by_id[i]["rule"], devices)} for i in sorted(g)]}
+            for g in groups]
 
 
 def toggle_rule(rule_id, devices=None):
@@ -842,9 +898,8 @@ def write_care_state(results, homes_state, rules=None, devices=None):
     for r in results:
         applied = (homes_state.get(r["home"]) or {}).get("applied") or {}
         payload.append({**r, "applied": applied, "rules": by_home.get(r["home"], [])})
-    _, conflicts = effective_idle_levels(rules or [], devices or [])
     with open(CARE_STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump({"updated": datetime.now().isoformat(), "homes": payload, "rule_conflicts": conflicts},
+        json.dump({"updated": datetime.now().isoformat(), "homes": payload},
                   f, ensure_ascii=False, indent=2)
 
 

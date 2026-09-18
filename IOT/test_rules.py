@@ -78,4 +78,25 @@ lv, conflicts = engine.effective_idle_levels(
     [saved(1, care_rule(value="180", severity="WATCH")), saved(2, care_rule(value="480"))], TREE)
 assert conflicts == [] and sorted(x["severity"] for x in lv["101"]) == ["URGENT", "WATCH"]
 
+# ── 겹친 규칙 중 하나를 골라 유지 ──
+engine.save_rules([r7, saved(8, care_rule(value="480"))])
+g = engine.rule_conflict_groups(engine.load_rules(), TREE)
+assert g[0]["ids"] == [7, 8] and "10분" in g[0]["rules"][0]["summary"]
+res = engine.keep_rule(7, devices=TREE)
+assert res["ok"] and res["turned_off"] == [8]
+rs = {r["id"]: r for r in engine.load_rules()}
+assert rs[8]["enabled"] is False and rs[8]["superseded_by"] == 7 and rs[7]["enabled"]
+assert engine.rule_conflict_groups(engine.load_rules(), TREE) == [], "고르면 겹침이 사라짐"
+
+# ── 예외 대상이 여럿이면 후보를 돌려주고, 고른 규칙에 그대로 붙인다 ──
+engine.save_rules([saved(7, care_rule(value="10")), saved(8, care_rule(value="480"))])
+out = {"ok": True, "intent": "set_override", "override": {"home": "102", "type": "motion", "value": "360"}}
+res = engine._apply_override("102호만 6시간", out, TREE, [])
+assert res["status"] == "needs_choice" and [c["id"] for c in res["candidates"]] == [7, 8]
+assert res["choice"] == {"home": "102", "type": "motion", "value": "360"}
+res = engine.apply_override_to(8, "102", "360", devices=TREE)
+assert res["ok"]
+assert {r["id"]: r for r in engine.load_rules()}[8]["rule"]["overrides"]["102"]["value"] == "360"
+assert not engine.apply_override_to(8, "113", "360", devices=TREE)["ok"], "없는 세대 예외는 여전히 막힘"
+
 print("규칙 겹침·단계 경보 점검 통과")
