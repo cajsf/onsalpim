@@ -102,6 +102,13 @@ assert res["ok"]
 ov = {r["id"]: r for r in engine.load_rules()}[8]["rule"]["overrides"]["102"]
 assert ov["value"] == "360" and ov["by"] == "복지사" and ov["at"], "누가·언제 적용했는지 남김"
 
+# 예외 삭제 — 공통 기준으로 돌아가고, 지운 기록은 남는다
+res = engine.remove_override(8, "102")
+assert res["ok"] and "102" not in res["rule"]["rule"]["overrides"]
+h = res["rule"]["history"][-1]
+assert h["action"] == "override_removed" and h["value"] == "360" and h["by"] == "복지사"
+assert not engine.remove_override(8, "102")["ok"], "없는 예외는 못 지움"
+
 # 대상이 하나여도 바로 저장하지 않고 확인을 받는다
 engine.save_rules([saved(8, care_rule(value="480"))])
 res = engine._apply_override("102호만 6시간", out, TREE, [])

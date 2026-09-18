@@ -57,6 +57,28 @@ async function pick(c) {
   emit('changed')
 }
 
+/* 예외 삭제 — 공통 기준으로 돌아간다. 두 번 눌러야 지운다 */
+const confirmDel = ref(false)
+async function removeOverride() {
+  if (!confirmDel.value) {
+    confirmDel.value = true
+    setTimeout(() => { confirmDel.value = false }, 4000)
+    return
+  }
+  if (busy.value) return
+  busy.value = true; error.value = ''; notice.value = ''
+  try {
+    await api.deleteOverride(applied.value.rule_id, props.home)
+    notice.value = `${props.home}호 예외를 지웠습니다. 다음 판정(몇 초 안)부터 공통 기준 ${fmtMinutes(applied.value.common)}을 따릅니다.`
+    emit('changed')
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    busy.value = false
+    confirmDel.value = false
+  }
+}
+
 /* ── 임시 예외: 부재 등록 ── */
 const REASONS = ['입원', '가족 방문', '외출·여행']
 const reason = ref('')
@@ -140,7 +162,11 @@ async function endAbsence(a) {
       <p class="now muted">
         <template v-if="applied.minutes">
           지금 {{ home }}호 무활동 기준: <strong>{{ fmtMinutes(applied.minutes) }}</strong> 넘게 움직임이 없으면 긴급 확인
-          <template v-if="applied.source === 'override'"> (이 세대 예외 · 공통 {{ fmtMinutes(applied.common) }})</template>
+          <template v-if="applied.source === 'override'"> (이 세대 예외 · 공통 {{ fmtMinutes(applied.common) }})
+            <button class="btn sm ghost" :class="{ danger: confirmDel }" :disabled="busy" @click="removeOverride">
+              {{ confirmDel ? '한 번 더 누르면 삭제' : '예외 삭제' }}
+            </button>
+          </template>
           <template v-else> (전체 세대 공통 기준)</template>
         </template>
         <template v-else>이 세대에 걸린 무활동 규칙이 없습니다. 먼저 전체 세대 규칙을 만들어 주세요.</template>

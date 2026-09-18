@@ -137,6 +137,13 @@ def override_rule(rule_id):
     return jsonify(result), (200 if result["ok"] else 422)
 
 
+@app.route("/api/rules/<int:rule_id>/override/<home>", methods=["DELETE"])
+def delete_override(rule_id, home):
+    """세대 예외 삭제 — 그 세대는 공통 기준으로 돌아간다. 지운 기록은 규칙에 남는다."""
+    result = engine.remove_override(rule_id, home)
+    return jsonify(result), (200 if result["ok"] else 404)
+
+
 @app.route("/api/rules/<int:rule_id>/toggle", methods=["POST"])
 def toggle_rule(rule_id):
     result = engine.toggle_rule(rule_id)
@@ -254,7 +261,8 @@ def care_state():
     data["stale"] = stale     # 판정이 멈춰 있으면 화면이 옛 상태를 최신처럼 보여주면 안 된다
     # 겹친 규칙은 규칙 파일로 바로 계산한다 — 복지사가 하나를 고르면 엔진 한 바퀴를 기다리지 않고 사라져야 한다
     try:
-        data["rule_conflicts"] = engine.rule_conflict_groups(engine.load_rules(), iot.read_tree(AE))
+        # 장치 목록은 거의 안 바뀐다 — 3초마다 오는 화면 요청이 공용 서버를 기다리지 않게 5분 캐시를 쓴다
+        data["rule_conflicts"] = engine.rule_conflict_groups(engine.load_rules(), iot.read_tree(AE, max_age=300))
     except requests.RequestException:
         data["rule_conflicts"] = []
     return jsonify(data)

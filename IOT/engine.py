@@ -181,6 +181,25 @@ def apply_override_to(rule_id, home, value, devices=None, by="복지사"):
     return _attach_override(target, rules, str(home).strip(), str(value).strip(), devices, [], by)
 
 
+def remove_override(rule_id, home, by="복지사"):
+    """세대 예외를 지운다 — 그 세대는 다시 공통 기준을 따른다.
+    지운 값과 누가·언제 지웠는지 규칙의 history 에 남긴다 (예외가 왜 사라졌는지 설명할 수 있어야 한다)."""
+    rules = load_rules()
+    target = next((r for r in rules if r["id"] == rule_id), None)
+    if target is None:
+        return {"ok": False, "errors": [f"규칙 #{rule_id}을 찾을 수 없습니다."]}
+    home = str(home).strip()
+    ov = (target["rule"].get("overrides") or {}).get(home)
+    if ov is None:
+        return {"ok": False, "errors": [f"규칙 #{rule_id}에는 {home}호 예외가 없습니다."]}
+    del target["rule"]["overrides"][home]
+    target.setdefault("history", []).append({
+        "action": "override_removed", "home": home, "value": ov.get("value"),
+        "by": by, "at": datetime.now().isoformat(timespec="seconds")})
+    save_rules(rules)
+    return {"ok": True, "errors": [], "rule": target}
+
+
 def _override_check(target, rules, home, value, devices, by=None):
     """예외를 얹은 사본을 만들어 검증만 한다 (저장 안 함)."""
     merged = dict(target["rule"])

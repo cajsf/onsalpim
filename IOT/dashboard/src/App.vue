@@ -65,7 +65,7 @@ function onAlertChanged(p) {
   }
   refresh()
 }
-/* 요약 카드 → 세대 현황 표를 그 상태로 걸러서 보여준다 */
+/* 요약 카드 네 개 모두 같은 동작 — 아래 세대 현황 표를 그 탭으로 바꿔 보여준다 (화면을 떠나지 않는다) */
 async function showHomes(f) {
   activeView.value = 'dashboard'
   filter.value = f
@@ -402,6 +402,36 @@ async function reject(id) {
   }
 }
 
+/* 세대 예외 삭제 — 두 번 눌러야 지운다 (4초 안에) */
+const confirmingOv = ref(null)
+async function deleteOverride(id, home) {
+  const key = `${id}/${home}`
+  if (confirmingOv.value !== key) {
+    confirmingOv.value = key
+    setTimeout(() => { if (confirmingOv.value === key) confirmingOv.value = null }, 4000)
+    return
+  }
+  if (ruleBusy.value) return
+  ruleBusy.value = id
+  try {
+    await api.deleteOverride(id, home)
+    // 새로고침을 기다리지 않고 화면에서 바로 뺀다
+    rules.value = rules.value.map((r) => {
+      if (r.id !== id) return r
+      const { [home]: _gone, ...rest } = r.rule.overrides || {}
+      return { ...r, rule: { ...r.rule, overrides: rest } }
+    })
+    ruleError.value = ''
+    ruleNotice.value = `규칙 #${id}의 ${home}호 예외를 지웠습니다. ${home}호는 공통 기준을 따릅니다.`
+    await refresh()
+  } catch (e) {
+    ruleError.value = e.message
+  } finally {
+    ruleBusy.value = null
+    confirmingOv.value = null
+  }
+}
+
 async function toggleRule(id) {
   if (ruleBusy.value) return
   ruleBusy.value = id
@@ -511,8 +541,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       <main v-if="activeView === 'dashboard'" class="content">
         <!-- KPI -->
         <section class="kpis">
-          <article class="kpi kpi-blue clickable" role="button" tabindex="0" title="세대 관리로"
-                   @click="activeView = 'homes'" @keyup.enter="activeView = 'homes'">
+          <article class="kpi kpi-blue clickable" role="button" tabindex="0" title="전체 세대 보기"
+                   @click="showHomes('all')" @keyup.enter="showHomes('all')">
             <div class="kpi-ico">👥</div>
             <div>
               <p class="kpi-label">전체 모니터링 세대</p>
@@ -538,8 +568,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <p class="kpi-foot">통신 두절 — 생활 판정 보류</p>
             </div>
           </article>
-          <article class="kpi kpi-green clickable" role="button" tabindex="0" title="규칙 관리로"
-                   @click="activeView = 'rules'" @keyup.enter="activeView = 'rules'">
+          <article class="kpi kpi-green clickable" role="button" tabindex="0" title="승인 대기 규칙 보기"
+                   @click="showHomes('pending')" @keyup.enter="showHomes('pending')">
             <div class="kpi-ico">📋</div>
             <div>
               <p class="kpi-label">승인 대기 규칙</p>
@@ -905,7 +935,19 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <div><dt>조건</dt><dd>{{ condText(r.rule) }}</dd></div>
               <div><dt>동작</dt><dd>{{ actText(r.rule) }}</dd></div>
               <div><dt>적용 대상</dt><dd>{{ scopeText(r.rule) }}</dd></div>
-              <div v-if="overrideText(r.rule)"><dt>세대별 예외</dt><dd>{{ overrideText(r.rule) }}</dd></div>
+              <div v-if="overrideText(r.rule)">
+                <dt>세대별 예외</dt>
+                <dd class="ov-list">
+                  <span v-for="(ov, home) in r.rule.overrides" :key="home" class="ov-item">
+                    {{ home }}호 {{ fmtMinutes(ov.value) }}
+                    <span v-if="ov.by" class="muted">({{ ov.by }} · {{ stampOf(ov.at) }})</span>
+                    <button class="btn sm ghost" :class="{ danger: confirmingOv === r.id + '/' + home }"
+                            :disabled="ruleBusy === r.id" @click="deleteOverride(r.id, home)">
+                      {{ confirmingOv === r.id + '/' + home ? '한 번 더 누르면 삭제' : '예외 삭제' }}
+                    </button>
+                  </span>
+                </dd>
+              </div>
             </dl>
             <div class="pending-act">
               <button class="btn ghost" :disabled="ruleBusy === r.id" @click="toggleRule(r.id)">{{ r.enabled ? '일시중지' : '재개' }}</button>
@@ -1277,6 +1319,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .pstep.ok .pico { color: var(--normal); }
 .pstep.fail .pico { color: var(--urgent); }
 .pstep.warn .pico { color: var(--watch); }
+.ov-list { display: grid; gap: 0.25rem; }
+.ov-item { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
 .kpi.clickable { cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
 .kpi.clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .kpi.clickable:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
