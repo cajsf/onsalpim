@@ -284,8 +284,16 @@ def add_rule_from_sentence(sentence, devices):
     if conflicts:
         return _stop(steps, flow, conflicts, rule=out.get("rule"), reason="충돌로 건너뜀")
 
+    # 4-b) 같은 세대·같은 위험도의 무활동 규칙이 이미 있는가 — 거부하지 않고 복지사가 고르게 한다
+    overlaps = scope.idle_overlaps(out["rule"], devices, rules)
+    if overlaps:
+        steps[-1]["status"] = "warn"
+        steps[-1]["detail"] = "; ".join(
+            f'규칙 #{o["id"]}({o["summary"]})과 {", ".join(o["homes"])}호에서 겹침 — 승인 대기에서 대체 또는 거부'
+            for o in overlaps)
+
     # 5) 저장 — 바로 실행하지 않는다. 담당자 승인을 거친다. (전시 계획안 ③)
-    new_id = _save_new(rules, sentence, out["rule"])
+    new_id = _save_new(rules, sentence, out["rule"], conflicts=overlaps)
 
     steps.append({
         "id": "save",
@@ -301,6 +309,7 @@ def add_rule_from_sentence(sentence, devices):
         "errors": [],
         "questions": [],
         "warnings": sc["warnings"],
+        "conflicts": overlaps,
         "rule": out["rule"],
         "id": new_id,
         "steps": steps,
@@ -310,8 +319,8 @@ def add_rule_from_sentence(sentence, devices):
 
 # ---------- 승인 대기함 ----------
 
-def _save_new(rules, sentence, rule, questions=None):
-    """새 규칙을 '승인 대기' 상태로 저장하고 id 를 돌려준다."""
+def _save_new(rules, sentence, rule, questions=None, conflicts=None):
+    """새 규칙을 '승인 대기' 상태로 저장하고 id 를 돌려준다. conflicts = 겹치는 기존 규칙 (승인 때 다시 계산한다)."""
     new_id = max([r["id"] for r in rules], default=0) + 1
     rules.append({
         "id": new_id,
@@ -320,13 +329,14 @@ def _save_new(rules, sentence, rule, questions=None):
         "enabled": True,
         "status": PENDING,
         "questions": questions or [],
+        "conflicts": conflicts or [],
         "created": datetime.now().isoformat(timespec="seconds"),
     })
     save_rules(rules)
     return new_id
 
 
-def approve_rule(rule_id, fill_value=None, by="복지사"):
+def approve_rule(rule_id, fill_value=None, by="복지사", replace=False, devices=None):
     """승인 대기 규칙을 승인해서 실행 대상으로 만든다.
 
     fill_value 가 주어지면 비어 있던 기준값을 그 값으로 채운다
@@ -346,11 +356,60 @@ def approve_rule(rule_id, fill_value=None, by="복지사"):
     if not str((target["rule"].get("when") or {}).get("value", "")).strip():
         return {"ok": False, "errors": ["기준값이 비어 있습니다. 값을 정한 뒤 승인해 주세요."]}
 
+    # 겹침은 저장 때가 아니라 '지금' 다시 본다 — 그 사이 기존 규칙이 지워졌거나 새로 켜졌을 수 있다
+    devices = devices if devices is not None else iot.read_tree("byeongari")
+    others = [r for r in rules if r["id"] != rule_id]
+    overlaps = scope.idle_overlaps(target["rule"], devices, others)
+    target["conflicts"] = overlaps
+    if overlaps and not replace:
+        save_rules(rules)
+        ids = ", ".join(f'#{o["id"]}' for o in overlaps)
+        return {"ok": False, "conflicts": overlaps,
+                "errors": [f"기존 규칙 {ids}과 같은 세대·같은 위험도로 겹칩니다. '기존 규칙 대체' 또는 '거부'를 골라 주세요."]}
+    partial = [o for o in overlaps if not o["covers_all"]]
+    if partial:
+        o = partial[0]
+        return {"ok": False, "conflicts": overlaps, "errors": [
+            f'규칙 #{o["id"]}의 일부 세대({", ".join(o["homes"])}호)와만 겹쳐 대체할 수 없습니다 — '
+            f'대체하면 나머지 세대의 기준까지 사라집니다. 일부 세대만 바꾸려면 '
+            f'"{o["homes"][0]}호만 무활동 기준을 ○시간으로 바꿔줘"처럼 예외로 입력해 주세요.']}
+
+    now = datetime.now().isoformat(timespec="seconds")
+    for o in overlaps:        # 대체된 규칙은 지우지 않고 꺼 둔다 — 무엇이 언제 누구에 의해 바뀌었는지 남는다
+        old = next(r for r in rules if r["id"] == o["id"])
+        old["enabled"] = False
+        old["superseded_by"] = rule_id
+        old["superseded_at"] = now
+        old["superseded_who"] = by
+    target["conflicts"] = []
+    if overlaps:
+        target["replaced"] = [o["id"] for o in overlaps]
+
     target["status"] = APPROVED
     target["approved_by"] = by
     target["approved_at"] = datetime.now().isoformat(timespec="seconds")
     save_rules(rules)
     return {"ok": True, "errors": [], "rule": target}
+
+
+def toggle_rule(rule_id, devices=None):
+    """일시중지 ↔ 재개. 다시 켤 때 같은 세대·같은 위험도의 규칙이 이미 켜져 있으면 거부한다
+    (끈 사이 다른 규칙으로 대체됐을 수 있다 — 켜면 몰래 둘 중 하나만 적용된다)."""
+    rules = load_rules()
+    target = next((r for r in rules if r["id"] == rule_id), None)
+    if target is None:
+        return {"ok": False, "errors": [f"규칙 #{rule_id}을 찾을 수 없습니다."]}
+    if not target.get("enabled", True):
+        devices = devices if devices is not None else iot.read_tree("byeongari")
+        overlaps = scope.idle_overlaps(target["rule"], devices, [r for r in rules if r["id"] != rule_id])
+        if overlaps:
+            ids = ", ".join(f'#{o["id"]}' for o in overlaps)
+            return {"ok": False, "errors": [
+                f"켜 둔 규칙 {ids}과 같은 세대·같은 위험도로 겹쳐 다시 켤 수 없습니다. 그 규칙을 먼저 끄거나 지워 주세요."]}
+        target.pop("superseded_by", None)
+    target["enabled"] = not target.get("enabled", True)
+    save_rules(rules)
+    return {"ok": True, "errors": []}
 
 
 def reject_rule(rule_id):
@@ -692,32 +751,36 @@ def run_once(rules, last_sent):
 
 # ---------- 돌봄 상태 수집 (Watchdog 입력) ----------
 
-def effective_idle_minutes(rules, devices):
-    """활성 돌봄 규칙을 전개해서 '세대별 유효 무활동 기준(분)'을 구한다.
+def effective_idle_levels(rules, devices):
+    """세대별 무활동 단계 기준. ({home: [{'minutes','severity','source','common','rule_id'}, ...]}, 충돌 목록)
 
-    공통 규칙을 깔고 특정 세대만 예외를 덮어쓰는 구조라, 실제로 적용되는 값은
-    규칙 JSON 을 그대로 읽어선 알 수 없고 전개(expand)해야 나온다.
-    → 이 함수의 출력이 곧 대시보드 추적표의 '적용 기준' 칸이다.
-
-    반환: {home: {'minutes': '360', 'source': 'override'|'common', 'common': '480', 'rule_id': 1}}
+    같은 세대·같은 위험도에 규칙이 둘 이상이면(규칙 파일을 직접 고쳤거나 옛 데이터) 더 짧은
+    기준을 쓴다 — 알림을 늦추는 쪽으로 틀리면 안 된다. 그리고 충돌로 보고해 화면에 띄운다.
     """
-    out = {}
+    levels, conflicts = {}, []
     for r in rules:
-        if not is_active(r):        # 승인 전 규칙은 판정에 쓰지 않는다
+        if not is_active(r):
             continue
         rule = r.get("rule") or {}
         if (rule.get("when") or {}).get("op") != scope.IDLE_OP:
             continue
+        sev = scope.rule_severity(rule)
         for p in scope.expand(rule, devices):
             if not p["applicable"] or not p["value"]:
                 continue
-            out[p["home"]] = {
-                "minutes": p["value"],
-                "source": p["source"],
-                "common": p["common"],
-                "rule_id": r.get("id"),
-            }
-    return out
+            lv = {"minutes": p["value"], "severity": sev, "source": p["source"],
+                  "common": p["common"], "rule_id": r.get("id")}
+            mine = levels.setdefault(p["home"], [])
+            dup = next((x for x in mine if x["severity"] == sev), None)
+            if dup is None:
+                mine.append(lv)
+                continue
+            pair = sorted([dup["rule_id"], r.get("id")])
+            if pair not in conflicts:
+                conflicts.append(pair)
+            if float(lv["minutes"]) < float(dup["minutes"]):
+                mine[mine.index(dup)] = lv
+    return levels, conflicts
 
 
 def collect_home_state(devices, rules):
@@ -726,7 +789,7 @@ def collect_home_state(devices, rules):
     세대마다 GET 2~3회 (주기 보고 / 활동 이벤트 / 배터리).
     장치 경로는 하드코딩하지 않고 라벨(home=, kind=, role=)로 찾는다.
     """
-    idle_map = effective_idle_minutes(rules, devices)
+    level_map, _ = effective_idle_levels(rules, devices)
     state = {}
 
     for home in scope.discover_homes(devices):
@@ -741,11 +804,14 @@ def collect_home_state(devices, rules):
             raw = iot.get_latest_by_path(batt_dev["path"])
             batt = _num(raw)
 
-        applied = idle_map.get(home) or {}
+        levels = level_map.get(home) or []
+        # 추적표·예외 표시는 긴급 단계를 기준으로 (없으면 첫 단계)
+        applied = next((lv for lv in levels if lv["severity"] == "URGENT"), levels[0] if levels else {})
         state[home] = {
             "contact": care_monitor.read_contact(pir),
             "last_activity": care_monitor.read_activity(evt) if evt else None,
             "idle_min": applied.get("minutes"),      # None 이면 무활동 규칙 없음
+            "idle_levels": levels,                   # 단계 경보 (주의·긴급)
             "battery": batt,
             "applied": applied,                      # 추적표용 (예외 여부·공통값)
         }
@@ -774,8 +840,9 @@ def write_care_state(results, homes_state, rules=None, devices=None):
     for r in results:
         applied = (homes_state.get(r["home"]) or {}).get("applied") or {}
         payload.append({**r, "applied": applied, "rules": by_home.get(r["home"], [])})
+    _, conflicts = effective_idle_levels(rules or [], devices or [])
     with open(CARE_STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump({"updated": datetime.now().isoformat(), "homes": payload},
+        json.dump({"updated": datetime.now().isoformat(), "homes": payload, "rule_conflicts": conflicts},
                   f, ensure_ascii=False, indent=2)
 
 

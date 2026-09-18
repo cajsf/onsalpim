@@ -322,8 +322,8 @@ async function submitRule() {
   }
 }
 
-async function approve(id, value) {
-  const res = await api.approveRule(id, value)
+async function approve(id, value, replace = false) {
+  const res = await api.approveRule(id, value, replace)
   if (!res.ok) { ruleError.value = res.errors?.join(' ') || '승인에 실패했습니다.'; return }
   ruleError.value = ''; clarify.value = ''; fillValue.value = ''
   if (lastResult.value?.id === id) lastResult.value = null
@@ -348,6 +348,7 @@ async function reject(id) {
   try {
     const res = await api.rejectRule(id)
     if (!res.ok) { ruleError.value = res.errors?.join(' ') || '삭제에 실패했습니다.'; return }
+    ruleError.value = ''
     if (lastResult.value?.id === id) lastResult.value = null
     await refresh()
   } catch (e) {
@@ -361,10 +362,16 @@ async function reject(id) {
 async function toggleRule(id) {
   if (ruleBusy.value) return
   ruleBusy.value = id
-  try { await api.toggleRule(id); await refresh() } finally { ruleBusy.value = null }
+  try {
+    await api.toggleRule(id)
+    ruleError.value = ''
+    await refresh()
+  } catch (e) {
+    ruleError.value = e.message        // 겹치는 규칙이 켜져 있으면 서버가 거부한다
+  } finally { ruleBusy.value = null }
 }
 function useExample(ex) { sentence.value = ex; inputTab.value = 'nl' }
-function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '⋯', pending: '○' })[s] || '○' }
+function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '⋯', pending: '○', warn: '!' })[s] || '○' }
 
 </script>
 
@@ -443,6 +450,11 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       </header>
 
       <p class="stamp">{{ nowText }}</p>
+      <p v-if="care.rule_conflicts && care.rule_conflicts.length" class="banner warn">
+        같은 세대에 같은 위험도의 무활동 규칙이 겹쳐 있습니다
+        ({{ care.rule_conflicts.map((p) => '#' + p.join('·#')).join(', ') }}). 더 짧은 기준을 적용 중입니다 —
+        <a href="#" @click.prevent="activeView = 'rules'">규칙 관리</a>에서 하나를 끄거나 지워 주세요.
+      </p>
       <p v-if="connectionError" class="banner err">{{ connectionError }}</p>
       <p v-else-if="!engineRunning" class="banner warn">
         규칙 엔진이 실행 중이 아닙니다. 세대 판정이 갱신되지 않습니다 —
@@ -528,13 +540,21 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   <div><dt>적용 대상</dt><dd>{{ scopeText(r.rule) }}</dd></div>
                 </dl>
                 <p v-for="q in r.questions" :key="q" class="msg clarify">{{ q }}</p>
+                <p v-for="c in r.conflicts || []" :key="c.id" class="msg warn">
+                  ⚠ 기존 규칙 #{{ c.id }}({{ c.summary }})과 {{ c.homes.join(', ') }}호에서 같은 위험도로 겹칩니다.
+                  <template v-if="c.covers_all">대체하면 #{{ c.id }}은(는) 예외까지 함께 꺼지고, 대체 기록이 남습니다.</template>
+                  <template v-else>일부 세대만 겹쳐 대체할 수 없습니다 — 그 세대만 바꾸려면 "○호만 무활동 기준을 …"처럼 예외로 입력해 주세요.</template>
+                </p>
                 <div class="pending-act">
                   <input
                     v-if="r.questions && r.questions.length"
                     v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
                   />
                   <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? '한 번 더 누르면 거부' : '거부' }}</button>
-                  <button class="btn primary" @click="approve(r.id, fillValue || undefined)">승인하기</button>
+                  <button class="btn primary" :disabled="(r.conflicts || []).some((c) => !c.covers_all)"
+                      @click="approve(r.id, fillValue || undefined, !!(r.conflicts || []).length)">
+                {{ (r.conflicts || []).length ? '기존 규칙 대체' : '승인하기' }}
+              </button>
                 </div>
               </article>
             </div>
@@ -680,6 +700,11 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               </dl>
 
               <pre v-if="rulePlan" class="plan mono">{{ rulePlan }}</pre>
+              <p v-for="c in lastResult.conflicts || []" :key="c.id" class="msg warn">
+                ⚠ 기존 규칙 #{{ c.id }}({{ c.summary }})과 {{ c.homes.join(', ') }}호에서 같은 위험도로 겹칩니다.
+                <template v-if="c.covers_all">대체하면 #{{ c.id }}은(는) 예외까지 함께 꺼집니다.</template>
+                <template v-else>일부 세대만 겹쳐 대체할 수 없습니다 — 예외로 입력해 주세요.</template>
+              </p>
 
               <div class="summary-act">
                 <input
@@ -687,8 +712,9 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
                 />
                 <button class="btn ghost" :class="{ danger: confirmingId === lastResult.id }" :disabled="ruleBusy === lastResult.id" @click="reject(lastResult.id)">{{ confirmingId === lastResult.id ? '한 번 더 누르면 거부' : '거부' }}</button>
-                <button class="btn primary" @click="approve(lastResult.id, fillValue || undefined)">
-                  승인하기
+                <button class="btn primary" :disabled="(lastResult.conflicts || []).some((c) => !c.covers_all)"
+                        @click="approve(lastResult.id, fillValue || undefined, !!(lastResult.conflicts || []).length)">
+                  {{ (lastResult.conflicts || []).length ? '기존 규칙 대체' : '승인하기' }}
                 </button>
               </div>
             </div>
@@ -747,6 +773,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             </div>
             <span class="count">{{ pendingRules.length }}건</span>
           </div>
+          <p v-if="ruleError" class="msg err">{{ ruleError }}</p>
           <p v-if="!pendingRules.length" class="empty">승인 대기 중인 규칙이 없습니다.</p>
           <article v-for="r in pendingRules" :key="r.id" class="pending-item">
             <div class="pending-top">
@@ -760,13 +787,21 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <div><dt>적용 대상</dt><dd>{{ scopeText(r.rule) }}</dd></div>
             </dl>
             <p v-for="q in r.questions" :key="q" class="msg clarify">{{ q }}</p>
+            <p v-for="c in r.conflicts || []" :key="c.id" class="msg warn">
+              ⚠ 기존 규칙 #{{ c.id }}({{ c.summary }})과 {{ c.homes.join(', ') }}호에서 같은 위험도로 겹칩니다.
+              <template v-if="c.covers_all">대체하면 #{{ c.id }}은(는) 예외까지 함께 꺼지고, 대체 기록이 남습니다.</template>
+              <template v-else>일부 세대만 겹쳐 대체할 수 없습니다 — 그 세대만 바꾸려면 "○호만 무활동 기준을 …"처럼 예외로 입력해 주세요.</template>
+            </p>
             <div class="pending-act">
               <input
                 v-if="r.questions && r.questions.length"
                 v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
               />
               <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? '한 번 더 누르면 거부' : '거부' }}</button>
-              <button class="btn primary" @click="approve(r.id, fillValue || undefined)">승인하기</button>
+              <button class="btn primary" :disabled="(r.conflicts || []).some((c) => !c.covers_all)"
+                      @click="approve(r.id, fillValue || undefined, !!(r.conflicts || []).length)">
+                {{ (r.conflicts || []).length ? '기존 규칙 대체' : '승인하기' }}
+              </button>
             </div>
           </article>
         </section>
@@ -784,6 +819,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <span v-if="r.approved_by" class="muted">
                 {{ r.approved_by }} 승인 · {{ stampOf(r.approved_at) }}
               </span>
+              <span v-if="r.superseded_by && !r.enabled" class="tag tag-muted">
+                #{{ r.superseded_by }}로 대체됨 · {{ r.superseded_who }} · {{ stampOf(r.superseded_at) }}
+              </span>
+              <span v-if="r.replaced && r.replaced.length" class="muted">#{{ r.replaced.join(', #') }} 대체</span>
             </div>
             <dl class="mini">
               <div><dt>조건</dt><dd>{{ condText(r.rule) }}</dd></div>
@@ -1162,6 +1201,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .pico { font-weight: 700; }
 .pstep.ok .pico { color: var(--normal); }
 .pstep.fail .pico { color: var(--urgent); }
+.pstep.warn .pico { color: var(--watch); }
+.msg.warn { background: var(--watch-soft); color: var(--text); }
 .pstep.skip { opacity: 0.5; }
 .pnum { color: var(--muted); font-size: 0.68rem; }
 .plabel { font-weight: 600; white-space: nowrap; }

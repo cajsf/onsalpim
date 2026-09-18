@@ -33,6 +33,14 @@ const judgedAgo = computed(() => secondsSince(props.h.judged_at))
     <div v-if="h.applied && h.applied.common">
       <dt>공통 기준</dt><dd>{{ fmtMinutes(h.applied.common) }}</dd>
     </div>
+    <div v-if="h.idle_levels && h.idle_levels.length > 1">
+      <dt>단계 기준</dt>
+      <dd>
+        <span v-for="(lv, i) in h.idle_levels" :key="i">
+          {{ i ? ' → ' : '' }}{{ fmtMinutes(lv.minutes) }} {{ SEV[lv.severity]?.ko }}
+        </span>
+      </dd>
+    </div>
     <div v-if="h.idle_min != null">
       <dt>적용 기준</dt>
       <dd>

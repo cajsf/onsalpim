@@ -144,13 +144,13 @@ def read_activity(dev):
 
 # ---------- 판정 ----------
 
-def judge(contact, last_activity, idle_min, battery=None, now=None):
+def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=None):
     """한 세대의 위험도를 판정한다.
 
     판정 '순서'가 이 함수의 전부다 — 기기를 먼저 보고, 기기가 믿을 만할 때만 생활을 본다.
 
       ① 통신이 끊겼다      → 점검 필요. 생활 판정은 하지 않는다(무활동 타이머 정지)
-      ② 기기 정상 + 무활동 → 긴급 확인
+      ② 기기 정상 + 무활동 → 넘은 단계 중 가장 높은 위험도 (긴급 확인 / 주의)
       ③ 기기 정상 + 배터리 → 주의
       ④ 그 외              → 정상
 
@@ -158,9 +158,18 @@ def judge(contact, last_activity, idle_min, battery=None, now=None):
     통신 두절 세대가 전부 자동으로 '긴급' 오탐이 된다. 데이터를 못 믿는 상태에서
     생활 이상을 단정하면 안 된다.
 
+    idle_levels: [{'minutes', 'severity'}, ...] — 단계 경보 (예: 180분 주의, 480분 긴급).
+      없으면 idle_min 하나를 긴급 기준으로 쓴다 (기존 호출 호환).
+
     반환: {'severity', 'reason', 'idle_s', 'silent_s', 'life_known'}
     """
     now = now or datetime.now()
+    if idle_levels is None:
+        idle_levels = [] if idle_min is None else [{"minutes": idle_min, "severity": URGENT}]
+    idle_levels = sorted(idle_levels, key=lambda lv: float(lv["minutes"]))
+    if idle_levels:
+        idle_min = next((lv["minutes"] for lv in idle_levels if lv["severity"] == URGENT),
+                        idle_levels[0]["minutes"])
 
     silent_s = _elapsed_s(contact["ts"], now)
     stale_after = STALE_FACTOR * contact["period_s"]
@@ -185,6 +194,7 @@ def judge(contact, last_activity, idle_min, battery=None, now=None):
             "judged_at": _iso(now),
             "battery": None if battery is None else float(battery),
             "idle_min": None if idle_min is None else float(idle_min),
+            "idle_levels": [{"minutes": float(lv["minutes"]), "severity": lv["severity"]} for lv in idle_levels],
             "life_known": life_known,
         }
 
@@ -211,13 +221,27 @@ def judge(contact, last_activity, idle_min, battery=None, now=None):
     # idle_min 이 None 이면 이 세대에 걸린 무활동 규칙이 없다는 뜻 → 생활 판정을 하지 않는다.
     # (기기 상태는 규칙과 무관하게 항상 본다 — 장치가 죽은 건 규칙이 없어도 알아야 한다)
     idle_s = _elapsed_s(last_activity, now)
-    if idle_min is not None and idle_s is not None and idle_s > float(idle_min) * 60:
+    passed = [lv for lv in idle_levels if idle_s is not None and idle_s > float(lv["minutes"]) * 60]
+    hit = next((lv for lv in passed if lv["severity"] == URGENT), passed[-1] if passed else None)
+    if hit and hit["severity"] == URGENT:
+        m = hit["minutes"]
         return out(
             URGENT,
-            f"{_human(idle_s)} 무활동 (기준 {human_minutes(idle_min)}, 통신 정상)",
+            f"{_human(idle_s)} 무활동 (기준 {human_minutes(m)}, 통신 정상)",
             life=f"장시간 움직임 없음 ({_human(idle_s)})",
             device=device_ok,
-            basis=f"통신 정상 + 무활동이 적용 기준({human_minutes(idle_min)})을 초과",
+            basis=f"통신 정상 + 무활동이 적용 기준({human_minutes(m)})을 초과",
+            idle_s=idle_s,
+        )
+    if hit:   # 주의 단계 — 배터리 주의보다 먼저 본다 (생활 신호가 더 중요하다)
+        m = hit["minutes"]
+        return out(
+            WATCH,
+            f"{_human(idle_s)} 무활동 (주의 기준 {human_minutes(m)}, 통신 정상)",
+            life=f"움직임 없음 ({_human(idle_s)}) — 주의 기준 초과",
+            device=device_ok if battery is None or float(battery) >= BATTERY_LOW else f"배터리 부족 ({batt_pct})",
+            basis=f"통신 정상 + 무활동이 주의 기준({human_minutes(m)})을 초과"
+                  + (f" · 긴급 기준 {human_minutes(idle_min)}" if idle_min != m else ""),
             idle_s=idle_s,
         )
 
@@ -232,8 +256,9 @@ def judge(contact, last_activity, idle_min, battery=None, now=None):
                    idle_s=idle_s)
 
     # ④ 정상
+    first = idle_levels[0]["minutes"] if idle_levels else None
     basis = "통신 정상 + 최근 활동 확인" + (
-        f" (적용 기준 {human_minutes(idle_min)} 이내)" if idle_min is not None else "")
+        f" (적용 기준 {human_minutes(first)} 이내)" if first is not None else "")
     return out(NORMAL, life_text, life=life_text, device=device_ok, basis=basis, idle_s=idle_s)
 
 
@@ -311,7 +336,7 @@ class Watchdog:
         results = []
         for home, st in homes_state.items():
             v = judge(st["contact"], st.get("last_activity"), st.get("idle_min"),
-                      st.get("battery"), now)
+                      st.get("battery"), now, st.get("idle_levels"))
             prev = self.last_severity.get(home)
             changed = prev != v["severity"]
             self.last_severity[home] = v["severity"]
@@ -325,6 +350,7 @@ class Watchdog:
                 "silent_s": v["silent_s"],
                 "idle_s": v["idle_s"],      # 화면이 예외의 실제 효과를 따질 때 쓴다
                 "idle_min": v["idle_min"],  # 이 세대에 적용된 무활동 기준(분)
+                "idle_levels": v["idle_levels"],   # 단계 경보 전체 (주의·긴급)
                 "basis": v["basis"],        # 왜 이 판정이 나왔는가
                 "last_contact_at": v["last_contact_at"],
                 "last_activity_at": v["last_activity_at"],

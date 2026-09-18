@@ -97,13 +97,8 @@ def delete_rule(rule_id):
 
 @app.route("/api/rules/<int:rule_id>/toggle", methods=["POST"])
 def toggle_rule(rule_id):
-    rules = engine.load_rules()
-    for r in rules:
-        if r["id"] == rule_id:
-            r["enabled"] = not r.get("enabled", True)
-            break
-    engine.save_rules(rules)
-    return jsonify({"ok": True, "rules": rules})
+    result = engine.toggle_rule(rule_id)
+    return jsonify(result), (200 if result["ok"] else 409)
 
 
 @app.route("/api/speech", methods=["POST"])
@@ -156,7 +151,7 @@ def approve_rule(rule_id):
     ("오래 움직임이 없으면" → 담당자가 8시간으로 확정)
     """
     data = request.get_json(silent=True) or {}
-    result = engine.approve_rule(rule_id, fill_value=data.get("value"))
+    result = engine.approve_rule(rule_id, fill_value=data.get("value"), replace=bool(data.get("replace")))
     return jsonify(result), (200 if result["ok"] else 422)
 
 

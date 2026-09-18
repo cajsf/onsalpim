@@ -26,11 +26,12 @@ export const api = {
   // 세대 타임라인 — 엔진이 남긴 위험도 변화·움직임 (최근 24시간)
   getHistory: (home) => request(`/history/${encodeURIComponent(home)}`),
   // value 를 같이 보내면 비어 있던 기준값을 채우면서 승인한다
-  async approveRule(id, value) {
+  // replace=true → 같은 세대·같은 위험도로 겹치는 기존 규칙을 끄고 이 규칙으로 대체
+  async approveRule(id, value, replace = false) {
     const res = await fetch(`${BASE}/rules/${id}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(value === undefined ? {} : { value }),
+      body: JSON.stringify({ ...(value === undefined ? {} : { value }), replace }),
     })
     return res.json().catch(() => ({}))
   },

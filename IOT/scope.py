@@ -42,6 +42,9 @@ IDLE_OP = "idle_over_m"
 
 # 위험도 — 전시 계획안 ⑤의 4분류.
 SEVERITIES = {"NORMAL", "WATCH", "URGENT", "CHECK_DEVICE"}
+# 무활동 규칙이 쓸 수 있는 위험도 — 단계 경보(예: 3시간 주의 → 8시간 긴급). 점검 필요는 기기 몫이다.
+IDLE_SEVERITIES = ("WATCH", "URGENT")
+SEV_KO = {"NORMAL": "정상", "WATCH": "주의", "URGENT": "긴급", "CHECK_DEVICE": "점검 필요"}
 
 
 # ---------- 세대 발견 (하드코딩 없음) ----------
@@ -278,6 +281,25 @@ def validate_scope(rule, devices, existing_rules=None):
         sev = act.get("severity")
         if sev and sev not in SEVERITIES:
             errors.append(f"then: 알 수 없는 위험도 '{sev}' (가능: {', '.join(sorted(SEVERITIES))})")
+        elif sev and when.get("op") == IDLE_OP and sev not in IDLE_SEVERITIES:
+            errors.append(f"무활동 규칙의 위험도는 주의 또는 긴급만 가능합니다 ('{SEV_KO.get(sev, sev)}')")
+
+    # ⑧ 단계 경보가 뒤집혀 있는가 — 주의 기준이 긴급 기준보다 길면 주의 단계는 끝내 안 나타난다
+    if when.get("op") == IDLE_OP and not errors:
+        mine = rule_severity(rule)
+        for r in _active_idle_rules(existing_rules, type_):
+            other = r["rule"]
+            if rule_severity(other) == mine:
+                continue
+            try:
+                a, b = float(when.get("value")), float((other.get("when") or {}).get("value"))
+            except (TypeError, ValueError):
+                continue
+            watch_m, urgent_m = (a, b) if mine == "WATCH" else (b, a)
+            if watch_m >= urgent_m:
+                warnings.append(
+                    f'규칙 #{r.get("id")}과 함께 쓰면 주의 기준({_fmt_minutes(watch_m)})이 '
+                    f'긴급 기준({_fmt_minutes(urgent_m)})보다 길어 주의 단계가 나타나지 않습니다')
 
     if errors:
         status = "rejected"
@@ -294,6 +316,65 @@ def validate_scope(rule, devices, existing_rules=None):
         "questions": questions,
         "homes": homes,
     }
+
+
+# ---------- 겹치는 무활동 규칙 ----------
+
+def rule_severity(rule):
+    """돌봄 규칙이 표시하는 위험도. 비어 있으면 긴급 (기존 규칙 호환)."""
+    for act in rule.get("then") or []:
+        if act.get("severity"):
+            return act["severity"]
+    return "URGENT"
+
+
+def _active_idle_rules(rules, type_):
+    """승인됐고 켜져 있는 무활동 규칙 (engine.is_active 와 같은 기준 — 순환 import 를 피해 여기 둔다)."""
+    return [r for r in rules or []
+            if r.get("enabled", True) and r.get("status", "approved") == "approved"
+            and ((r.get("rule") or {}).get("when") or {}).get("op") == IDLE_OP
+            and ((r.get("rule") or {}).get("when") or {}).get("type") == type_]
+
+
+def describe_rule(rule, devices):
+    """'전체 세대 · 10분 · 긴급 (102호 예외 3분)' — 겹침 안내에 쓰는 한 줄 요약."""
+    when = rule.get("when") or {}
+    homes = str((rule.get("scope") or {}).get("homes", "")).strip()
+    where = "전체 세대" if homes.upper() == "ALL" else f"{homes}호"
+    text = f"{where} · {_fmt_minutes(when.get('value'))} · {SEV_KO.get(rule_severity(rule), '?')}"
+    ov = rule.get("overrides") or {}
+    if ov:
+        text += " (" + ", ".join(f"{u}호 예외 {_fmt_minutes(v.get('value'))}" for u, v in ov.items()) + ")"
+    return text
+
+
+def idle_overlaps(rule, devices, existing_rules):
+    """같은 세대에 같은 위험도의 무활동 기준을 정하는 활성 규칙을 찾는다.
+
+    같은 위험도끼리 겹치면 어느 쪽이 적용되는지가 규칙에 드러나지 않는다 — 시스템이 몰래
+    고르지 않고 복지사가 '기존 규칙 대체' 또는 '거부'를 고르게 한다.
+    위험도가 다르면 겹침이 아니라 단계 경보다 (3시간 주의 → 8시간 긴급).
+
+    반환: [{'id', 'sentence', 'summary', 'homes': 겹치는 세대, 'covers_all': 새 규칙이 기존 규칙의 세대를 모두 덮는가}]
+    covers_all 이 False 면 대체할 수 없다 — 대체하면 겹치지 않는 세대의 기준까지 사라진다.
+    """
+    when = rule.get("when") or {}
+    if when.get("op") != IDLE_OP:
+        return []
+    known = discover_homes(devices)
+    mine, _ = parse_homes((rule.get("scope") or {}).get("homes"), known)
+    sev = rule_severity(rule)
+    out = []
+    for r in _active_idle_rules(existing_rules, when.get("type")):
+        if rule_severity(r["rule"]) != sev:
+            continue
+        theirs, _ = parse_homes((r["rule"].get("scope") or {}).get("homes"), known)
+        both = [h for h in mine if h in theirs]
+        if both:
+            out.append({"id": r["id"], "sentence": r.get("sentence", ""),
+                        "summary": describe_rule(r["rule"], devices),
+                        "homes": both, "covers_all": set(theirs) <= set(mine)})
+    return out
 
 
 # ---------- 전개 (추적표 / 승인화면의 데이터 소스) ----------

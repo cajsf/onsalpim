@@ -61,6 +61,7 @@ npm run dev --prefix dashboard                          # 대시보드 :5173
 ```bash
 python verify_report.py      # 17/17 이어야 함 (--save 로 VERIFY_RESULT.md 갱신)
 python test_history.py       # 타임라인·집계·알림 대응 점검
+python test_rules.py         # 규칙 겹침·단계 경보 점검
 npm run build --prefix dashboard
 ```
 
