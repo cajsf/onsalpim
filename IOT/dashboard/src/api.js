@@ -35,6 +35,15 @@ export const api = {
     return res.json().catch(() => ({}))
   },
   rejectRule: (id) => request(`/rules/${id}/reject`, { method: 'POST' }),
+  // 알림 대응 기록 — status: ack | progress | done(메모 필수). 실패하면 errors 가 온다
+  async actAlert(id, status, memo = '') {
+    const res = await fetch(`${BASE}/alerts/${encodeURIComponent(id)}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, memo }),
+    })
+    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+  },
   async addRule(sentence) {
     const res = await fetch(`${BASE}/rules`, {
       method: 'POST',

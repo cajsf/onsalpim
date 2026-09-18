@@ -24,6 +24,15 @@ export const SEV = {
   URGENT:       { ko: '긴급 확인', cls: 'urgent', prio: '높음' },
   CHECK_DEVICE: { ko: '점검 필요', cls: 'device', prio: '보통' },
 }
+/* 알림 대응 상태 — 서버 engine.alerts_with_actions 의 state 와 같은 키 */
+export const ALERT_STATE = {
+  open:     { ko: '대응 필요',       cls: 'urgent' },
+  missed:   { ko: '응답 없이 지나감', cls: 'muted' },
+  ack:      { ko: '확인',            cls: 'watch' },
+  progress: { ko: '방문·연락 중',     cls: 'watch' },
+  done:     { ko: '조치 완료',        cls: 'normal' },
+  late:     { ko: '뒤늦게 확인',      cls: 'muted' },
+}
 export const SEV_ORDER = ['URGENT', 'CHECK_DEVICE', 'WATCH', 'NORMAL']
 
 export const TYPE_KO = {

@@ -4,6 +4,8 @@ import { api } from './api.js'
 import { useSpeechRecognition } from './useSpeechRecognition.js'
 import HomeBasis from './HomeBasis.vue'
 import HomeTimeline from './HomeTimeline.vue'
+import AlertItem from './AlertItem.vue'
+import AlertToasts from './AlertToasts.vue'
 import { SEV, SEV_ORDER, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf } from './format.js'
 
 // 통계 분석은 세대별 활동 이력이 쌓여야 의미가 있는데 아직 저장소가 없어 '준비 중'으로 둔다.
@@ -26,6 +28,23 @@ function goHome() {
 const care = ref({ homes: [], updated: null, stale: true, message: '' })
 const rules = ref([])
 const alerts = ref([])
+const alertFilter = ref('todo')      // 알림 이력: 미완료만 / 전체
+// open = 아무도 안 본 알림 (배지·팝업). 확인·방문 중도 조치 완료 전까지는 끝난 게 아니다 (미완료 탭).
+const openAlerts = computed(() => alerts.value.filter((a) => a.state === 'open'))
+const todoAlerts = computed(() => alerts.value.filter((a) => ['open', 'ack', 'progress'].includes(a.state)))
+const shownAlerts = computed(() => alertFilter.value === 'todo' ? todoAlerts.value : alerts.value)
+
+/* 새 알림 소리 — 전시장처럼 끄고 싶은 곳이 있다. 이 브라우저에만 기억한다 */
+const soundOn = ref(true)
+try { soundOn.value = localStorage.getItem('onsalpim.sound') !== 'off' } catch { /* 저장소를 못 쓰면 켠 상태 */ }
+function toggleSound() {
+  soundOn.value = !soundOn.value
+  try { localStorage.setItem('onsalpim.sound', soundOn.value ? 'on' : 'off') } catch { /* 무시 */ }
+}
+function openHome(home) {
+  selectedHomeId.value = home
+  activeView.value = 'homes'
+}
 const devices = ref([])
 const engineRunning = ref(false)
 const engineMessage = ref('')
@@ -348,6 +367,9 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           <span v-if="n.id === 'rules' && pendingRules.length" class="nav-badge">
             {{ pendingRules.length }}
           </span>
+          <span v-else-if="n.id === 'alerts' && openAlerts.length" class="nav-badge" title="대응 필요 알림">
+            {{ openAlerts.length }}
+          </span>
           <span v-else-if="!n.ready" class="nav-soon">준비 중</span>
         </button>
       </nav>
@@ -369,6 +391,9 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <span class="search-icon">⌕</span>
             <input v-model="search" type="text" placeholder="세대, 상태, 규칙을 검색해보세요" />
           </div>
+          <button class="btn sm ghost" :title="soundOn ? '새 알림 소리 끄기' : '새 알림 소리 켜기'" @click="toggleSound">
+            {{ soundOn ? '🔔 소리 켬' : '🔕 소리 끔' }}
+          </button>
           <span class="chip" :class="engineRunning ? 'chip-on' : 'chip-off'" :title="engineMessage">
             {{ engineRunning ? '실시간 모니터링 중' : '엔진 미실행' }}
           </span>
@@ -671,11 +696,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             </div>
             <p v-if="!alerts.length" class="empty">아직 기록된 알림이 없습니다. 위험도가 바뀔 때만 남습니다.</p>
             <ul v-else class="alerts">
-              <li v-for="(a, i) in alerts.slice(0, 5)" :key="i">
-                <span class="tag" :class="'tag-' + SEV[a.to]?.cls">{{ SEV[a.to]?.ko }}</span>
-                <span class="atext">{{ a.home }}호 — {{ a.reason }}</span>
-                <span class="atime mono">{{ timeOf(a.ts) }}</span>
-              </li>
+              <AlertItem v-for="a in alerts.slice(0, 5)" :key="a.id" :a="a" compact />
             </ul>
           </section>
         </div>
@@ -823,11 +844,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <p class="sec-title">알림 이력 (최근 {{ alertsOfHome(selectedHome.home).length }}건)</p>
             <p v-if="!alertsOfHome(selectedHome.home).length" class="muted home-note">기록된 알림이 없습니다.</p>
             <ul v-else class="alerts">
-              <li v-for="(a, i) in alertsOfHome(selectedHome.home)" :key="i">
-                <span class="tag" :class="'tag-' + SEV[a.to]?.cls">{{ SEV[a.to]?.ko }}</span>
-                <span class="atext">{{ SEV[a.from]?.ko }} → {{ SEV[a.to]?.ko }} · {{ a.reason }}</span>
-                <span class="atime mono">{{ stampOf(a.ts) }}</span>
-              </li>
+              <AlertItem v-for="a in alertsOfHome(selectedHome.home)" :key="a.id" :a="a"
+                         :show-home="false" @changed="refresh" />
             </ul>
           </section>
         </div>
@@ -839,20 +857,26 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           <div class="card-head">
             <div>
               <h2>알림 이력</h2>
-              <p class="hint">위험도가 바뀐 순간만 기록합니다. 같은 상태로 머무는 동안은 쌓지 않습니다.</p>
+              <p class="hint">
+                위험도가 바뀐 순간만 기록합니다. 이상 알림은 복지사가 대응해야 끝나고, 누가·언제·무엇을 했는지 남습니다.
+              </p>
             </div>
             <span class="count">{{ alerts.length }}건</span>
           </div>
-          <p v-if="!alerts.length" class="empty">아직 기록된 알림이 없습니다.</p>
+          <div class="tabs">
+            <button class="tab" :class="{ on: alertFilter === 'todo', urgent: alertFilter === 'todo' }"
+                    @click="alertFilter = 'todo'">
+              미완료 ({{ todoAlerts.length }}<template v-if="openAlerts.length"> · 미확인 {{ openAlerts.length }}</template>)
+            </button>
+            <button class="tab" :class="{ on: alertFilter === 'all' }" @click="alertFilter = 'all'">
+              전체 ({{ alerts.length }})
+            </button>
+          </div>
+          <p v-if="!shownAlerts.length" class="empty">
+            {{ alertFilter === 'todo' ? '조치할 알림이 없습니다.' : '아직 기록된 알림이 없습니다.' }}
+          </p>
           <ul v-else class="alerts big">
-            <li v-for="(a, i) in alerts" :key="i">
-              <span class="tag" :class="'tag-' + SEV[a.to]?.cls">{{ SEV[a.to]?.ko }}</span>
-              <span class="atext">
-                <strong>{{ a.home }}호</strong>
-                {{ SEV[a.from]?.ko }} → {{ SEV[a.to]?.ko }} · {{ a.reason }}
-              </span>
-              <span class="atime mono">{{ stampOf(a.ts) }}</span>
-            </li>
+            <AlertItem v-for="a in shownAlerts" :key="a.id" :a="a" @changed="refresh" />
           </ul>
         </section>
       </main>
@@ -892,6 +916,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
         온살핌 · 모두가 안심하는, 따뜻한 일상 &nbsp;|&nbsp; 팀 병아리 · 세종대학교
       </footer>
     </div>
+
+    <!-- 새 알림 팝업 — 화면이 바뀌어도 떠 있어야 해서 최상위에 둔다 -->
+    <AlertToasts :alerts="alerts" :sound="soundOn" @open-home="openHome"
+                 @open-alerts="activeView = 'alerts'; alertFilter = 'todo'" @changed="refresh" />
   </div>
 </template>
 
@@ -1075,14 +1103,6 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .mic.active { background: var(--urgent-soft); border-color: var(--urgent); }
 .mic.busy { opacity: 0.6; }
 
-.btn { padding: 0.5rem 0.95rem; border-radius: var(--radius-sm); font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); }
-.btn:hover:not(:disabled) { background: var(--surface-2); }
-.btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
-.btn.primary:hover:not(:disabled) { background: var(--brand-dim); }
-.btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn.ghost { background: none; }
-.btn.danger { color: var(--urgent); border-color: #f3c8c8; }
-.btn.wide { width: 100%; margin-top: 0.7rem; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.75rem; }
 .ex { font-size: 0.72rem; padding: 0.3rem 0.6rem; border-radius: 999px; border: 1px dashed var(--border-strong); background: none; color: var(--text-2); cursor: pointer; text-align: left; }

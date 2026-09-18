@@ -170,7 +170,15 @@ def reject_rule(rule_id):
 def get_alerts():
     """위험도가 바뀐 이력 — 최신이 앞. 대시보드 '최근 알림'이 읽는다."""
     limit = request.args.get("limit", type=int) or 20
-    return jsonify(engine.load_alerts()[:limit])
+    return jsonify(engine.alerts_with_actions(limit))
+
+
+@app.route("/api/alerts/<path:alert_id>/action", methods=["POST"])
+def alert_action(alert_id):
+    """알림 대응 기록 — 확인 / 방문·연락 중 / 조치 완료(메모 필수)."""
+    body = request.get_json(silent=True) or {}
+    result = engine.record_action(alert_id, str(body.get("status", "")), str(body.get("memo", "")))
+    return jsonify(result), (200 if result["ok"] else 400)
 
 
 @app.route("/api/history/<home>")

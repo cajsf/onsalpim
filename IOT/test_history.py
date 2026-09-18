@@ -1,4 +1,4 @@
-"""세대 타임라인(engine.append_history)·시간별 집계(engine.update_stats) 자체 점검 — 네트워크·LLM 없이 실행.
+"""세대 타임라인(append_history)·시간별 집계(update_stats)·알림 대응(record_action) 자체 점검 — 네트워크·LLM 없이 실행.
 
     python test_history.py
 
@@ -13,6 +13,8 @@ import engine
 TMP = tempfile.mkdtemp()
 engine.HISTORY_FILE = os.path.join(TMP, "h.json")   # 실제 파일은 건드리지 않는다
 engine.STATS_FILE = os.path.join(TMP, "s.json")
+engine.ALERTS_FILE = os.path.join(TMP, "a.json")
+engine.ACTIONS_FILE = os.path.join(TMP, "act.json")
 T0 = datetime(2026, 9, 18, 10, 0, 0)
 
 
@@ -83,3 +85,57 @@ x = st(40 * 86400, "URGENT", at(35))
 assert "2026-09-18T10" not in x["homes"]["102"], "보관 기간 밖 집계는 버림"
 
 print("집계 점검 통과")
+
+
+# ── 알림 대응 ── (최신이 앞)
+import json
+def alert(s, home, frm, to):
+    return {"ts": at(s), "home": home, "from": frm, "to": to, "reason": "시험"}
+
+with open(engine.ALERTS_FILE, "w", encoding="utf-8") as f:
+    json.dump([alert(300, "102", "NORMAL", "URGENT"),       # 102 현재 긴급
+               alert(200, "101", "URGENT", "NORMAL"),       # 101 회복
+               alert(100, "101", "NORMAL", "URGENT"),       # 101 긴급이었다가 대응 없이 회복
+               alert(50, "104", "NORMAL", "WATCH")], f)     # 104 현재 주의
+
+by_id = {a["home"] + a["to"]: a for a in engine.alerts_with_actions()}
+assert by_id["102URGENT"]["state"] == "open", "현재 이상 상태 + 대응 없음 = 대응 필요"
+assert by_id["101URGENT"]["state"] == "missed", "대응 전에 회복된 알림은 '응답 없이 지나감'"
+assert by_id["101NORMAL"]["state"] is None, "회복 기록은 대응 대상 아님"
+
+a102 = by_id["102URGENT"]["id"]
+assert not engine.record_action(a102, "done")["ok"], "조치 완료는 메모 필수"
+assert not engine.record_action(a102, "hack")["ok"], "없는 상태 거부"
+assert not engine.record_action(a102, "ack", "x" * 201)["ok"], "메모 길이 제한"
+assert not engine.record_action("없음|999", "ack")["ok"], "없는 알림 거부"
+assert not engine.record_action(by_id["101NORMAL"]["id"], "ack")["ok"], "회복 기록엔 대응 불가"
+
+assert engine.record_action(a102, "ack", now=T0 + timedelta(seconds=372))["ok"]
+assert engine.record_action(a102, "done", "전화 통화, 이상 없음")["ok"]
+assert not engine.record_action(a102, "ack")["ok"], "조치 완료 뒤에는 더 기록하지 않음"
+x = next(a for a in engine.alerts_with_actions() if a["id"] == a102)
+assert x["state"] == "done" and x["first_response_s"] == 72, "첫 대응까지 걸린 시간"
+
+# 알림 원문이 이력에서 밀려나도 대응 기록은 남는다
+with open(engine.ALERTS_FILE, "w", encoding="utf-8") as f:
+    json.dump([], f)
+assert engine.load_actions()[a102]["alert"]["to"] == "URGENT"
+
+# 처음 판정부터 이상이면(설치 때부터 두절) 알림을 남긴다. 처음부터 정상이면 남기지 않는다.
+new = engine.append_alerts([
+    {"home": "103", "changed": True, "from": None, "severity": "CHECK_DEVICE", "reason": "두절"},
+    {"home": "106", "changed": True, "from": None, "severity": "NORMAL", "reason": "정상"},
+])
+assert [a["home"] for a in new] == ["103"], "처음부터 이상인 세대만 알림"
+assert next(a for a in engine.alerts_with_actions() if a["home"] == "103")["state"] == "open"
+
+# 응답 없이 지나간 알림은 '뒤늦게 확인'으로 끝낸다
+with open(engine.ALERTS_FILE, "w", encoding="utf-8") as f:
+    json.dump([alert(900, "107", "URGENT", "NORMAL"), alert(800, "107", "NORMAL", "URGENT")], f)
+m = next(a for a in engine.alerts_with_actions() if a["to"] == "URGENT")
+assert m["state"] == "missed"
+assert engine.record_action(m["id"], "late")["ok"]
+assert not engine.record_action(m["id"], "ack")["ok"], "뒤늦게 확인으로 끝난 알림엔 더 기록하지 않음"
+assert next(a for a in engine.alerts_with_actions() if a["id"] == m["id"])["state"] == "late"
+
+print("알림 대응 점검 통과")

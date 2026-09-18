@@ -99,6 +99,7 @@ button {
 .tag-watch { background: var(--watch-soft); color: var(--watch); }
 .tag-urgent { background: var(--urgent-soft); color: var(--urgent); }
 .tag-device { background: var(--device-soft); color: var(--device); }
+.tag-muted { background: var(--surface-2); color: var(--muted); border: 1px dashed var(--border-strong); }
 .tag-wait { background: var(--brand-soft); color: var(--brand-dim); }
 .tag-home { background: var(--surface-2); color: var(--text-2); }
 
@@ -107,3 +108,14 @@ button {
   background: var(--device-soft); color: var(--device); margin-left: 0.25rem;
 }
 .flag.ovr-flag { background: var(--brand-soft); color: var(--brand-dim); }
+
+/* 버튼 — 여러 화면·컴포넌트가 같이 쓴다 */
+.btn { padding: 0.5rem 0.95rem; border-radius: var(--radius-sm); font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); }
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: var(--brand-dim); }
+.btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.ghost { background: none; }
+.btn.danger { color: var(--urgent); border-color: #f3c8c8; }
+.btn.wide { width: 100%; margin-top: 0.7rem; }
+.btn.sm { padding: 0.28rem 0.6rem; font-size: 0.72rem; }

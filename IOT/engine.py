@@ -18,6 +18,7 @@ engine.py — 규칙 엔진. 저장된 규칙을 주기적으로 실행한다. (
 
 import json
 import os
+import threading
 from datetime import datetime, timedelta
 
 import care_monitor
@@ -32,6 +33,7 @@ CARE_STATE_FILE = os.path.join(os.path.dirname(__file__), "care_state.json")
 ALERTS_FILE = os.path.join(os.path.dirname(__file__), "alerts.json")
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "care_history.json")
 STATS_FILE = os.path.join(os.path.dirname(__file__), "care_stats.json")
+ACTIONS_FILE = os.path.join(os.path.dirname(__file__), "alert_actions.json")
 
 # 규칙 상태 — 전시 계획안 ③ "AI가 만든 규칙을 즉시 실행하지 않고 담당자가 확인한 후 적용"
 PENDING, APPROVED = "pending", "approved"
@@ -376,7 +378,9 @@ def append_alerts(results):
     같은 상태로 머무는 동안 계속 쌓으면 이력이 의미를 잃는다 — 복지사가 보는 건
     '무엇이 달라졌나'지 '지금 어떤가'가 아니다. (지금 상태는 대시보드 표가 보여준다)
     """
-    changed = [r for r in results if r["changed"] and r["from"] is not None]
+    # 처음 판정인데 이미 이상이면(설치 때부터 두절 등) 그것도 알림이다 — 빼면 끝내 알림이 안 생긴다.
+    # 처음 판정이 정상이면 남길 게 없다.
+    changed = [r for r in results if r["changed"] and (r["from"] is not None or r["severity"] != "NORMAL")]
     if not changed:
         return []
     log = load_alerts()
@@ -518,6 +522,87 @@ def _last_heartbeat():
             return datetime.fromisoformat(json.load(f)["last_run"]).isoformat(timespec="seconds")
     except (OSError, ValueError, KeyError):
         return None
+
+
+# ---------- 알림 대응 ----------
+# 알림은 복지사가 대응해야 끝난다. 누가·언제·무엇을 했는지 남긴다 (승인 기록과 같은 이유 — 책임 소재).
+# alerts.json 은 엔진이, alert_actions.json 은 API 만 쓴다 — 한 파일을 둘이 쓰면 서로 덮어쓴다.
+# 대응 기록에는 알림 원문을 같이 둔다: alerts.json 은 최근 ALERT_KEEP 건만 남기므로
+# 원문이 밀려나도 "무엇에 대응했나"가 남아야 한다.
+#   { 알림 id: {"alert": {...원문}, "log": [{"status", "memo", "by", "at"}, ...]} }
+
+ACTION_STATUSES = {"ack": "확인", "progress": "방문·연락 중", "done": "조치 완료",
+                   "late": "뒤늦게 확인"}   # 응답 없이 지나간 알림을 나중에 봤다는 기록 — 이걸로 끝난다
+CLOSED = ("done", "late")
+MEMO_MAX = 200
+_actions_lock = threading.Lock()   # API 는 요청마다 스레드 — 동시 기록이 서로 지우지 않게
+
+
+def alert_id(a):
+    return f'{a["ts"]}|{a["home"]}'
+
+
+def load_actions():
+    if not os.path.exists(ACTIONS_FILE):
+        return {}
+    with open(ACTIONS_FILE, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def alerts_with_actions(limit=100):
+    """알림 이력에 대응 상태를 붙인다. 최신이 앞.
+
+    state:
+      open    대응 필요 — 이상 상태로 바뀌었고, 그 세대가 아직 그 상태이며, 아무도 대응하지 않음
+      missed  응답 없이 지나감 — 대응 전에 세대 상태가 다시 바뀜 (숨기지 않는다)
+      ack / progress / done / late   마지막 대응 (done·late 는 끝)
+      None    회복 기록 (정상으로 돌아옴) — 대응 대상 아님
+    """
+    actions = load_actions()
+    latest_of_home = {}
+    out = []
+    for a in load_alerts():                       # 최신이 앞 → 세대별 첫 번째가 현재 상태
+        aid = alert_id(a)
+        is_latest = a["home"] not in latest_of_home
+        latest_of_home.setdefault(a["home"], aid)
+        log = (actions.get(aid) or {}).get("log", [])
+        if log:
+            state = log[-1]["status"]
+        elif a["to"] == "NORMAL":
+            state = None
+        else:
+            state = "open" if is_latest else "missed"
+        first = (datetime.fromisoformat(log[0]["at"]) - datetime.fromisoformat(a["ts"])).total_seconds() if log else None
+        out.append({**a, "id": aid, "state": state, "log": log, "first_response_s": first})
+    return out[:limit]
+
+
+def record_action(aid, status, memo="", by="복지사", now=None):
+    """알림에 대응을 기록한다. 반환 {'ok', 'errors', 'alert'}."""
+    memo = (memo or "").strip()
+    if status not in ACTION_STATUSES:
+        return {"ok": False, "errors": [f"알 수 없는 대응 상태: {status}"]}
+    if len(memo) > MEMO_MAX:
+        return {"ok": False, "errors": [f"메모는 {MEMO_MAX}자까지입니다."]}
+    if status == "done" and not memo:
+        return {"ok": False, "errors": ["조치 완료는 무엇을 했는지 메모가 필요합니다."]}
+    with _actions_lock:
+        alert = next((a for a in load_alerts() if alert_id(a) == aid), None)
+        actions = load_actions()
+        if alert is None and aid not in actions:
+            return {"ok": False, "errors": ["없는 알림입니다."]}
+        entry = actions.setdefault(aid, {"alert": alert, "log": []})
+        if (entry["alert"] or {}).get("to") == "NORMAL":
+            return {"ok": False, "errors": ["회복 기록에는 대응할 것이 없습니다."]}
+        if entry["log"] and entry["log"][-1]["status"] in CLOSED:
+            return {"ok": False, "errors": ["이미 끝난 알림입니다."]}
+        if status == "late" and entry["log"]:
+            return {"ok": False, "errors": ["이미 대응 기록이 있는 알림입니다."]}
+        entry["log"].append({"status": status, "memo": memo, "by": by,
+                             "at": (now or datetime.now()).isoformat(timespec="seconds")})
+        with open(ACTIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(actions, f, ensure_ascii=False, indent=1)
+    return {"ok": True, "errors": [], "log": entry["log"]}
 
 
 # ---------- 조건 판단 ----------
@@ -712,6 +797,11 @@ def loop(interval=3):
 
     last_sent = {}
     wd = care_monitor.Watchdog()
+    # 직전 엔진이 마지막으로 기록한 위험도에서 이어 간다. 비워 두면 재시작 후 첫 판정이
+    # '변화 없음'으로 처리돼, 꺼져 있던 사이 바뀐 상태가 알림 이력에 남지 않는다
+    # (그러면 이력의 마지막 알림과 지금 상태가 어긋나 '대응 필요'가 엉뚱한 알림에 붙는다).
+    for a in reversed(load_alerts()):          # 오래된 것부터 덮어써서 세대별 최신만 남긴다
+        wd.last_severity[a["home"]] = a["to"]
     gap_since = _last_heartbeat()   # 직전 엔진이 멈춘 시각 — 첫 판정 때 타임라인에 공백으로 남긴다
     try:
         while True:
@@ -728,7 +818,7 @@ def loop(interval=3):
                 update_stats(results)
                 gap_since = None
                 for a in append_alerts(results):   # 상태가 바뀐 세대만 기록/출력
-                    print(f'  [{a["home"]}호] {care_monitor.LABEL_KO[a["from"]]} '
+                    print(f'  [{a["home"]}호] {care_monitor.LABEL_KO.get(a["from"], "첫 판정")} '
                           f'→ {care_monitor.LABEL_KO[a["to"]]}  ({a["reason"]})')
 
             write_heartbeat()
