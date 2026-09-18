@@ -1,0 +1,24 @@
+# ── 비밀값: 절대 올리지 않는다 (예시 파일 *.example.* 만 올린다) ──
+secrets_local.py
+secrets.h
+
+# ── 의존성·빌드 결과 ──
+node_modules/
+dist/
+__pycache__/
+*.pyc
+
+# ── 규칙 엔진이 실행 중에 계속 다시 쓰는 파일 (올리면 매번 충돌) ──
+IOT/care_state.json
+IOT/care_history.json
+IOT/care_stats.json
+IOT/alerts.json
+IOT/engine_heartbeat.json
+
+# ── 개인 환경 ──
+.claude/settings.local.json
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+~$*

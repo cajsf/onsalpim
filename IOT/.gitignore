@@ -1,0 +1,6 @@
+# API 키 — 절대 공개 저장소에 올리지 말 것
+secrets_local.py
+
+# 파이썬 캐시
+__pycache__/
+*.pyc

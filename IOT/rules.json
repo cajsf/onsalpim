@@ -1,0 +1,157 @@
+[
+  {
+    "id": 1,
+    "sentence": "더우면 불 켜줘",
+    "rule": {
+      "when": {
+        "path": "Mobius/byeongari/temp",
+        "op": ">",
+        "value": "28"
+      },
+      "and": [],
+      "then": [
+        {
+          "path": "Mobius/byeongari/led_cmd",
+          "value": "ON"
+        }
+      ],
+      "reason": "온도가 높을 때 현관 조명을 켜는 규칙"
+    },
+    "enabled": false
+  },
+  {
+    "id": 2,
+    "sentence": "20도 아래면 불 꺼줘",
+    "rule": {
+      "when": {
+        "path": "Mobius/byeongari/temp",
+        "op": "<",
+        "value": "20"
+      },
+      "and": [],
+      "then": [
+        {
+          "path": "Mobius/byeongari/led_cmd",
+          "value": "OFF"
+        }
+      ],
+      "reason": "온도가 20도 미만일 때 현관 조명을 끕니다."
+    },
+    "enabled": false
+  },
+  {
+    "id": 3,
+    "sentence": "27도 아래면 불 꺼줘",
+    "rule": {
+      "when": {
+        "path": "Mobius/byeongari/temp",
+        "op": "<",
+        "value": "27"
+      },
+      "and": [],
+      "then": [
+        {
+          "path": "Mobius/byeongari/led_cmd",
+          "value": "OFF"
+        }
+      ],
+      "reason": "온도가 27도 미만일 때 현관 조명을 끄도록 설정하였습니다."
+    },
+    "enabled": false
+  },
+  {
+    "id": 4,
+    "sentence": "사람 지나가면 불 켜줘",
+    "rule": {
+      "when": {
+        "path": "Mobius/byeongari/pir",
+        "op": "==",
+        "value": "1"
+      },
+      "and": [],
+      "then": [
+        {
+          "path": "Mobius/byeongari/led_cmd",
+          "value": "ON"
+        }
+      ],
+      "reason": "현관 움직임이 감지되면 조명을 켭니다."
+    },
+    "enabled": false
+  },
+  {
+    "id": 5,
+    "sentence": "사람 지나가면 창문 열어줘",
+    "rule": {
+      "when": {
+        "path": "Mobius/byeongari/pir",
+        "op": "==",
+        "value": "1"
+      },
+      "and": [],
+      "then": [
+        {
+          "path": "Mobius/byeongari/servo_cmd",
+          "value": "180"
+        }
+      ],
+      "reason": "현관 움직임이 감지되면 창문을 엽니다."
+    },
+    "enabled": false
+  },
+  {
+    "id": 6,
+    "sentence": "사람 없으면 창문 닫아줘",
+    "rule": {
+      "when": {
+        "path": "Mobius/byeongari/pir",
+        "op": "==",
+        "value": "0"
+      },
+      "and": [],
+      "then": [
+        {
+          "path": "Mobius/byeongari/servo_cmd",
+          "value": "0"
+        }
+      ],
+      "reason": "사람이 감지되지 않으면 창문을 닫는 동작을 수행합니다."
+    },
+    "enabled": false
+  },
+  {
+    "id": 7,
+    "sentence": "전체 세대에서 10분 동안 움직임이 없으면 긴급으로 표시해줘",
+    "rule": {
+      "scope": {
+        "homes": "ALL"
+      },
+      "when": {
+        "path": "",
+        "type": "motion",
+        "op": "idle_over_m",
+        "value": "10"
+      },
+      "and": [],
+      "then": [
+        {
+          "path": "",
+          "value": "",
+          "severity": "URGENT"
+        }
+      ],
+      "reason": "전체 세대 10분 무활동 시 긴급 표시",
+      "overrides": {
+        "102": {
+          "value": "3"
+        }
+      }
+    },
+    "enabled": true,
+    "status": "approved",
+    "questions": [],
+    "created": "2026-09-17T09:14:08",
+    "approved_by": "복지사",
+    "approved_at": "2026-09-17T09:14:08"
+  }
+]

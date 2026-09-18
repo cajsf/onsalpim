@@ -1,0 +1,70 @@
+# 온살핌 — 말로 만들고, 한눈에 살피다
+
+자연어 AI와 oneM2M IoT로 완성하는 다가구 돌봄 운영 플랫폼 · 팀 병아리 (세종대)
+
+복지사가 문장으로 돌봄 정책을 만들면 AI가 규칙으로 번역하고, 검증·승인을 거쳐 여러 세대에 적용한다.
+장치는 oneM2M `lbl`에 자기소개를 올리기만 하면 서버 코드 수정 없이 발견된다.
+생활 신호(움직임)와 기기 신호(주기 보고)를 분리해 **무활동**과 **통신 두절**을 구분한다.
+
+> 설계 결정과 이유, 실측 기록, 할 일은 **[CODEX_인수인계_0917.md](CODEX_인수인계_0917.md)** 에 있다. 작업 전에 먼저 읽을 것.
+> 제안서·발표 자료·대본은 저장소에 두지 않는다 (팀 공유 폴더에서 따로 관리).
+
+## 폴더
+
+```
+IOT/          파이썬 백엔드 (규칙 엔진·판정·검증·API)
+  ├─ dashboard/           Vue 3 대시보드
+  ├─ engine.py            규칙 엔진 루프 (Watchdog 판정 포함)
+  ├─ care_monitor.py      무활동/두절 판정 — AI 없음
+  ├─ scope.py             세대 발견·범위·예외
+  ├─ validator.py         장치·값 검증
+  ├─ llm_translator.py    문장 → 규칙 (Gemini)
+  ├─ api_server.py        대시보드용 API (:5001)
+  ├─ virtual_home.py      개발용 가상 세대
+  ├─ verify_report.py     검증 시험 17개 (제안서에 인용)
+  └─ test_history.py      타임라인·집계 점검
+arduino/home_node/  세대 노드 펌웨어 (UNO R4 WiFi / ESP32)
+```
+
+## 처음 받았을 때 (한 번만)
+
+저장소에 없는 비밀 파일 두 종류를 팀 카톡에서 받아 넣는다. 예시 파일을 복사해 값을 채워도 된다.
+
+| 파일 | 위치 | 예시 |
+|---|---|---|
+| `secrets_local.py` (Gemini 키·플랫폼 API 키) | `IOT/` | `secrets_local.example.py` |
+| `secrets.h` (WiFi·API 키) | 각 펌웨어 폴더 `arduino/*/` | `secrets.example.h` |
+
+```bash
+pip install -r IOT/requirements.txt
+npm install --prefix IOT/dashboard
+```
+
+## 실행
+
+`IOT/` 에서 터미널 3개 + 대시보드. Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1` 을 붙인다.
+
+```bash
+python api_server.py                                   # API :5001
+python -c "import engine; engine.loop(interval=4)"      # 규칙 엔진 + 판정
+python virtual_home.py 101:move 102:still 104:batt=11  # (실물 보드 없을 때) 가상 세대
+npm run dev --prefix dashboard                          # 대시보드 :5173
+```
+
+가상 세대 모드: `move` 정상 · `still` 무활동→긴급 · `batt=11` 배터리 부족→주의 · 목록에서 빼면 두절→점검 필요
+
+## 검증
+
+```bash
+python verify_report.py      # 17/17 이어야 함 (--save 로 VERIFY_RESULT.md 갱신)
+python test_history.py       # 타임라인·집계 점검
+npm run build --prefix dashboard
+```
+
+## 같이 작업할 때 지킬 것
+
+- **비밀값은 절대 커밋하지 않는다.** `secrets_local.py`, `secrets.h` 는 `.gitignore` 에 있다. 새 비밀값이 생기면 같은 방식으로 분리.
+- **플랫폼은 수업용 공유 서버다.** 컨테이너 생성은 되돌리기 어렵다(삭제 403 사례). 새 리소스를 만들기 전에 팀에 먼저 알린다.
+- **`rules.json`은 엔진·대시보드가 고치는 파일이다.** 두 명이 각자 규칙을 바꿔 올리면 충돌한다 — 규칙 변경은 한 사람이 올린다.
+- 판정·검증·판단 근거에는 AI를 넣지 않는다. 구현 안 한 것을 완료로 쓰지 않는다. (인수인계 문서 9장)
+- 수정 후 `verify_report.py` 17/17 유지.

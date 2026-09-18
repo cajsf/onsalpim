@@ -1,0 +1,109 @@
+/* 온살핌 — 돌봄 서비스 톤의 밝은 테마.
+   개발자 챌린지 때의 어두운 테마는 이 주제(독거노인 돌봄)와 맞지 않아 전면 교체했다. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* 바탕 */
+  --bg: #f4f7fb;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e5e9f0;
+  --border-strong: #d7dee8;
+
+  /* 글자 */
+  --text: #1f2937;
+  --text-2: #4b5563;
+  --muted: #8a94a6;
+
+  /* 주색 */
+  --brand: #2f6bed;
+  --brand-dim: #1d4ed8;
+  --brand-soft: #eaf1fe;
+
+  /* 위험도 — 전시 계획안 ⑤의 4분류.
+     색을 '축'으로 나눈다: 생활 신호(사람)는 초록→노랑→빨강의 온도 계열,
+     기기 이상은 계열 자체를 달리해서 한눈에 구분되게 한다.
+     둘 다 주황이면 "사람이 위험한 것"과 "장치가 죽은 것"이 섞여 보인다 —
+     그 둘을 구분하는 게 이 프로젝트의 핵심인데 화면에서 뭉개지면 안 된다. */
+  --normal: #16a34a;
+  --normal-soft: #eafaf0;
+  --watch: #c2870a;
+  --watch-soft: #fdf5e3;
+  --urgent: #dc2626;
+  --urgent-soft: #fdeeee;
+  --device: #5b5bd6;        /* 기기 이상 — 생활 신호와 다른 계열 */
+  --device-soft: #eeeefc;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+body {
+  font-family: 'IBM Plex Sans KR', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* 스크롤바 — 밝은 테마에 맞춰 얇게 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d8dee8;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c2cad8;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ───── 여러 화면·컴포넌트가 같이 쓰는 표시 요소 ─────
+   App.vue 의 scoped 스타일에 두면 HomeBasis 같은 하위 컴포넌트에 적용되지 않아 전역으로 둔다. */
+.muted { color: var(--muted); }
+
+.tag {
+  display: inline-block; font-size: 0.71rem; font-weight: 600;
+  padding: 0.18rem 0.55rem; border-radius: 999px; white-space: nowrap;
+}
+.tag-normal { background: var(--normal-soft); color: var(--normal); }
+.tag-watch { background: var(--watch-soft); color: var(--watch); }
+.tag-urgent { background: var(--urgent-soft); color: var(--urgent); }
+.tag-device { background: var(--device-soft); color: var(--device); }
+.tag-wait { background: var(--brand-soft); color: var(--brand-dim); }
+.tag-home { background: var(--surface-2); color: var(--text-2); }
+
+.flag {
+  font-size: 0.68rem; font-weight: 600; padding: 0.05rem 0.38rem; border-radius: 999px;
+  background: var(--device-soft); color: var(--device); margin-left: 0.25rem;
+}
+.flag.ovr-flag { background: var(--brand-soft); color: var(--brand-dim); }
