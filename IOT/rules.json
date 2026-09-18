@@ -199,6 +199,15 @@
       7
     ],
     "approved_by": "복지사",
-    "approved_at": "2026-09-18T16:22:33"
+    "approved_at": "2026-09-18T16:22:33",
+    "history": [
+      {
+        "action": "override_removed",
+        "home": "103",
+        "value": "3",
+        "by": "복지사",
+        "at": "2026-09-18T17:13:26"
+      }
+    ]
   }
 ]

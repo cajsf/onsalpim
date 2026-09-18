@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { api } from './api.js'
 import { useSpeechRecognition } from './useSpeechRecognition.js'
 import HomeBasis from './HomeBasis.vue'
@@ -7,7 +7,7 @@ import HomeTimeline from './HomeTimeline.vue'
 import HomeActions from './HomeActions.vue'
 import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
-import { SEV, SEV_ORDER, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf } from './format.js'
+import { SEV, SEV_ORDER, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear } from './format.js'
 
 // 통계 분석은 세대별 활동 이력이 쌓여야 의미가 있는데 아직 저장소가 없어 '준비 중'으로 둔다.
 const NAV = [
@@ -341,6 +341,9 @@ async function submitRule() {
 
 /* 예외 대상 후보 중 하나를 고른다 — 번역은 이미 끝났으니 AI 를 다시 부르지 않는다 */
 const ruleNotice = ref('')
+autoClear(ruleNotice)                 // 완료 안내는 5초 뒤 사라진다
+// 다른 메뉴로 가면 이전 화면의 안내·오류는 지운다
+watch(activeView, () => { ruleNotice.value = ''; ruleError.value = '' })
 async function chooseOverride(c) {
   const ch = lastResult.value?.choice
   if (!ch || ruleBusy.value) return

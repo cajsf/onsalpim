@@ -4,7 +4,7 @@
 //   임시 예외 — 부재 등록: 입원·외출 기간엔 무활동을 판정하지 않는다(기기는 계속 본다). 기간이 끝나면 저절로 풀린다
 import { ref, computed, watch, onMounted } from 'vue'
 import { api } from './api.js'
-import { fmtMinutes, stampOf } from './format.js'
+import { fmtMinutes, stampOf, autoClear } from './format.js'
 
 const props = defineProps({
   home: { type: String, required: true },
@@ -16,6 +16,7 @@ const open = ref('')               // '' | 'threshold' | 'absence'
 const busy = ref(false)
 const error = ref('')
 const notice = ref('')
+autoClear(notice)                   // 완료 안내는 5초 뒤 사라진다
 
 function toggle(which) {
   open.value = open.value === which ? '' : which

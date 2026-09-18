@@ -1,6 +1,6 @@
 // 화면 여러 곳(대시보드·세대 관리)에서 같이 쓰는 표기 규칙.
 // 한 곳에만 두어야 같은 값이 화면마다 다르게 보이지 않는다.
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 /**
  * 화면 공용 시계 — 1초마다 갱신.
@@ -9,6 +9,15 @@ import { ref } from 'vue'
  */
 export const nowMs = ref(Date.now())
 setInterval(() => { nowMs.value = Date.now() }, 1000)
+
+/** 완료 안내처럼 한 번 보여주고 끝나야 하는 문구 — 값이 들어오면 ms 뒤 저절로 비운다 */
+export function autoClear(r, ms = 5000) {
+  let t = null
+  watch(r, (v) => {
+    clearTimeout(t)
+    if (v) t = setTimeout(() => { r.value = '' }, ms)
+  })
+}
 
 /** 서버가 준 시각('2026-09-17T09:05:06', KST·시간대 표기 없음)부터 지금까지 경과 초. 없으면 null. */
 export function secondsSince(iso) {
