@@ -36,6 +36,7 @@ ALERTS_FILE = os.path.join(os.path.dirname(__file__), "alerts.json")
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "care_history.json")
 STATS_FILE = os.path.join(os.path.dirname(__file__), "care_stats.json")
 ACTIONS_FILE = os.path.join(os.path.dirname(__file__), "alert_actions.json")
+ABSENCES_FILE = os.path.join(os.path.dirname(__file__), "absences.json")
 
 # 규칙 상태 — 전시 계획안 ③ "AI가 만든 규칙을 즉시 실행하지 않고 담당자가 확인한 후 적용"
 PENDING, APPROVED = "pending", "approved"
@@ -739,6 +740,101 @@ def record_action(aid, status, memo="", by="복지사", now=None):
     return {"ok": True, "errors": [], "log": entry["log"]}
 
 
+# ---------- 부재 등록 ----------
+# 입원·외출·가족 방문처럼 집이 비는 기간. 그동안은 무활동을 판정하지 않는다(기기는 계속 본다).
+# 영구 예외(규칙의 overrides)와 달리 '기간이 정해진 임시 예외'라 끝나면 저절로 풀린다.
+# 누가·언제·왜 등록했고 누가 일찍 풀었는지 남긴다 — 알림이 안 울린 이유가 기록에 있어야 한다.
+# 엔진은 읽기만, 등록·해제는 API 만 쓴다 (한 파일을 둘이 쓰면 덮어쓴다).
+
+ABSENCE_MAX_DAYS = 31
+REASON_MAX = 50
+_absence_lock = threading.Lock()
+
+
+def load_absences():
+    if not os.path.exists(ABSENCES_FILE):
+        return []
+    with open(ABSENCES_FILE, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _absence_live(a, now):
+    return not a.get("ended_at") and a["start"] <= now.isoformat(timespec="seconds") < a["end"]
+
+
+def active_absence(home, now=None, items=None):
+    """지금 이 세대가 부재 중이면 {'id','until','reason'}, 아니면 None."""
+    now = now or datetime.now()
+    for a in items if items is not None else load_absences():
+        if a["home"] == home and _absence_live(a, now):
+            return {"id": a["id"], "until": a["end"], "reason": a["reason"]}
+    return None
+
+
+def _parse_when(text, name):
+    try:
+        return datetime.fromisoformat(str(text).strip()), None
+    except ValueError:
+        return None, f"{name} 시각을 알아볼 수 없습니다: '{text}'"
+
+
+def add_absence(home, start, end, reason, by="복지사", homes=None, now=None):
+    """부재 등록. homes = 트리에서 발견한 세대 (없는 세대에 등록하지 않게)."""
+    now = now or datetime.now()
+    home, reason = str(home).strip(), str(reason or "").strip()
+    errors = []
+    if homes is not None and home not in homes:
+        errors.append(f"트리에 없는 세대입니다: {home}호")
+    if not reason:
+        errors.append("부재 사유를 적어 주세요 (예: 입원, 가족 방문).")
+    elif len(reason) > REASON_MAX:
+        errors.append(f"부재 사유는 {REASON_MAX}자까지입니다.")
+    s, e1 = _parse_when(start or now.isoformat(timespec="minutes"), "시작")
+    e, e2 = _parse_when(end, "종료")
+    errors += [x for x in (e1, e2) if x]
+    if s and e:
+        if e <= s:
+            errors.append("종료 시각이 시작 시각보다 뒤여야 합니다.")
+        elif e <= now:
+            errors.append("이미 지난 기간입니다.")
+        elif e - s > timedelta(days=ABSENCE_MAX_DAYS):
+            errors.append(f"부재는 한 번에 {ABSENCE_MAX_DAYS}일까지 등록할 수 있습니다. 길어지면 다시 등록해 주세요.")
+    if errors:
+        return {"ok": False, "errors": errors}
+    s_iso, e_iso = s.isoformat(timespec="seconds"), e.isoformat(timespec="seconds")
+    with _absence_lock:
+        items = load_absences()
+        clash = next((a for a in items if a["home"] == home and not a.get("ended_at")
+                      and a["start"] < e_iso and s_iso < a["end"]), None)
+        if clash:
+            return {"ok": False, "errors": [
+                f"{home}호는 이미 {clash['start'][5:16]}~{clash['end'][5:16]} 부재가 등록돼 있습니다 ({clash['reason']})."]}
+        item = {"id": max([a["id"] for a in items], default=0) + 1, "home": home,
+                "start": s_iso, "end": e_iso, "reason": reason,
+                "by": by, "created_at": now.isoformat(timespec="seconds")}
+        items.append(item)
+        with open(ABSENCES_FILE, "w", encoding="utf-8") as f:
+            json.dump(items, f, ensure_ascii=False, indent=1)
+    return {"ok": True, "errors": [], "absence": item}
+
+
+def end_absence(absence_id, by="복지사", now=None):
+    """부재를 일찍 끝낸다 (예정보다 일찍 돌아옴). 지우지 않고 누가 언제 끝냈는지 남긴다."""
+    now = now or datetime.now()
+    with _absence_lock:
+        items = load_absences()
+        a = next((x for x in items if x["id"] == absence_id), None)
+        if a is None:
+            return {"ok": False, "errors": ["없는 부재 기록입니다."]}
+        if a.get("ended_at") or a["end"] <= now.isoformat(timespec="seconds"):
+            return {"ok": False, "errors": ["이미 끝난 부재입니다."]}
+        a["ended_at"] = now.isoformat(timespec="seconds")
+        a["ended_by"] = by
+        with open(ABSENCES_FILE, "w", encoding="utf-8") as f:
+            json.dump(items, f, ensure_ascii=False, indent=1)
+    return {"ok": True, "errors": [], "absence": a}
+
+
 # ---------- 조건 판단 ----------
 
 def _num(x):
@@ -862,6 +958,7 @@ def collect_home_state(devices, rules):
     장치 경로는 하드코딩하지 않고 라벨(home=, kind=, role=)로 찾는다.
     """
     level_map, _ = effective_idle_levels(rules, devices)
+    absences = load_absences()
     state = {}
 
     for home in scope.discover_homes(devices):
@@ -884,6 +981,7 @@ def collect_home_state(devices, rules):
             "last_activity": care_monitor.read_activity(evt) if evt else None,
             "idle_min": applied.get("minutes"),      # None 이면 무활동 규칙 없음
             "idle_levels": levels,                   # 단계 경보 (주의·긴급)
+            "away": active_absence(home, items=absences),   # 부재 등록 중이면 무활동 판정 보류
             "battery": batt,
             "applied": applied,                      # 추적표용 (예외 여부·공통값)
         }

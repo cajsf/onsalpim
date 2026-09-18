@@ -109,6 +109,13 @@ button {
 }
 .flag.ovr-flag { background: var(--brand-soft); color: var(--brand-dim); }
 
+/* 안내 문구 — 여러 화면·컴포넌트가 같이 쓴다 */
+.msg { margin-top: 0.6rem; padding: 0.55rem 0.8rem; border-radius: var(--radius-sm); font-size: 0.79rem; }
+.msg.err { background: var(--urgent-soft); color: var(--urgent); }
+.msg.warn { background: var(--watch-soft); color: var(--text); }
+.msg.info { background: var(--brand-soft); color: var(--brand-dim); }
+.msg.clarify { background: var(--brand-soft); color: var(--brand-dim); font-weight: 500; }
+
 /* 버튼 — 여러 화면·컴포넌트가 같이 쓴다 */
 .btn { white-space: nowrap; padding: 0.5rem 0.95rem; border-radius: var(--radius-sm); font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); }
 .btn:hover:not(:disabled) { background: var(--surface-2); }

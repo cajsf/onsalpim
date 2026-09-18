@@ -144,7 +144,7 @@ def read_activity(dev):
 
 # ---------- 판정 ----------
 
-def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=None):
+def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=None, away=None):
     """한 세대의 위험도를 판정한다.
 
     판정 '순서'가 이 함수의 전부다 — 기기를 먼저 보고, 기기가 믿을 만할 때만 생활을 본다.
@@ -158,6 +158,8 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
     통신 두절 세대가 전부 자동으로 '긴급' 오탐이 된다. 데이터를 못 믿는 상태에서
     생활 이상을 단정하면 안 된다.
 
+    away: 부재 등록 {'until', 'reason'} — 입원·외출 등으로 집이 빈 기간. 무활동은 판정하지 않고
+      기기(통신·배터리)만 본다. 빈 집의 '무활동 긴급'은 헛알림이고, 헛알림이 쌓이면 진짜 알림을 놓친다.
     idle_levels: [{'minutes', 'severity'}, ...] — 단계 경보 (예: 180분 주의, 480분 긴급).
       없으면 idle_min 하나를 긴급 기준으로 쓴다 (기존 호출 호환).
 
@@ -196,6 +198,7 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
             "idle_min": None if idle_min is None else float(idle_min),
             "idle_levels": [{"minutes": float(lv["minutes"]), "severity": lv["severity"]} for lv in idle_levels],
             "life_known": life_known,
+            "away": away,
         }
 
     # 배터리를 보고하지 않는 장치도 있다(USB 전원 보드 등). 없으면 없다고 떠들지 말고 생략한다.
@@ -216,6 +219,18 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
             # 두절 이후에 움직였는지는 알 수 없으므로 life_known=False 로 함께 표시한다.
             idle_s=_elapsed_s(last_activity, now),
         )
+
+    # ①-b 부재 등록 기간 — 생활 판정 보류, 기기는 계속 본다
+    if away:
+        until = away["until"][5:16].replace("-", "/").replace("T", " ")
+        life = f"부재 중 ({until}까지 · {away['reason']})"
+        idle_s = _elapsed_s(last_activity, now)
+        if battery is not None and float(battery) < BATTERY_LOW:
+            return out(WATCH, f"배터리 {batt_pct} (부재 중)", life=life, device=f"배터리 부족 ({batt_pct})",
+                       basis=f"부재 등록 기간 — 무활동 판정 보류 · 배터리 {batt_pct} (기준 {BATTERY_LOW}% 미만)",
+                       idle_s=idle_s)
+        return out(NORMAL, life, life=life, device=device_ok,
+                   basis="부재 등록 기간 — 무활동 판정 보류, 기기 점검은 계속", idle_s=idle_s)
 
     # ② 기기가 정상일 때만 생활 판정
     # idle_min 이 None 이면 이 세대에 걸린 무활동 규칙이 없다는 뜻 → 생활 판정을 하지 않는다.
@@ -336,7 +351,7 @@ class Watchdog:
         results = []
         for home, st in homes_state.items():
             v = judge(st["contact"], st.get("last_activity"), st.get("idle_min"),
-                      st.get("battery"), now, st.get("idle_levels"))
+                      st.get("battery"), now, st.get("idle_levels"), st.get("away"))
             prev = self.last_severity.get(home)
             changed = prev != v["severity"]
             self.last_severity[home] = v["severity"]
@@ -351,6 +366,7 @@ class Watchdog:
                 "idle_s": v["idle_s"],      # 화면이 예외의 실제 효과를 따질 때 쓴다
                 "idle_min": v["idle_min"],  # 이 세대에 적용된 무활동 기준(분)
                 "idle_levels": v["idle_levels"],   # 단계 경보 전체 (주의·긴급)
+                "away": v["away"],                 # 부재 등록 (없으면 None)
                 "basis": v["basis"],        # 왜 이 판정이 나왔는가
                 "last_contact_at": v["last_contact_at"],
                 "last_activity_at": v["last_activity_at"],

@@ -4,6 +4,7 @@ import { api } from './api.js'
 import { useSpeechRecognition } from './useSpeechRecognition.js'
 import HomeBasis from './HomeBasis.vue'
 import HomeTimeline from './HomeTimeline.vue'
+import HomeActions from './HomeActions.vue'
 import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
 import { SEV, SEV_ORDER, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf } from './format.js'
@@ -198,11 +199,7 @@ function alertsOfHome(home) {
 }
 
 /** 이 세대 기준을 바꾸는 문장을 입력창에 준비해둔다. 값은 복지사가 직접 채운다. */
-function editHomeThreshold(home) {
-  sentence.value = `${home}호만 무활동 기준을 `
-  inputTab.value = 'nl'
-  activeView.value = 'dashboard'
-}
+
 
 const lowBattery = computed(() =>
   homes.value.filter((h) => h.battery !== null && h.battery !== undefined && h.battery < 20))
@@ -927,6 +924,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 {{ SEV[x.care.severity]?.ko }}
               </span>
               <span v-else class="tag tag-home">판정 대상 아님</span>
+              <span v-if="x.care?.away" class="tag tag-home" title="부재 등록 기간 — 무활동 판정 보류">부재</span>
               <span class="home-sub">장치 {{ x.devices.length }} · 규칙 {{ (x.care?.rules || []).length }}</span>
             </button>
           </section>
@@ -939,8 +937,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   {{ SEV[selectedHome.care.severity]?.ko }}
                 </span>
               </div>
-              <button class="btn ghost" @click="editHomeThreshold(selectedHome.home)">이 세대 기준 바꾸기</button>
             </div>
+            <HomeActions :home="selectedHome.home" :care="selectedHome.care" @changed="refresh" />
 
             <p class="sec-title">현재 상태</p>
             <HomeBasis v-if="selectedHome.care" :h="selectedHome.care" />
@@ -1258,11 +1256,6 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 }
 .plan { margin-top: 0.6rem; }
 
-.msg { margin-top: 0.6rem; padding: 0.55rem 0.8rem; border-radius: var(--radius-sm); font-size: 0.79rem; }
-.msg.err { background: var(--urgent-soft); color: var(--urgent); }
-.msg.warn { background: var(--watch-soft); color: var(--watch); }
-.msg.info { background: var(--brand-soft); color: var(--brand-dim); }
-.msg.clarify { background: var(--brand-soft); color: var(--brand-dim); font-weight: 500; }
 
 /* ───── 파이프라인 ───── */
 .pipe { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
@@ -1277,7 +1270,6 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .choice:hover:not(:disabled) { border-color: var(--brand); background: var(--brand-soft); }
 .choice:disabled { opacity: 0.6; cursor: wait; }
 .conflict-card { border-color: var(--watch); }
-.msg.warn { background: var(--watch-soft); color: var(--text); }
 .pstep.skip { opacity: 0.5; }
 .pnum { color: var(--muted); font-size: 0.68rem; }
 .plabel { font-weight: 600; white-space: nowrap; }

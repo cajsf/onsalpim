@@ -15,6 +15,7 @@ IOT/care_history.json
 IOT/care_stats.json
 IOT/alerts.json
 IOT/alert_actions.json
+IOT/absences.json
 IOT/engine_heartbeat.json
 
 # ── 개인 환경 ──

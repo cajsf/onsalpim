@@ -55,6 +55,24 @@ export const api = {
   },
   deleteRule: (id) => request(`/rules/${id}`, { method: 'DELETE' }),
   toggleRule: (id) => request(`/rules/${id}/toggle`, { method: 'POST' }),
+  // 부재 등록 — 그 기간엔 무활동 판정 보류, 기기 점검은 계속
+  getAbsences: (home) => request(`/absences?home=${encodeURIComponent(home)}`),
+  async addAbsence(body) {
+    const res = await fetch(`${BASE}/absences`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+  },
+  async endAbsence(id) {
+    const res = await fetch(`${BASE}/absences/${id}/end`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+  },
   // 겹친 무활동 규칙 중 이 규칙을 쓰고 나머지는 끈다
   async keepRule(id) {
     const res = await fetch(`${BASE}/rules/${id}/keep`, {

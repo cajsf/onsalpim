@@ -12,6 +12,7 @@ from flask_cors import CORS
 
 import engine
 import iot_platform as iot
+import scope
 import speech_transcribe
 
 AE = "byeongari"
@@ -94,6 +95,31 @@ def delete_rule(rule_id):
     rules = [r for r in engine.load_rules() if r["id"] != rule_id]
     engine.save_rules(rules)
     return jsonify({"ok": True})
+
+
+@app.route("/api/absences")
+def absences():
+    """부재 등록 기록 — 세대 관리 화면이 읽는다. home 을 주면 그 세대만."""
+    home = request.args.get("home")
+    items = [a for a in engine.load_absences() if not home or a["home"] == home]
+    return jsonify(sorted(items, key=lambda a: a["start"], reverse=True))
+
+
+@app.route("/api/absences", methods=["POST"])
+def add_absence():
+    """부재 등록 {home, start, end, reason} — 그 기간은 무활동 판정 보류, 기기 점검은 계속."""
+    body = request.get_json(silent=True) or {}
+    homes = scope.discover_homes(iot.read_tree(AE))
+    result = engine.add_absence(body.get("home", ""), body.get("start"), body.get("end", ""),
+                                body.get("reason", ""), homes=homes)
+    return jsonify(result), (200 if result["ok"] else 422)
+
+
+@app.route("/api/absences/<int:absence_id>/end", methods=["POST"])
+def end_absence(absence_id):
+    """부재를 일찍 끝낸다."""
+    result = engine.end_absence(absence_id)
+    return jsonify(result), (200 if result["ok"] else 409)
 
 
 @app.route("/api/rules/<int:rule_id>/keep", methods=["POST"])

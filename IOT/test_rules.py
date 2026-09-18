@@ -1,4 +1,4 @@
-"""규칙 겹침·단계 경보 자체 점검 — 네트워크·LLM 없이 실행.
+"""규칙 겹침·단계 경보·부재 등록 자체 점검 — 네트워크·LLM 없이 실행.
 
     python test_rules.py
 
@@ -14,7 +14,9 @@ import engine
 import scope
 from verify_report import NOW, TREE, care_rule, contact
 
-engine.RULES_FILE = os.path.join(tempfile.mkdtemp(), "rules.json")   # 실제 규칙은 건드리지 않는다
+TMP = tempfile.mkdtemp()
+engine.RULES_FILE = os.path.join(TMP, "rules.json")   # 실제 규칙은 건드리지 않는다
+engine.ABSENCES_FILE = os.path.join(TMP, "absences.json")
 
 
 def saved(rid, rule, status="approved", enabled=True, sentence=""):
@@ -99,4 +101,33 @@ assert res["ok"]
 assert {r["id"]: r for r in engine.load_rules()}[8]["rule"]["overrides"]["102"]["value"] == "360"
 assert not engine.apply_override_to(8, "113", "360", devices=TREE)["ok"], "없는 세대 예외는 여전히 막힘"
 
-print("규칙 겹침·단계 경보 점검 통과")
+# ── 부재 등록 (기간이 정해진 임시 예외) ──
+homes = ["101", "102", "103", "104", "105"]
+at = lambda h: (NOW + timedelta(hours=h)).isoformat(timespec="minutes")
+bad = engine.add_absence("102", at(0), at(-1), "입원", homes=homes, now=NOW)
+assert not bad["ok"] and "뒤여야" in bad["errors"][0]
+assert not engine.add_absence("102", at(0), at(24), "", homes=homes, now=NOW)["ok"], "사유 필수"
+assert not engine.add_absence("113", at(0), at(24), "입원", homes=homes, now=NOW)["ok"], "없는 세대"
+assert not engine.add_absence("102", at(0), at(24 * 40), "입원", homes=homes, now=NOW)["ok"], "31일 제한"
+ok = engine.add_absence("102", at(0), at(72), "입원", homes=homes, now=NOW)
+assert ok["ok"]
+assert not engine.add_absence("102", at(24), at(48), "외출", homes=homes, now=NOW)["ok"], "기간 겹침 거부"
+assert engine.active_absence("102", NOW + timedelta(hours=1))["reason"] == "입원"
+assert engine.active_absence("102", NOW + timedelta(hours=73)) is None, "기간 끝나면 저절로 풀림"
+assert engine.active_absence("101", NOW + timedelta(hours=1)) is None
+
+away = engine.active_absence("102", NOW + timedelta(hours=1))
+v = cm.judge(contact(0), NOW - timedelta(hours=30), None, 80, NOW, levels, away)
+assert v["severity"] == "NORMAL" and "부재 중" in v["life"], "부재 중엔 무활동 긴급이 안 뜸"
+v = cm.judge(contact(0), NOW - timedelta(hours=30), None, 11, NOW, levels, away)
+assert v["severity"] == "WATCH", "부재 중에도 배터리는 봄"
+v = cm.judge(contact(25), NOW - timedelta(hours=30), None, 80, NOW, levels, away)
+assert v["severity"] == "CHECK_DEVICE", "부재 중에도 통신 두절은 봄"
+
+end = engine.end_absence(ok["absence"]["id"], now=NOW + timedelta(hours=2))
+assert end["ok"] and end["absence"]["ended_by"] == "복지사"
+assert engine.active_absence("102", NOW + timedelta(hours=3)) is None, "일찍 해제"
+assert not engine.end_absence(ok["absence"]["id"], now=NOW + timedelta(hours=3))["ok"], "두 번 해제 안 됨"
+assert len(engine.load_absences()) == 1, "해제해도 기록은 지우지 않음"
+
+print("규칙 겹침·단계 경보·부재 등록 점검 통과")
