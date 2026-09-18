@@ -153,5 +153,35 @@
     "created": "2026-09-17T09:14:08",
     "approved_by": "복지사",
     "approved_at": "2026-09-17T09:14:08"
+  },
+  {
+    "id": 8,
+    "sentence": "전체 세대에서 8시간 동안 움직임이 없으면 긴급으로 표시해줘",
+    "rule": {
+      "scope": {
+        "homes": "ALL"
+      },
+      "when": {
+        "path": "",
+        "type": "motion",
+        "op": "idle_over_m",
+        "value": "480"
+      },
+      "and": [],
+      "then": [
+        {
+          "path": "",
+          "value": "",
+          "severity": "URGENT"
+        }
+      ],
+      "reason": "전체 세대 8시간 무활동 시 긴급 표시"
+    },
+    "enabled": true,
+    "status": "approved",
+    "questions": [],
+    "created": "2026-09-18T15:48:38",
+    "approved_by": "복지사",
+    "approved_at": "2026-09-18T15:48:45"
   }
 ]

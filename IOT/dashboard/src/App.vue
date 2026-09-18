@@ -330,15 +330,39 @@ async function approve(id, value) {
   await refresh()
 }
 
+/* 삭제·거부는 버튼을 한 번 더 눌러야 실행된다 (4초 안에).
+   브라우저 confirm() 창은 환경에 따라 자동으로 닫혀(앱 안 브라우저 등) 아무 반응 없이 취소된다. */
+const confirmingId = ref(null)
+const ruleBusy = ref(null)          // 요청 중인 규칙 — 응답 전 연타를 막는다
+let confirmTimer = null
+
 async function reject(id) {
-  const r = rules.value.find((x) => x.id === id)
-  if (!confirm(`규칙 "${r ? r.sentence : '#' + id}" 을(를) 삭제할까요?`)) return
-  await api.rejectRule(id)
-  if (lastResult.value?.id === id) lastResult.value = null
-  await refresh()
+  if (confirmingId.value !== id) {
+    confirmingId.value = id
+    clearTimeout(confirmTimer)
+    confirmTimer = setTimeout(() => { confirmingId.value = null }, 4000)
+    return
+  }
+  if (ruleBusy.value) return
+  ruleBusy.value = id
+  try {
+    const res = await api.rejectRule(id)
+    if (!res.ok) { ruleError.value = res.errors?.join(' ') || '삭제에 실패했습니다.'; return }
+    if (lastResult.value?.id === id) lastResult.value = null
+    await refresh()
+  } catch (e) {
+    ruleError.value = `삭제에 실패했습니다: ${e.message}`
+  } finally {
+    ruleBusy.value = null
+    confirmingId.value = null
+  }
 }
 
-async function toggleRule(id) { await api.toggleRule(id); await refresh() }
+async function toggleRule(id) {
+  if (ruleBusy.value) return
+  ruleBusy.value = id
+  try { await api.toggleRule(id); await refresh() } finally { ruleBusy.value = null }
+}
 function useExample(ex) { sentence.value = ex; inputTab.value = 'nl' }
 function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '⋯', pending: '○' })[s] || '○' }
 
@@ -509,7 +533,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                     v-if="r.questions && r.questions.length"
                     v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
                   />
-                  <button class="btn ghost" @click="reject(r.id)">거부</button>
+                  <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? '한 번 더 누르면 거부' : '거부' }}</button>
                   <button class="btn primary" @click="approve(r.id, fillValue || undefined)">승인하기</button>
                 </div>
               </article>
@@ -662,7 +686,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   v-if="lastResult.status === 'needs_clarification'"
                   v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
                 />
-                <button class="btn ghost" @click="reject(lastResult.id)">거부</button>
+                <button class="btn ghost" :class="{ danger: confirmingId === lastResult.id }" :disabled="ruleBusy === lastResult.id" @click="reject(lastResult.id)">{{ confirmingId === lastResult.id ? '한 번 더 누르면 거부' : '거부' }}</button>
                 <button class="btn primary" @click="approve(lastResult.id, fillValue || undefined)">
                   승인하기
                 </button>
@@ -741,7 +765,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 v-if="r.questions && r.questions.length"
                 v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
               />
-              <button class="btn ghost" @click="reject(r.id)">거부</button>
+              <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? '한 번 더 누르면 거부' : '거부' }}</button>
               <button class="btn primary" @click="approve(r.id, fillValue || undefined)">승인하기</button>
             </div>
           </article>
@@ -768,8 +792,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <div v-if="overrideText(r.rule)"><dt>세대별 예외</dt><dd>{{ overrideText(r.rule) }}</dd></div>
             </dl>
             <div class="pending-act">
-              <button class="btn ghost" @click="toggleRule(r.id)">{{ r.enabled ? '일시중지' : '재개' }}</button>
-              <button class="btn ghost danger" @click="reject(r.id)">삭제</button>
+              <button class="btn ghost" :disabled="ruleBusy === r.id" @click="toggleRule(r.id)">{{ r.enabled ? '일시중지' : '재개' }}</button>
+              <button class="btn danger" :class="{ ghost: confirmingId !== r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? '한 번 더 누르면 삭제' : '삭제' }}</button>
             </div>
           </article>
         </section>
