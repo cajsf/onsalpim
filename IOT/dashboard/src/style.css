@@ -110,7 +110,7 @@ button {
 .flag.ovr-flag { background: var(--brand-soft); color: var(--brand-dim); }
 
 /* 버튼 — 여러 화면·컴포넌트가 같이 쓴다 */
-.btn { padding: 0.5rem 0.95rem; border-radius: var(--radius-sm); font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); }
+.btn { white-space: nowrap; padding: 0.5rem 0.95rem; border-radius: var(--radius-sm); font-size: 0.8rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); }
 .btn:hover:not(:disabled) { background: var(--surface-2); }
 .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
 .btn.primary:hover:not(:disabled) { background: var(--brand-dim); }
@@ -118,4 +118,4 @@ button {
 .btn.ghost { background: none; }
 .btn.danger { color: var(--urgent); border-color: #f3c8c8; }
 .btn.wide { width: 100%; margin-top: 0.7rem; }
-.btn.sm { padding: 0.28rem 0.6rem; font-size: 0.72rem; }
+.btn.sm { padding: 0.34rem 0.75rem; font-size: 0.74rem; }

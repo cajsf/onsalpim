@@ -443,7 +443,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           :title="n.ready ? n.label : '준비 중'"
           @click="activeView = n.id"
         >
-          <span class="nav-dot" :class="n.icon"></span>
+          <span class="nav-dot" :class="'ic-' + n.icon"></span>
           {{ n.label }}
           <span v-if="n.id === 'rules' && pendingRules.length" class="nav-badge">
             {{ pendingRules.length }}
@@ -1093,8 +1093,9 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .nav-item:hover:not(.disabled) { background: var(--surface-2); color: var(--text); }
 .nav-item.active { background: var(--brand-soft); color: var(--brand-dim); font-weight: 600; }
 .nav-item.disabled { opacity: 0.45; cursor: default; }
-.nav-dot { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 3px; background: currentColor; opacity: 0.55; }
-.nav-item.active .nav-dot { opacity: 1; }
+/* 아이콘 클래스는 ic- 접두사 — 'chip' 같은 이름이 상단 배지(.chip)와 겹쳐 기기 관리만 알약 모양이 됐었다 */
+.nav-dot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 999px; background: currentColor; opacity: 0.55; transition: width 0.15s ease; }
+.nav-item.active .nav-dot { width: 16px; opacity: 1; }   /* 선택된 메뉴만 알약 모양 */
 .nav-badge {
   margin-left: auto; background: var(--urgent); color: #fff; font-size: 0.68rem;
   font-weight: 700; padding: 0.05rem 0.42rem; border-radius: 999px;
