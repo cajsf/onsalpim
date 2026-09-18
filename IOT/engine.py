@@ -21,6 +21,8 @@ import os
 import threading
 from datetime import datetime, timedelta
 
+import requests
+
 import care_monitor
 import iot_platform as iot
 import llm_translator as tr
@@ -860,7 +862,11 @@ def loop(interval=3):
     import time
 
     print(f"규칙 {len(load_rules())}개 로드. {interval}초마다 실행. (Ctrl+C 로 종료)")
-    devices = iot.read_tree("byeongari", max_age=0)
+    try:
+        devices = iot.read_tree("byeongari", max_age=0)
+    except requests.RequestException as e:   # 켤 때 서버가 늦어도 루프 안에서 다시 시도한다
+        print(f"  [플랫폼 응답 없음] 장치 목록은 다음 판정 때 다시 읽습니다: {type(e).__name__}")
+        devices = []
     for w in care_monitor.check_sweep_interval(interval, devices):
         print("  [경고]", w)
     print()
@@ -876,11 +882,17 @@ def loop(interval=3):
     try:
         while True:
             rules = load_rules()   # 매 사이클 다시 읽음 → 대시보드에서 추가/삭제 즉시 반영
-            devices = iot.read_tree("byeongari")   # 캐시됨 (장치 꽂을 때만 실제로 읽음)
-
-            run_once(rules, last_sent)
-
-            homes_state = collect_home_state(devices, rules)
+            try:
+                devices = iot.read_tree("byeongari")   # 캐시됨 (장치 꽂을 때만 실제로 읽음)
+                run_once(rules, last_sent)
+                homes_state = collect_home_state(devices, rules)
+            except requests.RequestException as e:
+                # 공용 서버가 한 번 늦거나 끊겼다고 엔진이 죽으면 안 된다 — 이번 판정만 건너뛴다.
+                # 판정을 못 한 채 시간이 지나면 화면이 '판정이 갱신되지 않음'으로 알린다(추측해서 칠하지 않는다).
+                print(f"  [플랫폼 응답 없음] 이번 판정 건너뜀: {type(e).__name__}")
+                write_heartbeat()
+                time.sleep(interval)
+                continue
             if homes_state:
                 results = wd.sweep(homes_state)
                 write_care_state(results, homes_state, rules, devices)

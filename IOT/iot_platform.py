@@ -25,6 +25,7 @@ LECTURE = "LCT_20260002"                        # 수업 ID
 BASE = "https://onem2m.iotcoss.ac.kr"
 ORIGIN = "SOrigin_BAR2"     # 팀 약어 BAR2 기준
 AE = "byeongari"            # 우리 AE(장치 계정) 이름
+TIMEOUT_S = 10              # 공용 서버가 응답을 안 하면 영원히 기다리지 않는다 (09-18 엔진이 멈춘 원인)
 
 
 # 공통 헤더 (3개 인증 + oneM2M 표준헤더)
@@ -48,7 +49,7 @@ def post_cin(cnt, value):
     """CIN(값) 하나 올리기 — ty=4.  cnt=컨테이너 이름, value=올릴 값."""
     url = f"{BASE}/Mobius/{AE}/{cnt}"
     body = {"m2m:cin": {"con": str(value)}}
-    r = requests.post(url, headers=headers(ty=4), json=body)
+    r = requests.post(url, headers=headers(ty=4), json=body, timeout=TIMEOUT_S)
     return r   # r.status_code == 201 이면 성공
 
 
@@ -56,7 +57,7 @@ def post_cin_by_path(path, value):
     """전체 경로로 CIN 올리기 — ty=4.  path 예: 'Mobius/byeongari/led_cmd'."""
     url = f"{BASE}/{path}"
     body = {"m2m:cin": {"con": str(value)}}
-    r = requests.post(url, headers=headers(ty=4), json=body)
+    r = requests.post(url, headers=headers(ty=4), json=body, timeout=TIMEOUT_S)
     return r   # r.status_code == 201 이면 성공
 
 
@@ -67,7 +68,7 @@ def create_container(rn, labels):
     """
     url = f"{BASE}/Mobius/{AE}"
     body = {"m2m:cnt": {"rn": rn, "lbl": labels}}
-    r = requests.post(url, headers=headers(ty=3), json=body)
+    r = requests.post(url, headers=headers(ty=3), json=body, timeout=TIMEOUT_S)
     return r   # 201=성공, 409=이미있음
 
 
@@ -76,7 +77,7 @@ def create_container(rn, labels):
 def get_latest_cin(ae, cnt):
     """최신 값 하나 읽기 (la = latest).  값(문자열)만 반환, 실패하면 None."""
     url = f"{BASE}/Mobius/{ae}/{cnt}/la"
-    r = requests.get(url, headers=headers())
+    r = requests.get(url, headers=headers(), timeout=TIMEOUT_S)
     if r.status_code == 200:
         return r.json()["m2m:cin"]["con"]
     print(f"읽기 실패({cnt}):", r.status_code)
@@ -99,7 +100,7 @@ def parse_labels(labels):
 def get_latest_by_path(path):
     """전체 경로로 최신 값 하나 읽기.  path 예: 'Mobius/byeongari/temp'.  실패하면 None."""
     url = f"{BASE}/{path}/la"
-    r = requests.get(url, headers=headers())
+    r = requests.get(url, headers=headers(), timeout=TIMEOUT_S)
     if r.status_code == 200:
         return r.json()["m2m:cin"]["con"]
     return None
@@ -115,7 +116,7 @@ def get_latest_cin_full(path):
     → care_monitor.py 가 이 함수로 두 시계(last_contact / last_activity)를 읽는다.
     """
     url = f"{BASE}/{path}/la"
-    r = requests.get(url, headers=headers())
+    r = requests.get(url, headers=headers(), timeout=TIMEOUT_S)
     if r.status_code == 200:
         return r.json()["m2m:cin"]
     return None
@@ -153,14 +154,14 @@ def read_tree(ae, only_ours=True, max_age=TREE_CACHE_S):
         return hit[1]
 
     url = f"{BASE}/Mobius/{ae}?fu=1&ty=3"   # fu=1 검색, ty=3 컨테이너만
-    r = requests.get(url, headers=headers())
+    r = requests.get(url, headers=headers(), timeout=TIMEOUT_S)
     if r.status_code != 200:
         print("트리 읽기 실패:", r.status_code, r.text[:200])
         return []                            # 실패는 캐시하지 않는다
     paths = r.json().get("m2m:uril", [])
     devices = []
     for p in paths:
-        rr = requests.get(f"{BASE}/{p}", headers=headers())
+        rr = requests.get(f"{BASE}/{p}", headers=headers(), timeout=TIMEOUT_S)
         if rr.status_code != 200:
             continue
         cnt = rr.json()["m2m:cnt"]
@@ -181,6 +182,6 @@ def read_tree(ae, only_ours=True, max_age=TREE_CACHE_S):
 def delete_cnt(ae, cnt):
     """컨테이너 삭제 (안에 든 것도 같이 사라짐).  200이면 삭제됨."""
     url = f"{BASE}/Mobius/{ae}/{cnt}"
-    r = requests.delete(url, headers=headers())
+    r = requests.delete(url, headers=headers(), timeout=TIMEOUT_S)
     print(f"삭제 {cnt}:", r.status_code)
     return r
