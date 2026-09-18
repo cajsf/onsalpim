@@ -41,6 +41,16 @@ function toggleSound() {
   soundOn.value = !soundOn.value
   try { localStorage.setItem('onsalpim.sound', soundOn.value ? 'on' : 'off') } catch { /* 무시 */ }
 }
+/* 대응을 누르면 서버 응답으로 그 알림만 바로 고치고, 전체 새로고침은 뒤에서 */
+function onAlertChanged(p) {
+  if (p?.log) {
+    alerts.value = alerts.value.map((a) => a.id === p.id
+      ? { ...a, log: p.log, state: p.log.at(-1).status,
+          first_response_s: (Date.parse(p.log[0].at) - Date.parse(a.ts)) / 1000 }
+      : a)
+  }
+  refresh()
+}
 function openHome(home) {
   selectedHomeId.value = home
   activeView.value = 'homes'
@@ -93,13 +103,14 @@ let clockTimer = null
 
 async function refresh() {
   try {
-    const [c, r, a, eng, d] = await Promise.all([
-      api.getCare(), api.getRules(), api.getAlerts(100), api.getEngineStatus(), api.getDevices(),
+    // 장치 목록은 공용 서버를 읽어 수 초 걸릴 수 있다 — 기다리면 나머지 화면까지 늦어진다
+    api.getDevices().then((d) => { devices.value = d }).catch(() => {})
+    const [c, r, a, eng] = await Promise.all([
+      api.getCare(), api.getRules(), api.getAlerts(100), api.getEngineStatus(),
     ])
     care.value = c
     rules.value = r
     alerts.value = a
-    devices.value = d
     engineRunning.value = eng.running
     engineMessage.value = eng.message
     connectionError.value = ''
@@ -845,7 +856,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <p v-if="!alertsOfHome(selectedHome.home).length" class="muted home-note">기록된 알림이 없습니다.</p>
             <ul v-else class="alerts">
               <AlertItem v-for="a in alertsOfHome(selectedHome.home)" :key="a.id" :a="a"
-                         :show-home="false" @changed="refresh" />
+                         :show-home="false" @changed="onAlertChanged" />
             </ul>
           </section>
         </div>
@@ -876,7 +887,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             {{ alertFilter === 'todo' ? '조치할 알림이 없습니다.' : '아직 기록된 알림이 없습니다.' }}
           </p>
           <ul v-else class="alerts big">
-            <AlertItem v-for="a in shownAlerts" :key="a.id" :a="a" @changed="refresh" />
+            <AlertItem v-for="a in shownAlerts" :key="a.id" :a="a" @changed="onAlertChanged" />
           </ul>
         </section>
       </main>
@@ -919,7 +930,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 
     <!-- 새 알림 팝업 — 화면이 바뀌어도 떠 있어야 해서 최상위에 둔다 -->
     <AlertToasts :alerts="alerts" :sound="soundOn" @open-home="openHome"
-                 @open-alerts="activeView = 'alerts'; alertFilter = 'todo'" @changed="refresh" />
+                 @open-alerts="activeView = 'alerts'; alertFilter = 'todo'" @changed="onAlertChanged" />
   </div>
 </template>
 

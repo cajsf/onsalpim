@@ -598,6 +598,9 @@ def record_action(aid, status, memo="", by="복지사", now=None):
             return {"ok": False, "errors": ["이미 끝난 알림입니다."]}
         if status == "late" and entry["log"]:
             return {"ok": False, "errors": ["이미 대응 기록이 있는 알림입니다."]}
+        if entry["log"] and entry["log"][-1]["status"] == status:
+            # 같은 상태를 연달아 누른 것 (응답이 늦어 여러 번 누르는 경우) — 한 번만 남긴다
+            return {"ok": True, "errors": [], "log": entry["log"]}
         entry["log"].append({"status": status, "memo": memo, "by": by,
                              "at": (now or datetime.now()).isoformat(timespec="seconds")})
         with open(ACTIONS_FILE, "w", encoding="utf-8") as f:

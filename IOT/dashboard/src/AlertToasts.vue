@@ -35,11 +35,12 @@ const toasts = computed(() =>
 function dismiss(id) { shown.value = shown.value.filter((x) => x !== id) }
 
 async function ack(a) {
+  if (busy.value) return
   busy.value = a.id
-  await api.actAlert(a.id, 'ack')
+  const r = await api.actAlert(a.id, 'ack')
   busy.value = ''
   dismiss(a.id)
-  emit('changed')
+  if (r.ok) emit('changed', { id: a.id, log: r.log })
 }
 
 /* 소리 — 파일 없이 브라우저가 만든다. 브라우저 정책상 화면을 한 번 누른 뒤부터 난다. */

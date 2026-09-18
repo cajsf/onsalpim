@@ -111,6 +111,8 @@ assert not engine.record_action("없음|999", "ack")["ok"], "없는 알림 거�
 assert not engine.record_action(by_id["101NORMAL"]["id"], "ack")["ok"], "회복 기록엔 대응 불가"
 
 assert engine.record_action(a102, "ack", now=T0 + timedelta(seconds=372))["ok"]
+assert engine.record_action(a102, "ack")["ok"]      # 같은 상태 연타
+assert len(engine.load_actions()[a102]["log"]) == 1, "같은 상태를 연달아 누르면 한 번만 기록"
 assert engine.record_action(a102, "done", "전화 통화, 이상 없음")["ok"]
 assert not engine.record_action(a102, "ack")["ok"], "조치 완료 뒤에는 더 기록하지 않음"
 x = next(a for a in engine.alerts_with_actions() if a["id"] == a102)

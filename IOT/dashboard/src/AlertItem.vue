@@ -22,6 +22,7 @@ const actionable = computed(() => ['open', 'ack', 'progress'].includes(props.a.s
 const st = computed(() => ALERT_STATE[props.a.state])
 
 async function act(status) {
+  if (busy.value) return            // 응답 오기 전 연타는 버린다
   if (status === 'done' && !memoOpen.value) { memoOpen.value = true; return }
   busy.value = true
   error.value = ''
@@ -30,7 +31,7 @@ async function act(status) {
   if (!r.ok) { error.value = (r.errors || []).join(' '); return }
   memoOpen.value = false
   memo.value = ''
-  emit('changed')
+  emit('changed', { id: props.a.id, log: r.log })   // 화면은 서버 응답으로 바로 바꾼다
 }
 </script>
 
