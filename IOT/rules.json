@@ -179,16 +179,7 @@
         }
       ],
       "reason": "전체 세대 8시간 무활동 시 긴급 표시",
-      "overrides": {
-        "104": {
-          "value": "8"
-        },
-        "102": {
-          "value": "5",
-          "by": "복지사",
-          "at": "2026-09-18T17:02:44"
-        }
-      }
+      "overrides": {}
     },
     "enabled": true,
     "status": "approved",
@@ -207,6 +198,20 @@
         "value": "3",
         "by": "복지사",
         "at": "2026-09-18T17:13:26"
+      },
+      {
+        "action": "override_removed",
+        "home": "102",
+        "value": "5",
+        "by": "복지사",
+        "at": "2026-09-18T17:22:26"
+      },
+      {
+        "action": "override_removed",
+        "home": "104",
+        "value": "8",
+        "by": "복지사",
+        "at": "2026-09-18T17:22:34"
       }
     ]
   }
