@@ -30,25 +30,28 @@ const judgedAgo = computed(() => secondsSince(props.h.judged_at))
         <span v-if="!h.life_known" class="muted">(기록 기준) · 통신 두절 이후는 확인 불가</span>
       </dd>
     </div>
-    <div v-if="h.applied && h.applied.common">
-      <dt>공통 기준</dt><dd>{{ fmtMinutes(h.applied.common) }}</dd>
-    </div>
     <div v-if="h.idle_levels && h.idle_levels.length > 1">
-      <dt>단계 기준</dt>
+      <dt>무활동 기준</dt>
       <dd>
         <span v-for="(lv, i) in h.idle_levels" :key="i">
-          {{ i ? ' → ' : '' }}{{ fmtMinutes(lv.minutes) }} {{ SEV[lv.severity]?.ko }}
+          {{ i ? ' · ' : '' }}{{ fmtMinutes(lv.minutes) }} 넘게 움직임 없으면 {{ SEV[lv.severity]?.ko }}
         </span>
       </dd>
     </div>
-    <div v-if="h.idle_min != null">
-      <dt>적용 기준</dt>
+    <div v-else-if="h.idle_min != null">
+      <dt>무활동 기준</dt>
       <dd>
-        {{ fmtMinutes(h.idle_min) }}
+        {{ fmtMinutes(h.idle_min) }} 넘게 움직임이 없으면 {{ SEV.URGENT.ko }}
         <span v-if="h.applied && h.applied.source === 'override'" class="flag ovr-flag">
           {{ h.home }}호 예외
         </span>
       </dd>
+    </div>
+    <div v-if="h.applied && h.applied.source === 'override'">
+      <dt>공통 기준</dt><dd>전체 세대 {{ fmtMinutes(h.applied.common) }} (이 세대에는 예외 적용)</dd>
+    </div>
+    <div v-if="h.away">
+      <dt>부재</dt><dd>{{ h.away.until.slice(5, 16).replace('T', ' ') }}까지 · {{ h.away.reason }} — 무활동 판정 보류</dd>
     </div>
     <div v-if="h.battery != null">
       <dt>배터리</dt><dd>{{ Math.round(h.battery) }}%</dd>

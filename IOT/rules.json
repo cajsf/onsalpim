@@ -178,7 +178,12 @@
           "severity": "URGENT"
         }
       ],
-      "reason": "전체 세대 8시간 무활동 시 긴급 표시"
+      "reason": "전체 세대 8시간 무활동 시 긴급 표시",
+      "overrides": {
+        "104": {
+          "value": "8"
+        }
+      }
     },
     "enabled": true,
     "status": "approved",

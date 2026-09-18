@@ -136,42 +136,70 @@ def _apply_override(sentence, out, devices, steps):
         return _stop(steps, OVERRIDE_STEPS,
                      [f"'{ov_type}' 기준을 쓰는 공통 규칙이 없습니다. "
                       f"먼저 전체 세대 규칙을 만들어 주세요."])
-    if len(matches) > 1:
-        # 되묻기만 하면 복지사가 할 수 있는 게 없다 — 후보를 돌려주고 화면에서 고르게 한다.
-        # 고른 뒤에는 AI 를 다시 부르지 않고 이 {세대, 값}을 그 규칙에 그대로 붙인다 (apply_override_to).
-        result = _stop(steps, OVERRIDE_STEPS, [],
-                       questions=[f"{home}호 예외를 적용할 규칙이 {len(matches)}개입니다. 하나를 골라 주세요."])
-        result["status"] = "needs_choice"
-        result["choice"] = {"home": home, "type": ov_type, "value": value}
-        result["candidates"] = [{"id": r["id"], "sentence": r["sentence"],
-                                 "summary": scope.describe_rule(r["rule"], devices)} for r in matches]
-        return result
+    # 대상이 하나여도 바로 저장하지 않는다. 새 규칙이 승인을 거치듯, AI 가 읽은 예외도
+    # "102호 무활동 기준 6시간(360분) → 규칙 #8" 을 복지사가 보고 적용을 눌러야 저장된다.
+    # 후보마다 미리 검증해서 통과한 것만 보여준다 (고른 뒤에 막히면 헛걸음이다).
+    # 고른 뒤에는 AI 를 다시 부르지 않고 이 {세대, 값}을 그 규칙에 그대로 붙인다 (apply_override_to).
+    candidates, first_fail = [], None
+    for r in matches:
+        _, sc = _override_check(r, rules, home, value, devices)
+        if sc["ok"]:
+            cur = next((p for p in scope.expand(r["rule"], devices) if p["home"] == home), None)
+            candidates.append({"id": r["id"], "sentence": r["sentence"],
+                               "summary": scope.describe_rule(r["rule"], devices),
+                               "current": cur["value"] if cur else None,
+                               "current_source": cur["source"] if cur else None,
+                               "warnings": sc["warnings"]})
+        elif first_fail is None:
+            first_fail = sc
+    if not candidates:
+        steps.append({"id": "scope", "label": STEP_LABELS["scope"],
+                      "status": "skip" if first_fail["status"] == "needs_clarification" else "fail",
+                      "detail": "; ".join(first_fail["errors"]) or "; ".join(first_fail["questions"])})
+        return _stop(steps, OVERRIDE_STEPS, first_fail["errors"], questions=first_fail["questions"],
+                     reason="범위 검증에서 멈춤")
 
-    return _attach_override(matches[0], rules, home, value, devices, steps)
+    steps.append({"id": "scope", "label": STEP_LABELS["scope"], "status": "ok",
+                  "detail": f"{home}호 예외 {scope._fmt_minutes(value)} 적용 가능"})
+    ask = (f"AI가 읽은 내용: {home}호 무활동 기준을 {scope._fmt_minutes(value)}({value}분)으로. "
+           + ("아래 규칙에 적용할까요?" if len(candidates) == 1
+              else f"적용할 규칙이 {len(candidates)}개입니다. 하나를 골라 주세요."))
+    result = _stop(steps, OVERRIDE_STEPS, [], questions=[ask], reason="복지사 확인 후 적용")
+    result["status"] = "needs_choice"
+    result["choice"] = {"home": home, "type": ov_type, "value": value}
+    result["candidates"] = candidates
+    return result
 
 
-def apply_override_to(rule_id, home, value, devices=None):
-    """복지사가 고른 규칙에 세대 예외를 붙인다 — 예외 대상 후보가 여럿이었을 때."""
+def apply_override_to(rule_id, home, value, devices=None, by="복지사"):
+    """복지사가 확인한(고른) 규칙에 세대 예외를 붙인다. 누가·언제 적용했는지 남긴다."""
     rules = load_rules()
     target = next((r for r in rules if r["id"] == rule_id), None)
     if target is None or not is_active(target):
         return {"ok": False, "errors": [f"규칙 #{rule_id}은(는) 적용 중인 규칙이 아닙니다."]}
     devices = devices if devices is not None else iot.read_tree("byeongari")
-    return _attach_override(target, rules, str(home).strip(), str(value).strip(), devices, [])
+    return _attach_override(target, rules, str(home).strip(), str(value).strip(), devices, [], by)
 
 
-def _attach_override(target, rules, home, value, devices, steps):
+def _override_check(target, rules, home, value, devices, by=None):
+    """예외를 얹은 사본을 만들어 검증만 한다 (저장 안 함)."""
+    merged = dict(target["rule"])
+    merged["overrides"] = dict(merged.get("overrides") or {})
+    ov = {"value": value}
+    if by:
+        ov.update(by=by, at=datetime.now().isoformat(timespec="seconds"))
+    merged["overrides"][home] = ov
+    return merged, scope.validate_scope(merged, devices, [r for r in rules if r["id"] != target["id"]])
+
+
+def _attach_override(target, rules, home, value, devices, steps, by="복지사"):
     steps.append({
         "id": "match", "label": STEP_LABELS["match"], "status": "ok",
         "detail": f'규칙 #{target["id"]} "{target["sentence"]}" 에 적용',
     })
 
     # 예외를 얹은 사본으로 검증 — 통과해야 실제 규칙에 반영한다
-    merged = dict(target["rule"])
-    merged["overrides"] = dict(merged.get("overrides") or {})
-    merged["overrides"][home] = {"value": value}
-
-    sc = scope.validate_scope(merged, devices, [r for r in rules if r["id"] != target["id"]])
+    merged, sc = _override_check(target, rules, home, value, devices, by)
     steps.append({
         "id": "scope", "label": STEP_LABELS["scope"],
         "status": "ok" if sc["ok"] else ("skip" if sc["status"] == "needs_clarification" else "fail"),

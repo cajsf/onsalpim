@@ -33,7 +33,7 @@ async function submitThreshold() {
   busy.value = true; error.value = ''; notice.value = ''; choice.value = null
   try {
     const r = await api.addRule(`${props.home}호만 무활동 기준을 ${valueText.value.trim()}으로 바꿔줘`)
-    if (r.status === 'needs_choice') { choice.value = r; return }
+    if (r.status === 'needs_choice') { choice.value = r; return }   // AI 가 읽은 내용을 보여주고 확인받는다
     if (!r.ok) { error.value = (r.errors || r.questions || []).join(' ') || '적용하지 못했습니다.'; return }
     notice.value = `${props.home}호 예외 기준을 적용했습니다. 다음 판정(몇 초 안)부터 반영됩니다.`
     valueText.value = ''
@@ -51,7 +51,7 @@ async function pick(c) {
   const r = await api.overrideRule(c.id, choice.value.choice.home, choice.value.choice.value)
   busy.value = false
   if (!r.ok) { error.value = (r.errors || []).join(' '); return }
-  notice.value = `규칙 #${c.id}에 ${props.home}호 예외 ${fmtMinutes(choice.value.choice.value)}을(를) 적용했습니다.`
+  notice.value = `규칙 #${c.id}에 ${props.home}호 예외 ${fmtMinutes(choice.value.choice.value)}을(를) 적용했습니다. 다음 판정(몇 초 안)부터 반영됩니다.`
   choice.value = null
   valueText.value = ''
   emit('changed')
@@ -82,7 +82,12 @@ async function loadAbsences() {
   try { absences.value = await api.getAbsences(props.home) } catch { absences.value = [] }
 }
 onMounted(() => { loadAbsences(); resetAbsenceForm() })
-watch(() => props.home, () => { open.value = ''; choice.value = null; valueText.value = ''; loadAbsences(); resetAbsenceForm() })
+// 세대를 바꾸면 이전 세대의 입력·안내는 모두 지운다 (다른 세대 화면에 남아 있으면 헷갈린다)
+watch(() => props.home, () => {
+  open.value = ''; choice.value = null; valueText.value = ''
+  error.value = ''; notice.value = ''
+  loadAbsences(); resetAbsenceForm()
+})
 
 function absenceState(a) {
   if (a.ended_at) return { ko: `일찍 해제 (${stampOf(a.ended_at)} · ${a.ended_by})`, cls: 'muted', live: false }
@@ -127,13 +132,16 @@ async function endAbsence(a) {
       </button>
     </div>
 
+    <p v-if="error" class="msg err">{{ error }}</p>
+    <p v-if="notice" class="msg info">{{ notice }}</p>
+
     <!-- 영구 예외 -->
     <div v-if="open === 'threshold'" class="panel">
       <p class="now muted">
         <template v-if="applied.minutes">
-          지금 {{ home }}호 기준: <strong>{{ fmtMinutes(applied.minutes) }}</strong>
-          <template v-if="applied.source === 'override'"> (예외 · 공통 {{ fmtMinutes(applied.common) }})</template>
-          <template v-else> (공통 기준)</template>
+          지금 {{ home }}호 무활동 기준: <strong>{{ fmtMinutes(applied.minutes) }}</strong> 넘게 움직임이 없으면 긴급 확인
+          <template v-if="applied.source === 'override'"> (이 세대 예외 · 공통 {{ fmtMinutes(applied.common) }})</template>
+          <template v-else> (전체 세대 공통 기준)</template>
         </template>
         <template v-else>이 세대에 걸린 무활동 규칙이 없습니다. 먼저 전체 세대 규칙을 만들어 주세요.</template>
       </p>
@@ -145,12 +153,24 @@ async function endAbsence(a) {
           {{ busy ? '적용 중…' : '적용' }}
         </button>
       </div>
-      <p class="muted small">말로 만든 규칙과 똑같이 AI 번역 → 검증 → 대상 규칙 찾기를 거쳐 적용됩니다.</p>
+      <p class="muted small">
+        말로 만든 규칙과 똑같이 AI 번역 → 검증을 거치고, <strong>AI가 읽은 내용을 확인한 뒤 적용</strong>됩니다.
+      </p>
       <div v-if="choice" class="picks">
         <p class="msg clarify">{{ choice.questions?.join(' ') }}</p>
-        <button v-for="c in choice.candidates" :key="c.id" class="pick" :disabled="busy" @click="pick(c)">
-          <strong>#{{ c.id }}에 적용</strong> <span class="muted">{{ c.summary }}</span>
-        </button>
+        <div v-for="c in choice.candidates" :key="c.id" class="pick">
+          <div>
+            <strong>규칙 #{{ c.id }}</strong> <span class="muted">{{ c.summary }}</span>
+            <p class="change">
+              {{ home }}호: {{ c.current ? fmtMinutes(c.current) : '기준 없음' }}
+              <span class="muted">({{ c.current_source === 'override' ? '기존 예외' : '공통' }})</span>
+              → <strong>{{ fmtMinutes(choice.choice.value) }}</strong>
+            </p>
+            <p v-for="w in c.warnings" :key="w" class="muted small">⚠ {{ w }}</p>
+          </div>
+          <button class="btn primary sm" :disabled="busy" @click="pick(c)">{{ busy ? '적용 중…' : '적용' }}</button>
+        </div>
+        <button class="btn ghost sm" @click="choice = null">취소</button>
       </div>
     </div>
 
@@ -173,7 +193,9 @@ async function endAbsence(a) {
         <button v-for="n in [1, 3, 7]" :key="n" class="chip-btn" @click="setDays(n)">{{ n }}일</button>
       </div>
       <div class="row">
-        <button class="btn primary sm" :disabled="busy || !reason.trim() || !end" @click="submitAbsence">부재 등록</button>
+        <button class="btn primary sm" :disabled="busy || !reason.trim() || !end" @click="submitAbsence">
+          {{ busy ? '등록 중…' : '부재 등록' }}
+        </button>
       </div>
 
       <ul v-if="absences.length" class="alist">
@@ -186,8 +208,6 @@ async function endAbsence(a) {
       </ul>
     </div>
 
-    <p v-if="error" class="msg err">{{ error }}</p>
-    <p v-if="notice" class="msg info">{{ notice }}</p>
   </div>
 </template>
 
@@ -206,8 +226,9 @@ input { padding: 0.34rem 0.55rem; border: 1px solid var(--border-strong); border
 .chip-btn { padding: 0.24rem 0.6rem; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface); font-size: 0.74rem; cursor: pointer; color: var(--text-2); white-space: nowrap; }
 .chip-btn.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-dim); font-weight: 600; }
 .picks { display: grid; gap: 0.35rem; }
-.pick { text-align: left; padding: 0.5rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); cursor: pointer; font-size: 0.78rem; }
-.pick:hover:not(:disabled) { border-color: var(--brand); background: var(--brand-soft); }
+.pick { display: flex; gap: 0.7rem; align-items: center; justify-content: space-between; padding: 0.55rem 0.75rem; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); font-size: 0.78rem; }
+.change { margin: 0.2rem 0 0; }
+.picks > .btn { justify-self: start; }
 .alist { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; }
 .alist li { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; font-size: 0.76rem; }
 .msg { margin: 0; }

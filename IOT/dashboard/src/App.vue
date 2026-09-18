@@ -65,6 +65,13 @@ function onAlertChanged(p) {
   }
   refresh()
 }
+/* 요약 카드 → 세대 현황 표를 그 상태로 걸러서 보여준다 */
+async function showHomes(f) {
+  activeView.value = 'dashboard'
+  filter.value = f
+  await nextTick()
+  document.getElementById('home-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 function openHome(home) {
   selectedHomeId.value = home
   activeView.value = 'homes'
@@ -504,7 +511,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       <main v-if="activeView === 'dashboard'" class="content">
         <!-- KPI -->
         <section class="kpis">
-          <article class="kpi kpi-blue">
+          <article class="kpi kpi-blue clickable" role="button" tabindex="0" title="세대 관리로"
+                   @click="activeView = 'homes'" @keyup.enter="activeView = 'homes'">
             <div class="kpi-ico">👥</div>
             <div>
               <p class="kpi-label">전체 모니터링 세대</p>
@@ -512,7 +520,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <p class="kpi-foot">등록된 장치에서 자동 발견</p>
             </div>
           </article>
-          <article class="kpi kpi-red">
+          <article class="kpi kpi-red clickable" role="button" tabindex="0" title="긴급 세대만 보기"
+                   @click="showHomes('urgent')" @keyup.enter="showHomes('urgent')">
             <div class="kpi-ico">🚨</div>
             <div>
               <p class="kpi-label">긴급 알림</p>
@@ -520,7 +529,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <p class="kpi-foot">장시간 무활동 · 통신 정상</p>
             </div>
           </article>
-          <article class="kpi kpi-orange">
+          <article class="kpi kpi-orange clickable" role="button" tabindex="0" title="점검 필요 세대만 보기"
+                   @click="showHomes('device')" @keyup.enter="showHomes('device')">
             <div class="kpi-ico">🔧</div>
             <div>
               <p class="kpi-label">기기 이상</p>
@@ -528,7 +538,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <p class="kpi-foot">통신 두절 — 생활 판정 보류</p>
             </div>
           </article>
-          <article class="kpi kpi-green">
+          <article class="kpi kpi-green clickable" role="button" tabindex="0" title="규칙 관리로"
+                   @click="activeView = 'rules'" @keyup.enter="activeView = 'rules'">
             <div class="kpi-ico">📋</div>
             <div>
               <p class="kpi-label">승인 대기 규칙</p>
@@ -540,7 +551,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 
         <div class="cols">
           <!-- 세대 현황 -->
-          <section class="card">
+          <section id="home-table" class="card">
             <div class="card-head">
               <div>
                 <h2>세대 현황</h2>
@@ -712,6 +723,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 <strong>#{{ c.id }}에 적용</strong>
                 <span>"{{ c.sentence }}"</span>
                 <span class="muted">{{ c.summary }}</span>
+                <span>{{ lastResult.choice.home }}호: {{ c.current ? fmtMinutes(c.current) : '기준 없음' }} →
+                  <strong>{{ fmtMinutes(lastResult.choice.value) }}</strong></span>
               </button>
             </div>
             <p v-for="w in ruleWarnings" :key="w" class="msg warn">{{ w }}</p>
@@ -1264,6 +1277,9 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .pstep.ok .pico { color: var(--normal); }
 .pstep.fail .pico { color: var(--urgent); }
 .pstep.warn .pico { color: var(--watch); }
+.kpi.clickable { cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.kpi.clickable:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.kpi.clickable:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .choices { display: grid; gap: 0.5rem; margin-top: 0.6rem; }
 .choice { display: grid; gap: 0.15rem; text-align: left; padding: 0.65rem 0.8rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; font-size: 0.8rem; color: var(--text-2); }
 .choice strong { color: var(--brand-dim); }

@@ -95,10 +95,21 @@ engine.save_rules([saved(7, care_rule(value="10")), saved(8, care_rule(value="48
 out = {"ok": True, "intent": "set_override", "override": {"home": "102", "type": "motion", "value": "360"}}
 res = engine._apply_override("102호만 6시간", out, TREE, [])
 assert res["status"] == "needs_choice" and [c["id"] for c in res["candidates"]] == [7, 8]
+assert res["candidates"][0]["current"] == "10", "지금 기준을 같이 보여줌"
 assert res["choice"] == {"home": "102", "type": "motion", "value": "360"}
 res = engine.apply_override_to(8, "102", "360", devices=TREE)
 assert res["ok"]
-assert {r["id"]: r for r in engine.load_rules()}[8]["rule"]["overrides"]["102"]["value"] == "360"
+ov = {r["id"]: r for r in engine.load_rules()}[8]["rule"]["overrides"]["102"]
+assert ov["value"] == "360" and ov["by"] == "복지사" and ov["at"], "누가·언제 적용했는지 남김"
+
+# 대상이 하나여도 바로 저장하지 않고 확인을 받는다
+engine.save_rules([saved(8, care_rule(value="480"))])
+res = engine._apply_override("102호만 6시간", out, TREE, [])
+assert res["status"] == "needs_choice" and len(res["candidates"]) == 1
+assert not engine.load_rules()[0]["rule"].get("overrides"), "확인 전엔 저장 안 됨"
+bad = {"ok": True, "intent": "set_override", "override": {"home": "113", "type": "motion", "value": "360"}}
+res = engine._apply_override("113호만 6시간", bad, TREE, [])
+assert res["status"] == "rejected" and "113" in res["errors"][0], "검증에서 막히면 후보 없이 바로 거부"
 assert not engine.apply_override_to(8, "113", "360", devices=TREE)["ok"], "없는 세대 예외는 여전히 막힘"
 
 # ── 부재 등록 (기간이 정해진 임시 예외) ──
