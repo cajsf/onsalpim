@@ -1,6 +1,7 @@
 # ── 비밀값: 절대 올리지 않는다 (예시 파일 *.example.* 만 올린다) ──
 secrets_local.py
 secrets.h
+*secrets*.zip
 
 # ── 의존성·빌드 결과 ──
 node_modules/

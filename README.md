@@ -28,12 +28,15 @@ arduino/home_node/  세대 노드 펌웨어 (UNO R4 WiFi / ESP32)
 
 ## 처음 받았을 때 (한 번만)
 
-저장소에 없는 비밀 파일 두 종류를 팀 카톡에서 받아 넣는다. 예시 파일을 복사해 값을 채워도 된다.
+저장소에 없는 비밀 파일은 팀 카톡의 **`onsalpim_secrets.zip`** 하나로 받는다.
+**저장소 폴더(`onsalpim/`)에 대고 압축을 풀면** 아래 파일들이 제자리에 들어간다. (zip 은 `.gitignore` 에 있어 올라가지 않는다)
 
 | 파일 | 위치 | 예시 |
 |---|---|---|
 | `secrets_local.py` (Gemini 키·플랫폼 API 키) | `IOT/` | `secrets_local.example.py` |
 | `secrets.h` (WiFi·API 키) | 각 펌웨어 폴더 `arduino/*/` | `secrets.example.h` |
+
+직접 만들 때는 예시 파일을 복사해 값을 채운다. 비밀값이 바뀌면 한 사람이 zip 을 다시 만들어 공유한다.
 
 ```bash
 pip install -r IOT/requirements.txt
