@@ -147,12 +147,15 @@
         }
       }
     },
-    "enabled": true,
+    "enabled": false,
     "status": "approved",
     "questions": [],
     "created": "2026-09-17T09:14:08",
     "approved_by": "복지사",
-    "approved_at": "2026-09-17T09:14:08"
+    "approved_at": "2026-09-17T09:14:08",
+    "superseded_by": 8,
+    "superseded_at": "2026-09-18T16:22:33",
+    "superseded_who": "복지사"
   },
   {
     "id": 8,
@@ -180,8 +183,12 @@
     "enabled": true,
     "status": "approved",
     "questions": [],
-    "created": "2026-09-18T15:48:38",
+    "conflicts": [],
+    "created": "2026-09-18T16:22:20",
+    "replaced": [
+      7
+    ],
     "approved_by": "복지사",
-    "approved_at": "2026-09-18T15:48:45"
+    "approved_at": "2026-09-18T16:22:33"
   }
 ]

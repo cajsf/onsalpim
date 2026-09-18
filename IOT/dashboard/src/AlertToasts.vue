@@ -10,7 +10,7 @@ const props = defineProps({
   alerts: { type: Array, required: true },
   sound: { type: Boolean, default: true },
 })
-const emit = defineEmits(['open-home', 'open-alerts', 'changed'])
+const emit = defineEmits(['open-home', 'open-alerts', 'open-alert', 'changed'])
 const MAX = 3                   // 한꺼번에 여러 세대가 끊기면 화면을 덮는다 — 나머지는 한 줄로
 
 let seen = null                 // 처음 불러온 알림은 이미 있던 것 — 팝업하지 않는다
@@ -41,6 +41,7 @@ async function ack(a) {
   busy.value = ''
   dismiss(a.id)
   if (r.ok) emit('changed', { id: a.id, log: r.log })
+  emit('open-alert', a.id)          // 확인했으면 바로 대응 화면으로 — 방문·조치 기록을 이어서 남기게
 }
 
 /* 소리 — 파일 없이 브라우저가 만든다. 브라우저 정책상 화면을 한 번 누른 뒤부터 난다. */

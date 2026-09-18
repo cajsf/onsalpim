@@ -32,6 +32,7 @@ export const ALERT_STATE = {
   progress: { ko: '방문·연락 중',     cls: 'watch' },
   done:     { ko: '조치 완료',        cls: 'normal' },
   late:     { ko: '뒤늦게 확인',      cls: 'muted' },
+  edit:     { ko: '메모 수정',        cls: 'muted' },   // 기록 줄에만 쓴다 (상태가 아님)
 }
 export const SEV_ORDER = ['URGENT', 'CHECK_DEVICE', 'WATCH', 'NORMAL']
 

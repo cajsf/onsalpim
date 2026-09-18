@@ -9,10 +9,12 @@ const props = defineProps({
   a: { type: Object, required: true },
   compact: { type: Boolean, default: false },
   showHome: { type: Boolean, default: true },
+  focused: { type: Boolean, default: false },   // 팝업에서 '확인'하고 넘어왔을 때 눈에 띄게
 })
 const emit = defineEmits(['changed'])
 
 const memoOpen = ref(false)
+const editing = ref(false)          // 조치 완료 메모를 고치는 중
 const memo = ref('')
 const busy = ref(false)
 const error = ref('')
@@ -21,22 +23,34 @@ const error = ref('')
 const actionable = computed(() => ['open', 'ack', 'progress'].includes(props.a.state))
 const st = computed(() => ALERT_STATE[props.a.state])
 
+// 지금 보이는 조치 메모 — 고쳤으면 마지막 수정본
+const lastMemo = computed(() =>
+  [...props.a.log].reverse().find((l) => l.status === 'done' || l.status === 'edit')?.memo || '')
+
+function startEdit() {
+  editing.value = true
+  memo.value = lastMemo.value
+  memoOpen.value = true
+}
+
 async function act(status) {
   if (busy.value) return            // 응답 오기 전 연타는 버린다
-  if (status === 'done' && !memoOpen.value) { memoOpen.value = true; return }
+  if (status === 'done' && !memoOpen.value) { editing.value = false; memoOpen.value = true; return }
   busy.value = true
   error.value = ''
-  const r = await api.actAlert(props.a.id, status, status === 'done' ? memo.value : '')
+  const withMemo = status === 'done' || status === 'edit'
+  const r = await api.actAlert(props.a.id, status, withMemo ? memo.value : '')
   busy.value = false
   if (!r.ok) { error.value = (r.errors || []).join(' '); return }
   memoOpen.value = false
+  editing.value = false
   memo.value = ''
   emit('changed', { id: props.a.id, log: r.log })   // 화면은 서버 응답으로 바로 바꾼다
 }
 </script>
 
 <template>
-  <li class="ai" :class="{ open: a.state === 'open' }">
+  <li class="ai" :class="{ open: a.state === 'open', focused }" :data-alert-id="a.id">
     <div class="ai-row">
       <span class="tag" :class="'tag-' + SEV[a.to]?.cls">{{ SEV[a.to]?.ko }}</span>
       <span class="atext">
@@ -63,6 +77,9 @@ async function act(status) {
       <div v-if="a.state === 'missed'" class="acts">
         <button class="btn sm ghost" :disabled="busy" @click="act('late')">뒤늦게 확인</button>
       </div>
+      <div v-else-if="a.state === 'done' && !memoOpen" class="acts">
+        <button class="btn sm ghost" @click="startEdit">메모 수정</button>
+      </div>
       <div v-else-if="actionable" class="acts">
         <button v-if="!a.log.length" class="btn sm" :disabled="busy" @click="act('ack')">확인</button>
         <button v-if="a.state !== 'progress'" class="btn sm" :disabled="busy" @click="act('progress')">방문·연락 중</button>
@@ -70,9 +87,12 @@ async function act(status) {
       </div>
       <div v-if="memoOpen" class="memo-box">
         <input v-model="memo" maxlength="200" placeholder="무엇을 했는지 적어 주세요 (예: 전화 통화, 이상 없음)"
-               @keyup.enter="act('done')" />
-        <button class="btn sm primary" :disabled="busy || !memo.trim()" @click="act('done')">저장</button>
-        <button class="btn sm ghost" @click="memoOpen = false">취소</button>
+               @keyup.enter="act(editing ? 'edit' : 'done')" />
+        <button class="btn sm primary" :disabled="busy || !memo.trim()" @click="act(editing ? 'edit' : 'done')">
+          {{ editing ? '수정 저장' : '저장' }}
+        </button>
+        <button class="btn sm ghost" @click="memoOpen = false; editing = false">취소</button>
+        <span v-if="editing" class="muted hint-edit">원래 메모는 기록에 그대로 남습니다.</span>
       </div>
       <p v-if="error" class="err">{{ error }}</p>
     </template>
@@ -92,4 +112,8 @@ async function act(status) {
 .acts, .memo-box { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
 .memo-box input { flex: 1 1 220px; padding: 0.35rem 0.55rem; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 0.76rem; }
 .err { color: var(--urgent); font-size: 0.74rem; margin: 0; }
+.hint-edit { font-size: 0.72rem; }
+.ai.focused { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; animation: pulse 1.2s ease-out 2; }
+@keyframes pulse { from { outline-color: var(--brand); } to { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .ai.focused { animation: none; } }
 </style>
