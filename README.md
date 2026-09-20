@@ -45,6 +45,16 @@ npm install --prefix IOT/dashboard
 
 ## 실행
 
+**한 번에 켜고 끄기 (Windows)** — 저장소 맨 위의 파일을 더블클릭하거나 터미널에서 실행한다.
+
+```bash
+start.bat          # 서버 4개를 각각 창으로 띄우고 브라우저를 연다 (가상 세대 포함)
+start.bat real     # 실물 보드를 쓸 때 — 가상 세대 없이
+stop.bat           # 모두 끈다
+```
+
+하나씩 켜려면 아래처럼 한다 (창마다 Ctrl+C 로 끈다).
+
 `IOT/` 에서 터미널 3개 + 대시보드. Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1` 을 붙인다.
 
 ```bash
