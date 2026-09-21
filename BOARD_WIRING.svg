@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="856" viewBox="0 0 680 856" role="img">
+  <title>온살핌 전시용 ESP32 보드 배선도</title>
+  <desc>기본형(102호·202호), 배터리 시연을 더한 201호, 센서와 액추에이터를 모두 붙인 101호의 핀 연결.</desc>
+  <rect x="0" y="0" width="680" height="856" fill="#ffffff"/>
+
+  <text x="40" y="52" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="600" fill="#0f172a">기본형 — 102호 · 202호</text>
+  <line x1="230" y1="105" x2="310" y2="105" stroke="#64748b" stroke-width="1"/>
+  <rect x="60" y="70" width="170" height="70" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="0.5"/>
+  <text x="76" y="98" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#1e3a8a">ESP32</text>
+  <text x="76" y="120" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#1e3a8a">102호 · 202호</text>
+  <rect x="310" y="70" width="310" height="70" rx="4" fill="#ccfbf1" stroke="#0d9488" stroke-width="0.5"/>
+  <text x="326" y="98" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#134e4a">PIR HC-SR501</text>
+  <text x="326" y="120" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#134e4a">VCC→5V · OUT→GPIO27 · GND→GND</text>
+
+  <text x="40" y="180" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="600" fill="#0f172a">201호 — 배터리 시연 추가</text>
+  <line x1="230" y1="228" x2="310" y2="228" stroke="#64748b" stroke-width="1"/>
+  <line x1="230" y1="308" x2="310" y2="308" stroke="#64748b" stroke-width="1"/>
+  <rect x="60" y="198" width="170" height="140" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="0.5"/>
+  <text x="76" y="228" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#1e3a8a">ESP32</text>
+  <text x="76" y="250" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#1e3a8a">201호</text>
+  <rect x="310" y="198" width="310" height="60" rx="4" fill="#ccfbf1" stroke="#0d9488" stroke-width="0.5"/>
+  <text x="326" y="224" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#134e4a">PIR HC-SR501</text>
+  <text x="326" y="244" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#134e4a">VCC→5V · OUT→GPIO27 · GND→GND</text>
+  <rect x="310" y="278" width="310" height="60" rx="4" fill="#ccfbf1" stroke="#0d9488" stroke-width="0.5"/>
+  <text x="326" y="304" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#134e4a">가변저항 10kΩ</text>
+  <text x="326" y="324" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#134e4a">양끝→3.3V·GND · 가운데→GPIO34</text>
+
+  <text x="40" y="378" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="600" fill="#0f172a">101호 — 전체 구성 (센서 + 액추에이터)</text>
+  <line x1="230" y1="426" x2="310" y2="426" stroke="#64748b" stroke-width="1"/>
+  <line x1="230" y1="496" x2="310" y2="496" stroke="#64748b" stroke-width="1"/>
+  <line x1="230" y1="576" x2="310" y2="576" stroke="#64748b" stroke-width="1"/>
+  <line x1="230" y1="666" x2="310" y2="666" stroke="#64748b" stroke-width="1"/>
+  <rect x="60" y="396" width="170" height="310" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-width="0.5"/>
+  <text x="76" y="430" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#1e3a8a">ESP32</text>
+  <text x="76" y="452" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#1e3a8a">101호</text>
+  <rect x="310" y="396" width="310" height="60" rx="4" fill="#ccfbf1" stroke="#0d9488" stroke-width="0.5"/>
+  <text x="326" y="422" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#134e4a">PIR HC-SR501</text>
+  <text x="326" y="442" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#134e4a">VCC→5V · OUT→GPIO27 · GND→GND</text>
+  <rect x="310" y="466" width="310" height="60" rx="4" fill="#ccfbf1" stroke="#0d9488" stroke-width="0.5"/>
+  <text x="326" y="492" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#134e4a">DHT11 (3핀 모듈)</text>
+  <text x="326" y="512" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#134e4a">VCC→5V · DATA→GPIO26 · GND→GND</text>
+  <rect x="310" y="536" width="310" height="80" rx="4" fill="#ede9fe" stroke="#7c3aed" stroke-width="0.5"/>
+  <text x="326" y="562" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#4c1d95">RGB LED (공통 캐소드)</text>
+  <text x="326" y="582" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#4c1d95">R→GPIO18 · G→GPIO19 · B→GPIO21</text>
+  <text x="326" y="600" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#4c1d95">공통→GND · 각 다리 220Ω</text>
+  <rect x="310" y="626" width="310" height="80" rx="4" fill="#ede9fe" stroke="#7c3aed" stroke-width="0.5"/>
+  <text x="326" y="652" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#4c1d95">SG90 서보</text>
+  <text x="326" y="672" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#4c1d95">신호(주황)→GPIO22 · 갈색(−)→GND</text>
+  <text x="326" y="690" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#4c1d95">빨강(+)→외부 5V</text>
+
+  <rect x="60" y="726" width="560" height="110" rx="4" fill="#fef3c7" stroke="#d97706" stroke-width="0.5"/>
+  <text x="76" y="752" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="14" font-weight="500" fill="#78350f">전원 · 배선 주의</text>
+  <text x="76" y="776" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#78350f">서보 빨강선은 외부 5V 로. 보드 5V 에 물리면 서보가 돌 때 리셋된다</text>
+  <text x="76" y="796" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#78350f">외부 전원 GND 와 ESP32 GND 를 반드시 묶는다. 안 묶으면 신호가 안 먹는다</text>
+  <text x="76" y="816" font-family="'Segoe UI','Malgun Gothic',sans-serif" font-size="12" fill="#78350f">PIR 은 5V 로 동작하지만 출력이 3.3V 라 GPIO 직결해도 된다</text>
+</svg>
