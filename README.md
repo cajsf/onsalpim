@@ -44,12 +44,15 @@ docs/                     문서
 ## 처음 받았을 때 (한 번만)
 
 저장소에 없는 비밀 파일은 팀 카톡의 **`onsalpim_secrets.zip`** 하나로 받는다.
-**저장소 폴더(`onsalpim/`)에 대고 압축을 풀면** 아래 파일들이 제자리에 들어간다. (zip 은 `.gitignore` 에 있어 올라가지 않는다)
+**저장소 폴더에 대고 압축을 풀면** 두 파일이 제자리에 들어간다. (zip 은 `.gitignore` 에 있어 올라가지 않는다)
 
-| 파일 | 위치 | 예시 |
+| 파일 | 들어가는 자리 | 예시 |
 |---|---|---|
 | `secrets_local.py` (Gemini 키·플랫폼 API 키) | `IOT/` | `secrets_local.example.py` |
-| `secrets.h` (WiFi·API 키) | 각 펌웨어 폴더 `arduino/*/` | `secrets.example.h` |
+| `secrets.h` (WiFi·플랫폼 API 키) | `arduino/home_node/` | `secrets.example.h` |
+
+`arduino/archive/` 의 구버전 스케치 몫은 zip 에 넣지 않는다 — 이제 굽지 않고,
+안 쓰는 자격증명 사본은 돌아다니지 않는 게 낫다. 필요하면 그 폴더의 예시 파일을 복사해 채운다.
 
 직접 만들 때는 예시 파일을 복사해 값을 채운다. 비밀값이 바뀌면 한 사람이 zip 을 다시 만들어 공유한다.
 
