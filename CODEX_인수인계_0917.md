@@ -275,7 +275,7 @@ ty=28 flexCont AE 직하      → 500
 | 엔진 재시작 시 `last_sent` 초기화 → 액추에이터 1회 재전송 | `engine.loop` | |
 | LLM 번역 정확도 자체는 미측정 | — | 17개 시험은 검증·판정 계층만 |
 | 배터리는 가변저항 ADC 모사 | `home_node.ino` HAS_BATT | 전시에서 모사임을 밝힐 것 |
-| 문서 stale: `ARDUINO_WIRING.md`의 "미생성 CNT" 목록, `README.md`/진행노트는 챌린지 시점 기준 | | |
+| 문서 stale: `README.md`/진행노트는 챌린지 시점 기준 | | `arduino/ARDUINO_WIRING.md` 는 2026-09-21 최신화됨 |
 
 ---
 

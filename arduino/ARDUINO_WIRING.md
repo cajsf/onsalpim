@@ -1,6 +1,6 @@
 # 아두이노 배선 규격 — 전시 구성 (2026-09-21 개정)
 
-보드는 **ESP32 한 종류**만 쓴다. 스케치도 `arduino/home_node/home_node.ino` 하나로,
+보드는 **ESP32 한 종류**만 쓴다. 스케치도 `home_node/home_node.ino` 하나로,
 세대마다 `HOME` 과 `HAS_*` 플래그만 바꿔서 굽는다.
 
 스케치의 핀 상수는 반드시 이 문서와 일치시킬 것.
@@ -127,7 +127,7 @@
 
 ## 구버전 — 보드 A/B (2026-07-20)
 
-`arduino/board_a`, `arduino/board_b` 는 세대 구분이 없던 시절의 스케치다.
+`board_a`, `board_b` 는 세대 구분이 없던 시절의 스케치다.
 UNO R4 두 대에 센서(PIR/DHT11/RFID-RC522)와 액추에이터(서보/RGB LED)를 나눠 붙이고
 컨테이너 이름도 `pir`, `temp`, `led_cmd` 처럼 세대 없이 썼다.
 
