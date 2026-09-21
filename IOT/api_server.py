@@ -185,6 +185,9 @@ def engine_status():
         running = elapsed < ENGINE_STALE_SEC
     return jsonify({
         "running": running,
+        # 엔진은 살아 있는데 공용 서버를 못 읽는 중이면 그 이유를 같이 보낸다.
+        # 화면이 '엔진 미실행'으로 오해하지 않게 하려는 것이다.
+        "platform_error": data.get("platform_error") if running else None,
         "last_run": last_run,
         "pid": data.get("pid"),
         "message": "규칙 엔진 실행 중" if running else "규칙 엔진이 멈춘 것 같습니다. 다시 실행해 주세요.",
@@ -266,6 +269,12 @@ def care_state():
     except requests.RequestException:
         data["rule_conflicts"] = []
     return jsonify(data)
+
+
+@app.route("/api/demo/reset", methods=["POST"])
+def demo_reset():
+    """시연 초기화 — 알림·대응·부재·타임라인을 비운다. 규칙은 그대로 둔다."""
+    return jsonify({"ok": True, "cleared": engine.reset_demo()})
 
 
 @app.route("/api/health")

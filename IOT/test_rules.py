@@ -5,6 +5,7 @@
 같은 세대·같은 위험도의 무활동 규칙이 둘이면: 저장은 하되 승인 때 '대체' 아니면 막는다.
 위험도가 다르면 겹침이 아니라 단계 경보 (3시간 주의 → 8시간 긴급).
 """
+import io
 import os
 import tempfile
 from datetime import timedelta
@@ -17,6 +18,10 @@ from verify_report import NOW, TREE, care_rule, contact
 TMP = tempfile.mkdtemp()
 engine.RULES_FILE = os.path.join(TMP, "rules.json")   # 실제 규칙은 건드리지 않는다
 engine.ABSENCES_FILE = os.path.join(TMP, "absences.json")
+# reset_demo 가 파일을 '지우는' 시험이라 실제 기록 쪽을 절대 가리키면 안 된다
+engine.ALERTS_FILE = os.path.join(TMP, "alerts.json")
+engine.ACTIONS_FILE = os.path.join(TMP, "actions.json")
+engine.HISTORY_FILE = os.path.join(TMP, "history.json")
 
 
 def saved(rid, rule, status="approved", enabled=True, sentence=""):
@@ -149,3 +154,20 @@ assert not engine.end_absence(ok["absence"]["id"], now=NOW + timedelta(hours=3))
 assert len(engine.load_absences()) == 1, "해제해도 기록은 지우지 않음"
 
 print("규칙 겹침·단계 경보·부재 등록 점검 통과")
+
+# ── 시연 초기화: 기록만 비우고 규칙은 남긴다 ──
+engine.save_rules([saved(1, care_rule(value="480", overrides={"102": {"value": "360"}}))])
+for f in (engine.ALERTS_FILE, engine.ACTIONS_FILE, engine.ABSENCES_FILE, engine.HISTORY_FILE):
+    io.open(f, "w", encoding="utf-8").write("[]")
+
+cleared = engine.reset_demo()
+assert len(cleared) == 4, f"네 가지를 다 비워야 한다: {cleared}"
+for f in (engine.ALERTS_FILE, engine.ACTIONS_FILE, engine.ABSENCES_FILE, engine.HISTORY_FILE):
+    assert not os.path.exists(f), f"{f} 가 남았다"
+
+kept = engine.load_rules()
+assert len(kept) == 1 and kept[0]["rule"]["overrides"]["102"]["value"] == "360", \
+    "규칙과 세대 예외는 시연 초기화로 사라지면 안 된다 — 준비해 둔 것이다"
+assert engine.load_alerts() == [] and engine.load_absences() == [], "지운 뒤에도 로더가 견뎌야 한다"
+assert engine.reset_demo() == [], "두 번 눌러도 안전해야 한다"
+print("  ✅ 시연 초기화: 기록 4종 삭제, 규칙·예외 유지")

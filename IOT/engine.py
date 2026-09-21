@@ -73,10 +73,34 @@ def save_rules(rules):
         json.dump(rules, f, ensure_ascii=False, indent=2)
 
 
-def write_heartbeat():
-    """규칙 엔진 루프가 돌고 있음을 대시보드에 알리기 위한 하트비트."""
+def write_heartbeat(platform_error=None):
+    """규칙 엔진 루프가 돌고 있음을 대시보드에 알리기 위한 하트비트.
+
+    platform_error 는 '엔진은 살아 있는데 공용 서버를 못 읽은' 경우에만 적는다.
+    이 둘을 구분하지 않으면 서버가 잠깐 끊겼을 때 화면이 '엔진 미실행'이라고 말한다.
+    전시장에서 그 문구가 뜨면 발표자가 먼저 당황하고, 고칠 수 없는 걸 고치려 든다.
+    """
+    beat = {"last_run": datetime.now().isoformat(), "pid": os.getpid()}
+    if platform_error:
+        beat["platform_error"] = platform_error
     with open(HEARTBEAT_FILE, "w", encoding="utf-8") as f:
-        json.dump({"last_run": datetime.now().isoformat(), "pid": os.getpid()}, f)
+        json.dump(beat, f)
+
+
+def reset_demo():
+    """시연을 처음부터 다시 하려고 '돌면서 쌓인 기록'만 비운다.
+
+    규칙은 건드리지 않는다 — 시연 전에 준비해 둔 것이고, 지우면 다시 만들어야 한다.
+    파일을 비우는 대신 지운다. 모든 로더가 '파일 없음'을 이미 견디므로(갓 받은 폴더가 그렇다)
+    빈 구조를 새로 지어내는 것보다 틀릴 여지가 적다.
+    """
+    cleared = []
+    for label, path in (("알림", ALERTS_FILE), ("대응 기록", ACTIONS_FILE),
+                        ("부재 등록", ABSENCES_FILE), ("타임라인", HISTORY_FILE)):
+        if os.path.exists(path):
+            os.remove(path)
+            cleared.append(label)
+    return cleared
 
 
 # 파이프라인 단계 이름 (대시보드가 이 순서로 보여준다)
@@ -1108,7 +1132,7 @@ def loop(interval=3):
                 # 공용 서버가 한 번 늦거나 끊겼다고 엔진이 죽으면 안 된다 — 이번 판정만 건너뛴다.
                 # 판정을 못 한 채 시간이 지나면 화면이 '판정이 갱신되지 않음'으로 알린다(추측해서 칠하지 않는다).
                 print(f"  [플랫폼 응답 없음] 이번 판정 건너뜀: {type(e).__name__}")
-                write_heartbeat()
+                write_heartbeat(platform_error=type(e).__name__)
                 time.sleep(interval)
                 continue
             if homes_state:

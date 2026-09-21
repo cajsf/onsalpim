@@ -78,6 +78,14 @@ function openHome(home) {
 }
 const devices = ref([])
 const engineRunning = ref(false)
+// 엔진이 죽은 것과 공용 서버를 못 읽는 것은 다른 사고다. 대응도 다르다 —
+// 앞은 엔진을 켜야 하고, 뒤는 기다리면 저절로 이어진다.
+const platformError = ref(null)
+const engineChip = computed(() => {
+  if (!engineRunning.value) return { cls: 'chip-off', text: '엔진 미실행' }
+  if (platformError.value) return { cls: 'chip-warn', text: '공용 서버 응답 없음' }
+  return { cls: 'chip-on', text: '실시간 모니터링 중' }
+})
 const engineMessage = ref('')
 const connectionError = ref('')
 const nowText = ref('')
@@ -133,6 +141,7 @@ async function refresh() {
     rules.value = r
     alerts.value = a
     engineRunning.value = eng.running
+    platformError.value = eng.running ? eng.platform_error || null : null
     engineMessage.value = eng.message
     connectionError.value = ''
   } catch (e) {
@@ -435,6 +444,33 @@ async function deleteOverride(id, home) {
   }
 }
 
+/* 시연 초기화 — 관람객이 바뀔 때마다 기록을 비운다. 규칙은 준비해 둔 것이라 안 지운다. */
+const confirmReset = ref(false)
+const resetting = ref(false)
+const resetNotice = ref('')
+async function resetDemo() {
+  if (!confirmReset.value) {
+    confirmReset.value = true
+    setTimeout(() => { confirmReset.value = false }, 4000)
+    return
+  }
+  if (resetting.value) return
+  resetting.value = true
+  try {
+    const r = await api.resetDemo()
+    resetNotice.value = r.cleared.length
+      ? `시연 기록을 비웠습니다 (${r.cleared.join(' · ')}). 규칙은 그대로입니다.`
+      : '비울 기록이 없었습니다. 규칙은 그대로입니다.'
+    autoClear(resetNotice, 5000)
+    await refresh()
+  } catch (e) {
+    ruleError.value = e.message
+  } finally {
+    resetting.value = false
+    confirmReset.value = false
+  }
+}
+
 async function toggleRule(id) {
   if (ruleBusy.value) return
   ruleBusy.value = id
@@ -512,8 +548,13 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           <button class="btn sm ghost" :title="soundOn ? '새 알림 소리 끄기' : '새 알림 소리 켜기'" @click="toggleSound">
             {{ soundOn ? '🔔 소리 켬' : '🔕 소리 끔' }}
           </button>
-          <span class="chip" :class="engineRunning ? 'chip-on' : 'chip-off'" :title="engineMessage">
-            {{ engineRunning ? '실시간 모니터링 중' : '엔진 미실행' }}
+          <button class="btn sm ghost" :class="{ danger: confirmReset }" :disabled="resetting"
+                  title="알림·대응 기록·부재·타임라인을 비웁니다. 규칙은 그대로 남습니다."
+                  @click="resetDemo">
+            {{ confirmReset ? '한 번 더 누르면 초기화' : '시연 초기화' }}
+          </button>
+          <span class="chip" :class="engineChip.cls" :title="engineMessage">
+            {{ engineChip.text }}
           </span>
           <div class="who">
             <div class="avatar">복</div>
@@ -526,6 +567,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       </header>
 
       <p class="stamp">{{ nowText }}</p>
+      <p v-if="resetNotice" class="banner info">{{ resetNotice }}</p>
       <p v-if="care.rule_conflicts && care.rule_conflicts.length" class="banner warn">
         같은 세대에 같은 위험도의 무활동 규칙이 겹쳐 있습니다
         ({{ care.rule_conflicts.map((g) => '#' + g.ids.join('·#')).join(', ') }}). 더 짧은 기준을 적용 중입니다 —
@@ -535,6 +577,11 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       <p v-else-if="!engineRunning" class="banner warn">
         규칙 엔진이 실행 중이 아닙니다. 세대 판정이 갱신되지 않습니다 —
         <code class="mono">python -c "import engine; engine.loop()"</code>
+      </p>
+      <p v-else-if="platformError" class="banner warn">
+        공용 서버(Mobius)가 응답하지 않아 판정을 잠시 멈췄습니다 ({{ platformError }}).
+        <strong>엔진은 살아 있고, 서버가 돌아오면 저절로 이어집니다.</strong>
+        마지막 판정 {{ timeOf(care.updated) }} — 그때까지의 상태를 그대로 보여주는 중입니다.
       </p>
       <p v-else-if="care.stale" class="banner warn">
         판정이 {{ timeOf(care.updated) }} 이후 갱신되지 않았습니다. 화면의 상태가 최신이 아닐 수 있습니다.
@@ -1185,6 +1232,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .chip { font-size: 0.72rem; font-weight: 600; padding: 0.28rem 0.62rem; border-radius: 999px; white-space: nowrap; }
 .chip-on { background: var(--normal-soft); color: var(--normal); }
 .chip-off { background: var(--urgent-soft); color: var(--urgent); }
+.chip-warn { background: var(--watch-soft); color: var(--watch); }
 .who { display: flex; align-items: center; gap: 0.55rem; }
 .avatar {
   width: 34px; height: 34px; border-radius: 50%; background: var(--brand-soft);
@@ -1199,6 +1247,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 }
 .banner.err { background: var(--urgent-soft); color: var(--urgent); }
 .banner.warn { background: var(--watch-soft); color: var(--watch); }
+.banner.info { background: var(--brand-soft); color: var(--brand-dim); }
 .banner code { background: rgba(0, 0, 0, 0.05); padding: 0.05rem 0.3rem; border-radius: 4px; }
 
 /* ───── 레이아웃 ───── */

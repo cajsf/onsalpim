@@ -55,6 +55,8 @@ export const api = {
   },
   deleteRule: (id) => request(`/rules/${id}`, { method: 'DELETE' }),
   toggleRule: (id) => request(`/rules/${id}/toggle`, { method: 'POST' }),
+  // 시연 초기화 — 알림·대응·부재·타임라인만 비운다 (규칙은 남는다)
+  resetDemo: () => request('/demo/reset', { method: 'POST' }),
   // 세대 예외 삭제 — 그 세대는 공통 기준으로 돌아간다
   deleteOverride: (id, home) => request(`/rules/${id}/override/${encodeURIComponent(home)}`, { method: 'DELETE' }),
   // 부재 등록 — 그 기간엔 무활동 판정 보류, 기기 점검은 계속
