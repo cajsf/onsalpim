@@ -31,8 +31,8 @@ IOT/                      파이썬 백엔드 (규칙 엔진·판정·검증·AP
 arduino/                  세대 노드 펌웨어
   ├─ ARDUINO_WIRING.md    배선 규격 — 조립 전에 읽을 것
   ├─ BOARD_WIRING.svg     회로도
-  ├─ home_node/           실제로 굽는 스케치 (ESP32 / UNO R4)
-  └─ board_a, board_b/    구버전 (세대 구분 없던 시절)
+  ├─ home_node/           보드 4대가 쓰는 스케치 하나 (BOARD 번호만 바꿔 굽는다)
+  └─ archive/             구버전 스케치 (세대 구분 없던 시절·단품 시험)
 
 docs/                     문서
   ├─ CODEX_인수인계_0917.md  설계 결정·실측·할 일

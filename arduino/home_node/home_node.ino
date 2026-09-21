@@ -1,4 +1,5 @@
-// home_node — 세대 1채를 담당하는 노드. 이 스케치 하나를 보드마다 HOME만 바꿔서 굽는다.
+// home_node — 세대 1채를 담당하는 노드. 보드 4대가 이 스케치 하나를 쓴다.
+// 굽기 전에 바꾸는 건 아래 BOARD 번호 한 줄뿐이다.
 //
 // 이 보드가 플랫폼에 만드는 것 (라벨로 자기 소개를 한다 — 서버는 경로를 모른다):
 //   h{HOME}_pir    kind=sensor  type=motion   home={HOME}  report_s={N}   ← 주기 보고
@@ -13,28 +14,48 @@
 //   서버는 이 둘을 따로 봐서 '무활동'과 '통신 두절'을 구분한다.
 //   하나로 합치면 값이 안 오는 게 둘 중 뭔지 영원히 알 수 없다.
 //
-// 보드 배치 (전시) — 전부 ESP32. UNO R4 도 그대로 굽힌다(핀만 아래에서 갈린다).
+// 전부 ESP32 로 굽는다. UNO R4 도 그대로 굽힌다(핀만 아래에서 갈린다).
+// 어느 보드가 무슨 세대인지는 아래 BOARD 표가 정본이다.
 // 1층·2층으로 나눈 이유: 세대가 한 줄이면 범위 규칙("2층만 기준 다르게")을 보여줄 수가 없다.
-//   101호  PIR + DHT11 + LED/서보   ← 관람객이 손 흔드는 세대, 제어 규칙 시연도 겸함
-//   102호  PIR                      ← 가만히 두면 무활동 (부재 등록 시연도 여기서)
-//   201호  PIR + 가변저항(배터리)     ← 노브를 돌려 배터리 부족을 만든다
-//   202호  PIR                      ← 처음엔 꽂지 않는다. 발표 중 꽂으면 2층에 세대가 는다
-//                                      (= 경로를 박아두지 않았다는 증거)
-//                                      그대로 USB 를 뽑으면 통신 두절 시연까지 이어진다
 //
 // 업로드 전:
-//   1. 아래 '보드마다 바꾸는 것' 블록을 채운다
+//   1. 아래 BOARD 번호를 이 보드에 맞게 바꾼다 (1~4)
 //   2. WiFi 는 2.4GHz 만 된다. 학교 와이파이(로그인 페이지) 불가 → 핫스팟 권장
 //   3. HAS_DHT 면 Adafruit "DHT sensor library" 설치
 //   4. HAS_ACTUATOR + ESP32 면 "ESP32Servo" 설치.
 //      analogWrite 는 esp32 보드패키지 3.x 부터 된다 — 2.x 면 컴파일이 막힌다
 
-// ===================== 보드마다 바꾸는 것 =====================
-const char* HOME = "101";        // 이 보드가 담당하는 세대 (호수)
+// ================ 보드마다 이 줄 하나만 바꾼다 ================
+#define BOARD 1        // 1 = 101호   2 = 102호   3 = 201호   4 = 202호
+// =============================================================
 
-#define HAS_DHT       1          // DHT11 온습도 있음
-#define HAS_BATT      0          // 가변저항으로 배터리 잔량 모사
-#define HAS_ACTUATOR  1          // RGB LED + 서보 (제어 규칙 시연용, UNO R4 권장)
+// 세대마다 뭘 달았는지는 아래 표가 정한다. 스케치를 네 벌로 복사하지 않는 이유:
+// 한 벌만 고치고 나머지를 잊는 사고가 반드시 난다. 고칠 곳은 한 군데여야 한다.
+#if   BOARD == 1       // 101호 — 관람객이 손을 흔드는 세대. 제어 규칙도 여기서 보여준다
+  #define HOME_NO      "101"
+  #define HAS_DHT      1
+  #define HAS_BATT     0
+  #define HAS_ACTUATOR 1
+#elif BOARD == 2       // 102호 — 가만히 둬서 무활동 단계 경보. 부재 등록도 여기서
+  #define HOME_NO      "102"
+  #define HAS_DHT      0
+  #define HAS_BATT     0
+  #define HAS_ACTUATOR 0
+#elif BOARD == 3       // 201호 — 노브를 돌려 배터리 부족을 만든다
+  #define HOME_NO      "201"
+  #define HAS_DHT      0
+  #define HAS_BATT     1
+  #define HAS_ACTUATOR 0
+#elif BOARD == 4       // 202호 — 처음엔 꽂지 않는다. 꽂으면 2층 입주, 뽑으면 통신 두절
+  #define HOME_NO      "202"
+  #define HAS_DHT      0
+  #define HAS_BATT     0
+  #define HAS_ACTUATOR 0
+#else
+  #error "BOARD 는 1~4 중 하나여야 한다"
+#endif
+
+const char* HOME = HOME_NO;         // 이 보드가 담당하는 세대 (호수)
 
 const unsigned long REPORT_S = 5;   // 주기 보고 간격(초).
                                     // 서버의 두절 판정 임계 = 3 × 이 값 → 여기선 15초.
