@@ -13,16 +13,21 @@
 //   서버는 이 둘을 따로 봐서 '무활동'과 '통신 두절'을 구분한다.
 //   하나로 합치면 값이 안 오는 게 둘 중 뭔지 영원히 알 수 없다.
 //
-// 보드 배치 (전시):
-//   101호  UNO R4   PIR + DHT11 + LED/서보   ← 관람객이 손 흔드는 세대, 제어 규칙 시연도 겸함
-//   102호  ESP32    PIR                      ← 가만히 두면 무활동
-//   103호  ESP32    PIR                      ← 시연 중 USB를 뽑아 통신 두절을 만든다
-//   104호  UNO R4   PIR + 가변저항(배터리)     ← 노브를 돌려 배터리 부족을 만든다
+// 보드 배치 (전시) — 전부 ESP32. UNO R4 도 그대로 굽힌다(핀만 아래에서 갈린다).
+// 1층·2층으로 나눈 이유: 세대가 한 줄이면 범위 규칙("2층만 기준 다르게")을 보여줄 수가 없다.
+//   101호  PIR + DHT11 + LED/서보   ← 관람객이 손 흔드는 세대, 제어 규칙 시연도 겸함
+//   102호  PIR                      ← 가만히 두면 무활동 (부재 등록 시연도 여기서)
+//   201호  PIR + 가변저항(배터리)     ← 노브를 돌려 배터리 부족을 만든다
+//   202호  PIR                      ← 처음엔 꽂지 않는다. 발표 중 꽂으면 2층에 세대가 는다
+//                                      (= 경로를 박아두지 않았다는 증거)
+//                                      그대로 USB 를 뽑으면 통신 두절 시연까지 이어진다
 //
 // 업로드 전:
 //   1. 아래 '보드마다 바꾸는 것' 블록을 채운다
 //   2. WiFi 는 2.4GHz 만 된다. 학교 와이파이(로그인 페이지) 불가 → 핫스팟 권장
 //   3. HAS_DHT 면 Adafruit "DHT sensor library" 설치
+//   4. HAS_ACTUATOR + ESP32 면 "ESP32Servo" 설치.
+//      analogWrite 는 esp32 보드패키지 3.x 부터 된다 — 2.x 면 컴파일이 막힌다
 
 // ===================== 보드마다 바꾸는 것 =====================
 const char* HOME = "101";        // 이 보드가 담당하는 세대 (호수)
@@ -69,11 +74,22 @@ const char* ORIGIN  = "SOrigin_BAR2";
 #endif
 
 #if HAS_ACTUATOR
-  #include <Servo.h>
-  #define R_PIN 3
-  #define G_PIN 5
-  #define B_PIN 6
-  #define SERVO_PIN 9
+  #if defined(ARDUINO_ARCH_ESP32)
+    #include <ESP32Servo.h>
+    // UNO 핀(3/5/6/9)을 그대로 쓰면 안 된다:
+    //   GPIO 6~11 = 플래시 전용, GPIO 3 = 시리얼(U0RXD), GPIO 5 = 부팅 스트래핑.
+    // 아래는 스트래핑·플래시에 안 걸리고 PIR(27)·DHT(26)·배터리(34)와도 안 겹치는 핀.
+    #define R_PIN 18
+    #define G_PIN 19
+    #define B_PIN 21
+    #define SERVO_PIN 22
+  #else                                 // Arduino UNO R4 WiFi
+    #include <Servo.h>
+    #define R_PIN 3
+    #define G_PIN 5
+    #define B_PIN 6
+    #define SERVO_PIN 9
+  #endif
   const bool LED_COMMON_ANODE = false;
   Servo servo;
 #endif
@@ -181,8 +197,17 @@ void setup() {
   dht.begin();
 #endif
 #if HAS_ACTUATOR
+  #if defined(ARDUINO_ARCH_ESP32)
+    // 서보와 LED(analogWrite)가 둘 다 LEDC 를 쓴다. 서보에 타이머를 하나 떼어주지 않으면
+    // 둘 중 하나가 조용히 안 먹는다 — LED 는 켜지는데 서보만 안 도는 증상이 이것이다.
+    ESP32PWM::allocateTimer(0);
+    servo.setPeriodHertz(50);           // SG90 = 50Hz
+    servo.attach(SERVO_PIN, 500, 2400); // SG90 펄스폭(us). 0~180도가 안 나오면 이 값을 조정
+  #else
+    servo.attach(SERVO_PIN);
+  #endif
   pinMode(R_PIN, OUTPUT); pinMode(G_PIN, OUTPUT); pinMode(B_PIN, OUTPUT);
-  servo.attach(SERVO_PIN); servo.write(0);
+  servo.write(0);
   setLED(0, 0, 0);
 #endif
 #if defined(ARDUINO_ARCH_ESP32)
