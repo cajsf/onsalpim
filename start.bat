@@ -6,6 +6,21 @@ rem   start.bat real   가상 세대 없이 (실물 보드를 쓸 때)
 cd /d "%~dp0IOT"
 set PYTHONUTF8=1
 
+rem ── 처음 받은 폴더면 필요한 준비를 먼저 한다 (GitHub 에는 패키지·비밀 파일이 없다) ──
+if not exist "secrets_local.py" (
+  echo [준비] 비밀 파일이 없습니다. 팀 카톡의 onsalpim_secrets.zip 을 이 폴더 맨 위에 대고 압축을 풀어 주세요.
+  pause
+  exit /b 1
+)
+python -c "import flask, flask_cors, requests" 2>nul || (
+  echo [준비] 파이썬 패키지를 설치합니다 ^(처음 한 번^)
+  python -m pip install -r requirements.txt || (pause & exit /b 1)
+)
+if not exist "dashboard\node_modules\vite\bin\vite.js" (
+  echo [준비] 대시보드 패키지를 설치합니다 ^(처음 한 번, 1~2분^)
+  call npm install --prefix dashboard || (pause & exit /b 1)
+)
+
 start "onsalpim-api" cmd /k python api_server.py
 timeout /t 2 /nobreak >nul
 start "onsalpim-engine" cmd /k python -c "import engine; engine.loop(interval=4)"
