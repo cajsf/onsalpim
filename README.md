@@ -6,14 +6,13 @@
 장치는 oneM2M `lbl`에 자기소개를 올리기만 하면 서버 코드 수정 없이 발견된다.
 생활 신호(움직임)와 기기 신호(주기 보고)를 분리해 **무활동**과 **통신 두절**을 구분한다.
 
-> 설계 결정과 이유, 실측 기록, 할 일은 **[CODEX_인수인계_0917.md](CODEX_인수인계_0917.md)** 에 있다. 작업 전에 먼저 읽을 것.
+> 설계 결정과 이유, 실측 기록, 할 일은 **[docs/CODEX_인수인계_0917.md](docs/CODEX_인수인계_0917.md)** 에 있다. 작업 전에 먼저 읽을 것.
 > 제안서·발표 자료·대본은 저장소에 두지 않는다 (팀 공유 폴더에서 따로 관리).
 
 ## 폴더
 
 ```
-IOT/          파이썬 백엔드 (규칙 엔진·판정·검증·API)
-  ├─ dashboard/           Vue 3 대시보드
+IOT/                      파이썬 백엔드 (규칙 엔진·판정·검증·API)
   ├─ engine.py            규칙 엔진 루프 (Watchdog 판정 포함)
   ├─ care_monitor.py      무활동/두절 판정 — AI 없음
   ├─ scope.py             세대 발견·범위·예외
@@ -21,9 +20,25 @@ IOT/          파이썬 백엔드 (규칙 엔진·판정·검증·API)
   ├─ llm_translator.py    문장 → 규칙 (Gemini)
   ├─ api_server.py        대시보드용 API (:5001)
   ├─ virtual_home.py      개발용 가상 세대
+  ├─ run_live.py          실물 보드로 돌릴 때 (가짜값 안 씀)
   ├─ verify_report.py     검증 시험 17개 (제안서에 인용)
-  └─ test_history.py      타임라인·집계 점검
-arduino/home_node/  세대 노드 펌웨어 (UNO R4 WiFi / ESP32)
+  ├─ test_history.py      타임라인·집계 점검
+  ├─ test_rules.py        규칙 충돌·예외·부재 점검
+  ├─ dashboard/           Vue 3 대시보드 (:5173)
+  └─ data/                규칙과 돌면서 쌓이는 기록
+                          (rules.json 만 저장소에 올라간다)
+
+arduino/                  세대 노드 펌웨어
+  ├─ ARDUINO_WIRING.md    배선 규격 — 조립 전에 읽을 것
+  ├─ BOARD_WIRING.svg     회로도
+  ├─ home_node/           실제로 굽는 스케치 (ESP32 / UNO R4)
+  └─ board_a, board_b/    구버전 (세대 구분 없던 시절)
+
+docs/                     문서
+  ├─ CODEX_인수인계_0917.md  설계 결정·실측·할 일
+  ├─ VERIFY_RESULT.md     검증 결과표 (verify_report.py --save 가 씀)
+  ├─ POSTMAN_SETUP.md     Mobius 초기 세팅용
+  └─ archive/             지난 챌린지 기록 (참고용)
 ```
 
 ## 처음 받았을 때 (한 번만)
@@ -69,7 +84,7 @@ npm run dev --prefix dashboard                          # 대시보드 :5173
 ## 검증
 
 ```bash
-python verify_report.py      # 17/17 이어야 함 (--save 로 VERIFY_RESULT.md 갱신)
+python verify_report.py      # 17/17 이어야 함 (--save 로 docs/VERIFY_RESULT.md 갱신)
 python test_history.py       # 타임라인·집계·알림 대응 점검
 python test_rules.py         # 규칙 겹침·단계 경보 점검
 npm run build --prefix dashboard

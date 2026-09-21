@@ -12,7 +12,7 @@ verify_report.py — 검토의견 대응을 '재현 가능한 절차'로 확인�
 
 실행:
     python verify_report.py              # 결과표 출력
-    python verify_report.py --save       # VERIFY_RESULT.md 로 저장
+    python verify_report.py --save       # docs/VERIFY_RESULT.md 로 저장
 """
 
 import sys
@@ -253,7 +253,7 @@ if __name__ == "__main__":
         print(f"      실제= {a}")
     if "--save" in sys.argv:
         import os
-        path = os.path.join(os.path.dirname(__file__), "VERIFY_RESULT.md")
+        path = os.path.join(os.path.dirname(__file__), "..", "docs", "VERIFY_RESULT.md")
         with open(path, "w", encoding="utf-8") as f:
             f.write(to_markdown(rows, passed))
         print(f"\n저장: {path}")

@@ -29,14 +29,18 @@ import llm_translator as tr
 import scope
 import validator
 
-RULES_FILE = os.path.join(os.path.dirname(__file__), "rules.json")
-HEARTBEAT_FILE = os.path.join(os.path.dirname(__file__), "engine_heartbeat.json")
-CARE_STATE_FILE = os.path.join(os.path.dirname(__file__), "care_state.json")
-ALERTS_FILE = os.path.join(os.path.dirname(__file__), "alerts.json")
-HISTORY_FILE = os.path.join(os.path.dirname(__file__), "care_history.json")
-STATS_FILE = os.path.join(os.path.dirname(__file__), "care_stats.json")
-ACTIONS_FILE = os.path.join(os.path.dirname(__file__), "alert_actions.json")
-ABSENCES_FILE = os.path.join(os.path.dirname(__file__), "absences.json")
+# 돌면서 쌓이는 파일은 코드와 섞지 않는다. rules.json 만 저장소에 올라가고 나머지는 .gitignore.
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+os.makedirs(DATA_DIR, exist_ok=True)   # 갓 받은 폴더에 data/ 가 없을 수 있다
+
+RULES_FILE = os.path.join(DATA_DIR, "rules.json")
+HEARTBEAT_FILE = os.path.join(DATA_DIR, "engine_heartbeat.json")
+CARE_STATE_FILE = os.path.join(DATA_DIR, "care_state.json")
+ALERTS_FILE = os.path.join(DATA_DIR, "alerts.json")
+HISTORY_FILE = os.path.join(DATA_DIR, "care_history.json")
+STATS_FILE = os.path.join(DATA_DIR, "care_stats.json")
+ACTIONS_FILE = os.path.join(DATA_DIR, "alert_actions.json")
+ABSENCES_FILE = os.path.join(DATA_DIR, "absences.json")
 
 # 규칙 상태 — 전시 계획안 ③ "AI가 만든 규칙을 즉시 실행하지 않고 담당자가 확인한 후 적용"
 PENDING, APPROVED = "pending", "approved"

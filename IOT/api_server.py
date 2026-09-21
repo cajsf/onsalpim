@@ -16,8 +16,8 @@ import scope
 import speech_transcribe
 
 AE = "byeongari"
-HEARTBEAT_FILE = os.path.join(os.path.dirname(__file__), "engine_heartbeat.json")
-CARE_STATE_FILE = os.path.join(os.path.dirname(__file__), "care_state.json")
+HEARTBEAT_FILE = engine.HEARTBEAT_FILE      # 경로는 engine 한 곳에서만 정한다
+CARE_STATE_FILE = engine.CARE_STATE_FILE
 ENGINE_STALE_SEC = 30   # 이 시간 안에 하트비트 없으면 미실행으로 간주 (한 바퀴가 공용 서버 조회로 5~9초 걸림 — 09-18 실측)
 
 app = Flask(__name__)

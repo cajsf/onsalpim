@@ -10,13 +10,13 @@ __pycache__/
 *.pyc
 
 # ── 규칙 엔진이 실행 중에 계속 다시 쓰는 파일 (올리면 매번 충돌) ──
-IOT/care_state.json
-IOT/care_history.json
-IOT/care_stats.json
-IOT/alerts.json
-IOT/alert_actions.json
-IOT/absences.json
-IOT/engine_heartbeat.json
+IOT/data/care_state.json
+IOT/data/care_history.json
+IOT/data/care_stats.json
+IOT/data/alerts.json
+IOT/data/alert_actions.json
+IOT/data/absences.json
+IOT/data/engine_heartbeat.json
 
 # ── 개인 환경 ──
 .claude/settings.local.json
