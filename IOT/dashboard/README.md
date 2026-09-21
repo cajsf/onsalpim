@@ -1,173 +1,77 @@
-# byeongari 웹 대시보드
+# 온살핌 웹 대시보드
 
-**말로 만드는 IoT** 시연·조작용 Vue 3 프론트엔드입니다.  
-자연어(또는 음성)로 자동화 규칙을 만들고, oneM2M 리소스 트리·센서값·규칙 목록을 한 화면에서 봅니다.
+복지사가 쓰는 화면. Vue 3 + Vite.
 
-> 백엔드 API는 상위 폴더의 `api_server.py` (Flask)입니다.  
-> 프로젝트 전체 설명은 루트 `README.md`, 설계 배경은 `docs/archive/IoT_프로젝트_진행노트.md`를 참고하세요.
+> 설치·실행은 저장소 루트 `README.md` 와 `start.bat` 을 본다. 여기서는 프론트 쪽만 적는다.
+> 백엔드는 상위 폴더의 `api_server.py` (Flask, :5001). Vite 가 `/api` 를 거기로 넘긴다 (`vite.config.js`).
 
----
+## 화면
 
-## 무엇을 하는가
-
-```
-사용자 문장/음성
-  → API (/api/rules, /api/speech)
-  → LLM 번역 + 검증기 + rules.json 저장
-  → (별도) 규칙 엔진이 센서 읽고 액추에이터 명령
-  → 대시보드가 3초마다 상태 갱신
-```
-
-LLM은 **규칙을 만들 때만** 쓰이고, 실제 동작은 `engine.py`의 if문 루프가 담당합니다.
-
----
-
-## 화면 구성
-
-| 영역 | 내용 |
+| 메뉴 | 내용 |
 |---|---|
-| **자연어로 규칙 만들기** | 문장 입력, 마이크 녹음→Gemini STT, 예시 칩, 규칙 생성 |
-| **규칙 생성 파이프라인** | ① LLM 번역 → ② 검증기 → ③ 저장 (단계별 성공/실패) |
-| **센서 실시간 값** | temp / pir / humi / system hour 등 (2×2 그리드, 3초 갱신) |
-| **액추에이터 명령값** | 창문(서보)·조명(LED) 시각화, 값 변경 시 하이라이트 |
-| **연결된 장치** | oneM2M 트리 + `lbl` 라벨, 새로고침 |
-| **저장된 규칙** | when / and / then, 활성·비활성, 삭제(확인창) |
-| **상단 상태** | 엔진 실행 중/미실행, LIVE / OFFLINE |
+| **대시보드** | 요약 카드 4개(전체·긴급·점검 필요·승인 대기) → 누르면 아래 세대 표가 그 상태로 걸러진다 · 위험도 분포 · 최근 알림 · 규칙 만들기 |
+| **규칙 관리** | 승인 대기 규칙(승인/거부), 적용 중인 규칙(일시중지·삭제·세대 예외 삭제), 겹침 경고와 선택 |
+| **세대 관리** | 세대 목록 → 판정 근거 · 타임라인 · 걸린 규칙 · 장치 · 알림 이력 · 세대 조치(예외/부재) |
+| **알림 이력** | 미완료/전체 탭. 확인 → 방문·연락 중 → 조치 완료(메모) · 완료 후 메모 수정 |
+| **기기 관리** | oneM2M 리소스 트리와 `lbl` 라벨 그대로 |
 
----
+화면 어디에도 세대 목록이 박혀 있지 않다. 장치에 `home=` 라벨을 붙여 꽂으면 세대가 생긴다.
 
-## 실행 방법
-
-터미널을 **최소 2개**(시연 시 3개) 사용합니다.
-
-### 사전 준비 (최초 1회)
-
-```bash
-# 프로젝트 루트
-pip install -r requirements.txt
-
-# 이 폴더
-cd dashboard
-npm install
-```
-
-### 터미널 1 — API 서버
-
-```bash
-# 프로젝트 루트에서
-python3 api_server.py
-```
-
-- 주소: `http://localhost:5001`  
-- (macOS에서 5000 포트는 AirPlay와 충돌할 수 있어 5001 사용)
-
-### 터미널 2 — 대시보드
-
-```bash
-cd dashboard
-npm run dev
-```
-
-- 주소: **http://localhost:5173**  
-- Vite가 `/api` 요청을 `localhost:5001`으로 프록시합니다 (`vite.config.js`).
-
-### 터미널 3 — 규칙 엔진 (시연 시 필수)
-
-대시보드에서 규칙을 **저장**만 하면 장치는 안 움직입니다.  
-엔진을 켜야 센서 조건 → 액추에이터 명령이 나갑니다.
-
-```bash
-# 프로젝트 루트에서
-python3 -c "import engine; engine.loop()"
-```
-
-상단 뱃지가 **엔진 실행 중**으로 바뀌면 정상입니다.
-
----
-
-## 폴더 구조
+## 구성
 
 ```
-dashboard/
-├── README.md                 ← 이 파일
-├── index.html
-├── package.json
-├── vite.config.js            # 개발 서버 + /api 프록시
-└── src/
-    ├── main.js
-    ├── App.vue               # 대시보드 UI 전부
-    ├── style.css             # 전역 스타일
-    ├── api.js                # Flask API 호출
-    └── useSpeechRecognition.js  # 마이크 녹음 → /api/speech
+src/
+├── main.js
+├── App.vue                  화면 전환·요약·규칙 관리·세대 관리·알림 이력
+├── AlertItem.vue            알림 한 건 + 대응 버튼 (확인/방문·연락/완료/메모 수정)
+├── AlertToasts.vue          새 이상 알림 팝업 + 소리
+├── HomeBasis.vue            판정 근거 — 왜 이 위험도가 나왔는가
+├── HomeTimeline.vue         24시간 활동 띠
+├── HomeActions.vue          세대 조치 — 이 세대만 기준 바꾸기 / 부재 등록·해제
+├── api.js                   Flask API 호출
+├── format.js                위험도·시간 표기, nowMs (시계), autoClear
+├── style.css                전역 (.btn, .msg, 색 토큰)
+└── useSpeechRecognition.js  마이크 → /api/speech
 ```
 
----
+**시간 표기는 클라이언트가 계산한다.** 서버는 판정 시각을 보내고 화면이 `nowMs` 로 경과를 다시 센다.
+서버가 계산한 "3초 전"을 그대로 쓰면 엔진이 멈췄을 때 그 숫자가 그대로 굳어버린다.
 
-## API 연동 (백엔드)
+## API
 
-프론트는 아래 엔드포인트를 사용합니다. (`api_server.py`)
+`api_server.py` 참고. 3초마다 `/api/care` 를 폴링한다.
 
 | Method | Path | 용도 |
 |---|---|---|
-| GET | `/api/devices` | 리소스 트리 |
-| GET | `/api/sensors` | 센서 최신값 |
-| GET | `/api/actuators` | 액추에이터 최신값 |
-| GET | `/api/rules` | 규칙 목록 |
-| POST | `/api/rules` | 문장 → 번역·검증·저장 (`steps` 포함) |
+| GET | `/api/care` | **주 폴링** — 세대별 판정·규칙·겹침 경고 |
+| GET | `/api/alerts` | 알림 이력 (대응 상태 포함) |
+| POST | `/api/alerts/:id/action` | 확인·방문 중·조치 완료·메모 수정 |
+| GET | `/api/history/:home` | 24시간 활동 띠 |
+| GET | `/api/stats` | 시간대별 집계 |
+| GET · POST | `/api/rules` | 규칙 목록 · 문장에서 규칙 만들기(`steps` 포함) |
+| POST | `/api/rules/:id/approve` · `/reject` | 승인 · 거부 |
+| POST | `/api/rules/:id/toggle` · `/keep` | 일시중지·재개 · 겹칠 때 이것만 남기기 |
+| POST · DELETE | `/api/rules/:id/override[/:home]` | 세대 예외 적용 · 삭제 |
+| GET · POST | `/api/absences` | 부재 목록 · 등록 |
+| POST | `/api/absences/:id/end` | 부재 해제 |
 | DELETE | `/api/rules/:id` | 규칙 삭제 |
-| POST | `/api/rules/:id/toggle` | 활성/비활성 |
-| POST | `/api/speech` | 녹음 파일 → Gemini STT |
-| GET | `/api/engine/status` | 엔진 하트비트 (실행 여부) |
-| GET | `/api/health` | 서버 생존 확인 |
+| GET | `/api/devices` · `/api/sensors` · `/api/actuators` | 리소스 트리 · 센서값 · 명령값 |
+| POST | `/api/speech` | 녹음 → Gemini STT |
+| GET | `/api/engine/status` · `/api/health` | 엔진 하트비트 · 서버 생존 |
 
----
+## 화면을 고칠 때 지킬 것
 
-## 주요 기능 메모
-
-### 음성 입력
-1. 마이크 클릭 → 말하기  
-2. 다시 클릭 → 녹음 종료 → 서버에서 글자로 변환  
-3. 입력창에 문장이 채워지면 **규칙 생성** 클릭  
-
-브라우저 Web Speech API 대신 **MediaRecorder + Gemini**를 씁니다. (`service-not-allowed` 회피)
-
-### 파이프라인
-없는 장치를 요청하면(예: PIR 없이 “사람 지나가면…”) LLM 거부 또는 검증기 실패가 단계별로 보입니다.  
-발표에서 “LLM 껍데기가 아니다”를 보여줄 때 유용합니다.
-
-### 예시 문장 (칩)
-- 더우면 불 켜줘  
-- 더우면 창문 열어줘  
-- 밤에 사람 지나가면 불 켜줘  
-- 사람 지나가면 불 켜줘 (장치 없으면 거부)  
-- 카드 대면 문 열어줘 (RFID 거부 데모)  
-- 30도 넘으면 빨간불로 경고해줘  
-
----
+- **판정을 화면에서 다시 하지 않는다.** 위험도·판단 근거 문장은 서버가 만들어 보낸다.
+  화면이 다시 추론하면 판정 로직이 두 곳에 생기고, 한쪽만 고쳤을 때 화면이 거짓을 말한다.
+- **브라우저 `confirm()` 을 쓰지 않는다.** 인앱 브라우저에서 자동으로 닫혀 삭제가 조용히 취소된 적이 있다.
+  두 번 누르기로 확인받는다 (4초 뒤 초기화).
+- **버튼은 누르는 동안 잠근다.** 응답이 늦으면 사용자는 계속 누르고, 그게 전부 서버로 간다.
+- **안내는 5초 뒤 사라지게 한다** (`autoClear`). 오류는 남긴다. 메뉴·세대를 옮기면 지운다.
 
 ## 스크립트
 
 | 명령 | 설명 |
 |---|---|
-| `npm run dev` | 개발 서버 (핫 리로드) |
-| `npm run build` | `dist/` 프로덕션 빌드 |
+| `npm run dev` | 개발 서버 (:5173) |
+| `npm run build` | `dist/` 빌드 |
 | `npm run preview` | 빌드 결과 미리보기 |
-
----
-
-## 시연 체크리스트
-
-1. `api_server.py` 실행  
-2. `npm run dev` → 브라우저에서 5173 접속  
-3. `engine.loop()` 실행 → 상단 **엔진 실행 중** 확인  
-4. “더우면 불 켜줘” → 파이프라인 3단계 ✓ → 조명 패널 변화  
-5. “사람 지나가면 불 켜줘” → 거부 단계 확인 (마무리 카드용)  
-
----
-
-## 팀 / 기술
-
-- 팀: **byeongari (BAR2)**  
-- 프론트: Vue 3 + Vite  
-- 백엔드: Flask + 기존 `engine` / `llm_translator` / `validator` / `iot_platform`  
-- 플랫폼: Mobius (oneM2M)  
