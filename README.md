@@ -100,11 +100,21 @@ npm run build --prefix dashboard
 유료 AI 없이도 하네스가 돌아가는지 재는 실험이다. API 키가 필요 없다.
 
 1. [Ollama](https://ollama.com/download) 설치
-2. 모델 받기: `ollama pull qwen3:4b`, `ollama pull qwen3:8b` (12GB 그래픽카드면 `qwen3:14b` 도 가능)
+2. 모델 받기 — 나라가 다른 모델 세 개로 "어떤 AI를 끼워도 하네스가 같은 자리에서 막는다"를 보인다
+
+| 모델 | 만든 곳 | 라이선스 | 받기 |
+|---|---|---|---|
+| Qwen3 8B | 알리바바 (중국) | Apache 2.0 — 상업 가능 | `ollama pull qwen3:8b` |
+| Gemma 4 E4B | 구글 (미국) | Apache 2.0 — 상업 가능 | `ollama pull gemma4:e4b` |
+| EXAONE 3.5 7.8B | LG (한국) | **비상업** — 실험·연구용만 | `ollama pull exaone3.5:7.8b` |
+
+   태그 이름이 다르면 Ollama 사이트에서 모델명을 검색해 맞춘다.
+   EXAONE 소형은 상업 이용이 안 되므로 발표에서 '상용화 때 쓸 모델'로 말하지 않는다 (상용 후보는 Gemma 4).
+
 3. `IOT/` 에서 실행 — Gemini 도 같이 넣어야 보고서에 비교가 남는다 (Gemini 는 저장된 답이라 호출 0)
 
 ```bash
-python harness_eval.py gemini-3.1-flash-lite ollama:qwen3:4b ollama:qwen3:8b --save
+python harness_eval.py gemini-3.1-flash-lite ollama:qwen3:8b ollama:gemma4:e4b ollama:exaone3.5:7.8b --save
 ```
 
 로컬 모델 응답도 `eval/cache.json` 에 쌓이니 결과(`docs/HARNESS_EVAL.md`)와 같이 커밋한다.
