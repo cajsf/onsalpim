@@ -313,3 +313,40 @@ try:
 finally:
     engine.care_monitor.read_contact, engine.iot.post_cin_by_path = _real
 print("  ✅ 제어 규칙: 두절된 센서·보고 주기 모름은 보류, 거짓과 모름을 구분")
+
+
+# ── AI의 거절도 검사한다: 있는 세대를 없다고 거절하면 사실을 알려주고 다시 시킨다 ──
+assert engine._home_denied("201", "201호는 등록된 세대가 아닙니다.")
+assert engine._home_denied("201", "201호가 없습니다")
+assert not engine._home_denied("102", "102호 기준은 음수일 수 없습니다"), "호수가 들어간 정당한 거절까지 잡으면 안 된다"
+assert not engine._home_denied("101", "가스 센서가 없습니다"), "세대 얘기가 아닌 거절은 대상 아님"
+
+_care101 = {"ok": True, "error": "", "intent": "create_rule",
+            "rule": dict(care_rule(homes="101"), reason=""), "override": {"home": "", "type": "", "value": ""}}
+_deny = lambda h: {"ok": False, "error": f"{h}호는 등록된 세대가 아닙니다.", "intent": "create_rule",
+                   "rule": {}, "override": {}}
+_real_translate = engine.tr.translate
+try:
+    engine.save_rules([])
+    engine.tr.translate, calls = _scripted(_deny("101"), _care101)
+    res = engine.add_rule_from_sentence("101호 8시간 무활동이면 긴급", TREE)
+    assert res["status"] == "ok" and len(calls) == 2, "있는 세대를 없다고 한 거절은 되돌려 보낸다"
+    assert "101호는 등록된 세대" in calls[1][0], "되먹임에 트리의 사실을 담는다"
+    t = next(s for s in res["steps"] if s["id"] == "translate")
+    assert t["retried"] and t["first_errors"], "번역 단계에도 '자가 수정'이 화면에 남는다"
+
+    engine.save_rules([])
+    engine.tr.translate, calls = _scripted(_deny("301"))
+    res = engine.add_rule_from_sentence("301호 8시간 무활동이면 긴급", TREE)
+    assert res["status"] == "rejected" and len(calls) == 1, "정말 없는 세대면 거절이 맞다 — 다시 시키지 않는다"
+
+    engine.save_rules([])
+    engine.tr.translate, calls = _scripted(_deny("101"), _control("M/door"), _control("M/led_cmd"))
+    res = engine.add_rule_from_sentence("101호 더우면 불 켜줘", TREE)
+    assert len(calls) == 2 and res["status"] == "rejected", "되먹임은 번역·검증을 합쳐 1번 — 헛호출을 막는다"
+finally:
+    engine.tr.translate = _real_translate
+
+ctx = engine.available_context(TREE)
+assert "101" in ctx["homes"] and "motion" in ctx["types"], "거절 안내는 트리에서 직접 읽는다"
+print("  ✅ AI 거절 검사: 있는 세대를 없다고 하면 1회 되돌림, 정당한 거절은 그대로, 되먹임 합계 1회")

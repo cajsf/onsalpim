@@ -18,6 +18,7 @@ engine.py — 규칙 엔진. 저장된 규칙을 주기적으로 실행한다. (
 
 import json
 import os
+import re
 import threading
 from datetime import datetime, timedelta
 
@@ -278,6 +279,40 @@ def _attach_override(target, rules, home, value, devices, steps, by="복지사")
     }
 
 
+def _home_denied(home, error):
+    """AI의 거절 이유가 'N호는 없다/등록되지 않았다'는 모양인가.
+
+    ponytail: 거절 문장을 정규식으로 읽는 건 휴리스틱이다. 호수가 들어간 정당한 거절
+    ("102호 기준은 음수일 수 없습니다")까지 잡지 않으려고 'N호 + 조사 + 없다' 모양으로 좁혔다.
+    AI 문구가 크게 달라지면 놓칠 수 있다 — 그러면 지금처럼 거절로 끝날 뿐 더 나빠지진 않는다.
+    """
+    return bool(re.search(rf"{home}\s*호\s*(는|은|가|이)?\s*"
+                          r"(없|등록된 세대가 아|등록되지 않|존재하지 않)", error or ""))
+
+
+def _refusal_contradicts_tree(sentence, error, devices):
+    """AI가 '그 세대는 없다'며 거절했는데 트리에 실제로 있으면, 그 거절은 틀렸다.
+
+    지금까지는 AI가 거절하면 그 거절이 맞는지 아무도 확인하지 않았다. 멀쩡히 있는 세대를
+    없다고 해도 그대로 끝났다. 세대 목록은 추측이 아니라 트리에 있는 사실이므로 대조할 수 있다.
+    반환: AI에게 돌려줄 이유 목록 (거절이 트리와 어긋나지 않으면 빈 목록).
+    """
+    known = scope.discover_homes(devices)
+    wrong = sorted(h for h in set(re.findall(r"(\d{3,4})\s*호", sentence))
+                   if h in known and _home_denied(h, error))
+    if not wrong:
+        return []
+    return [f"거절 이유가 트리와 다름: {', '.join(wrong)}호는 등록된 세대다 (등록된 세대: {', '.join(known)}). "
+            "이 세대로 다시 판단하라. 그래도 필요한 장치가 없으면 ok=false 로 그 이유를 적는다."]
+
+
+def available_context(devices):
+    """거절로 끝났을 때 '그럼 뭘 쓸 수 있나'를 알려주기 위한 목록 — AI가 아니라 트리에서 직접 읽는다."""
+    return {"homes": scope.discover_homes(devices),
+            "types": sorted({d["meta"].get("type") for d in devices
+                             if d["meta"].get("kind") == "sensor" and d["meta"].get("type")})}
+
+
 def add_rule_from_sentence(sentence, devices, retry=1):
     """문장 → 번역 → 검증 → 통과하면 저장.
 
@@ -290,6 +325,17 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
     # 1) LLM 번역
     out = tr.translate(sentence, devices)
+    budget = retry                     # 되먹임은 번역·검증 단계를 합쳐 최대 retry 번
+
+    # 1-a) AI의 거절도 검사한다 — 있는 세대를 없다고 거절했으면 사실을 알려주고 다시 시킨다
+    refusal_errors = None
+    if not out.get("ok") and budget > 0:
+        contra = _refusal_contradicts_tree(sentence, out.get("error"), devices)
+        if contra:
+            refusal_errors = [f"AI가 거절함 — {out.get('error')}", contra[0].split(" (")[0]]
+            out = tr.translate(sentence, devices, feedback=contra)
+            budget -= 1
+
     llm_ok = bool(out.get("ok"))
     intent = out.get("intent") or "create_rule"
     flow = OVERRIDE_STEPS if intent == "set_override" else CREATE_STEPS
@@ -304,6 +350,8 @@ def add_rule_from_sentence(sentence, devices, retry=1):
             else out.get("error") or "LLM이 규칙을 만들지 못했습니다."
         ),
         "rule": out.get("rule") if llm_ok else None,
+        "retried": bool(refusal_errors),
+        "first_errors": refusal_errors or [],
     })
 
     if not llm_ok:
@@ -322,7 +370,7 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     #      AI가 스스로 거부했거나(필요한 장치가 없음), 뒤의 범위 단계에서 걸리는 것(없는 세대, 기준값 누락)은
     #      사람 의도의 문제라 다시 시켜도 못 고친다 — 그건 되묻는다. 헛호출을 막으려고 여기서만 한다.
     first_errors = None
-    if not result["ok"] and not result.get("refused_by_llm") and retry > 0:
+    if not result["ok"] and not result.get("refused_by_llm") and budget > 0:
         first_errors = result["errors"]
         out = tr.translate(sentence, devices, feedback=first_errors)
         result = validator.validate_translation(out, devices)

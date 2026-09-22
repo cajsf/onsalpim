@@ -170,6 +170,15 @@ const homes = computed(() => care.value.homes || [])
 const pendingRules = computed(() => rules.value.filter((r) => r.status === 'pending'))
 const activeRules = computed(() => rules.value.filter((r) => r.status !== 'pending'))
 
+/* 파이프라인이 중간에 멈추면 '건너뜀'이 여러 줄 반복된다 — 한 줄로 접어 보여준다 */
+const shownSteps = computed(() => {
+  const steps = pipelineSteps.value
+  const skipped = steps.filter((s) => s.status === 'skip')
+  if (skipped.length < 2) return steps
+  return [...steps.filter((s) => s.status !== 'skip'),
+    { id: '_skipped', status: 'skip', collapsed: true, label: `나머지 ${skipped.length}단계`, detail: skipped[0].detail }]
+})
+
 /* 센서를 믿을 수 없어 엔진이 멈춘 제어 규칙 — { 규칙 id: 이유 } */
 const heldRules = computed(() => care.value.held_rules || {})
 const heldCount = computed(() => Object.keys(heldRules.value).length)
@@ -820,6 +829,11 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             }}</pre>
 
             <p v-if="ruleError" class="msg err">{{ ruleError }}</p>
+            <p v-if="ruleError && lastResult?.available" class="msg info">
+              지금 쓸 수 있는 것 — 세대: {{ lastResult.available.homes.join(', ') || '없음' }}호
+              · 센서: {{ lastResult.available.types.map(typeKo).join(', ') || '없음' }}.
+              이 안에서 다시 써 주세요.
+            </p>
             <p v-if="clarify" class="msg clarify">{{ clarify }}</p>
             <p v-if="ruleNotice" class="msg info">{{ ruleNotice }}</p>
             <div v-if="lastResult && lastResult.status === 'needs_choice'" class="choices">
@@ -840,14 +854,14 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <p v-if="harnessNote" class="harness-note" :class="harnessNote.kind">
                 <span class="hbadge">하네스</span> {{ harnessNote.text }}
               </p>
-              <div v-for="(s, i) in pipelineSteps" :key="s.id" class="pstep" :class="s.status">
+              <div v-for="(s, i) in shownSteps" :key="s.id" class="pstep" :class="s.status">
                 <span class="pico">{{ stepIcon(s.status) }}</span>
-                <span class="pnum">{{ i + 1 }}</span>
+                <span class="pnum">{{ s.collapsed ? '…' : i + 1 }}</span>
                 <span class="plabel">{{ s.label }}</span>
                 <span class="pdetail">
                   <template v-if="s.retried">
                     <span class="hbadge">AI 자가 수정</span>
-                    <span class="retry-line">처음 답: {{ s.first_errors.join('; ') }}</span>
+                    <span v-for="(e, k) in s.first_errors" :key="k" class="retry-line">{{ k ? '└ ' : '처음 답: ' }}{{ e }}</span>
                     <span class="retry-line">다시 받은 답: {{ s.detail }}</span>
                   </template>
                   <template v-else>{{ s.detail }}</template>

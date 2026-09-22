@@ -86,6 +86,9 @@ def add_rule():
     # "RFID 꽂고 같은 문장 다시 입력 → 이번엔 규칙 생성" 시연이 캐시 때문에 실패하면 안 된다.
     devices = iot.read_tree(AE, max_age=0)
     result = engine.add_rule_from_sentence(sentence, devices)
+    if result.get("status") == "rejected":
+        # 거절로 끝나면 다음에 뭘 쓸 수 있는지 알려준다 — 다시 쓸 방향이 없으면 복지사는 포기한다
+        result["available"] = engine.available_context(devices)
     status = 200 if result["ok"] else 422
     return jsonify(result), status
 
