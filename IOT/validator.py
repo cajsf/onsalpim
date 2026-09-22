@@ -211,8 +211,56 @@ def _check_action(action, by_path, idx):
     return errors
 
 
-def validate_rule(rule, devices):
-    """규칙(dict) 하나를 트리와 대조 검증. 반환: {'ok':bool, 'errors':[...]}"""
+# 문장에 나온 '센서 종류' 단어. AI가 고른 센서 종류와 대조한다.
+# 하네스 실험에서 "201호 온도가 30도 넘으면"에 201호엔 온도 센서가 없자 AI가 배터리 센서를 썼다.
+# 경로는 트리에 있으니 존재 검사를 통과한다 — 종류를 봐야 잡힌다.
+# 표에 없는 말("후끈하면")은 판단하지 않는다. 막는 근거가 아니라 모르는 것으로 둔다.
+KIND_WORDS = {
+    "temperature": ("온도", "기온", "더우", "더워", "덥", "추우", "추워", "춥", "쌀쌀", "후덥"),
+    "humidity": ("습도", "습하", "습해", "눅눅", "건조"),
+    "motion": ("움직", "무활동", "인기척", "지나가"),
+    "battery": ("배터리", "전지"),
+    "card": ("카드", "RFID"),
+    "gas": ("가스",), "smoke": ("연기", "화재"), "door": ("문이 열", "문 열리", "출입"),
+    "sound": ("소리", "소음", "데시벨"), "dust": ("미세먼지", "먼지"),
+    "co2": ("이산화탄소", "CO2"), "light_level": ("조도", "밝기"),
+}
+KIND_KO = {"temperature": "온도", "humidity": "습도", "motion": "움직임", "battery": "배터리", "card": "카드",
+           "gas": "가스", "smoke": "연기", "door": "문", "sound": "소리", "dust": "미세먼지",
+           "co2": "이산화탄소", "light_level": "조도"}
+
+
+def _check_kind_match(rule, by_path, sentence):
+    """문장이 말한 센서 종류와 AI가 고른 센서 종류가 하나도 겹치지 않으면 막는다.
+
+    조건이 여러 개면 하나라도 겹치면 통과시킨다 — 표가 틀려서 멀쩡한 문장을 막는 쪽으로
+    틀리지 않으려는 것이다. 막히면 검증기 오류라 AI에게 이유를 돌려주고 한 번 더 시킨다.
+    """
+    if not sentence:
+        return []
+    said = {k for k, words in KIND_WORDS.items() if any(w in sentence for w in words)}
+    if not said:
+        return []
+    chosen = set()
+    for c in [rule.get("when") or {}] + list(rule.get("and") or []):
+        p = (c.get("path") or "").strip()
+        if p == "system/hour":
+            continue
+        t = (by_path.get(p) or {}).get("type") if p else (c.get("type") or "").strip()
+        if t:
+            chosen.add(t)
+    if not chosen or chosen & said:
+        return []
+    ko = lambda ks: ", ".join(KIND_KO.get(k, k) for k in sorted(ks))
+    return [f"종류 불일치: 문장은 '{ko(said)}' 조건인데 AI가 고른 센서는 '{ko(chosen)}' "
+            f"— 맞는 센서가 없으면 거부해야 함"]
+
+
+def validate_rule(rule, devices, sentence=None):
+    """규칙(dict) 하나를 트리와 대조 검증. 반환: {'ok':bool, 'errors':[...]}
+
+    sentence 를 주면 문장이 말한 센서 종류와 AI가 고른 센서 종류도 대조한다.
+    """
     by_path = _index(devices)
     errors = []
 
@@ -238,6 +286,9 @@ def validate_rule(rule, devices):
 
     # 4. 대상 세대와 장치 소속이 맞는가
     errors += _check_home_match(rule, by_path, devices)
+
+    # 5. 문장이 말한 센서 종류와 AI가 고른 센서 종류가 맞는가
+    errors += _check_kind_match(rule, by_path, sentence)
 
     return {"ok": len(errors) == 0, "errors": errors}
 
@@ -369,7 +420,7 @@ def check_conflicts(new_rule, existing_rules):
     return errors
 
 
-def validate_translation(out, devices):
+def validate_translation(out, devices, sentence=None):
     """translate() 결과 전체를 검증.
 
     - LLM이 이미 거부(ok=false)한 경우 → 그대로 통과시키되 거부로 표시.
@@ -377,7 +428,7 @@ def validate_translation(out, devices):
     """
     if not out.get("ok"):
         return {"ok": False, "errors": [f"LLM이 거부함: {out.get('error', '')}"], "refused_by_llm": True}
-    return validate_rule(out.get("rule", {}), devices)
+    return validate_rule(out.get("rule", {}), devices, sentence)
 
 
 # --- 단독 실행 테스트 ---

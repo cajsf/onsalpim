@@ -306,6 +306,30 @@ def _refusal_contradicts_tree(sentence, error, devices):
             "이 세대로 다시 판단하라. 그래도 필요한 장치가 없으면 ok=false 로 그 이유를 적는다."]
 
 
+def _invented_thresholds(sentence, rule):
+    """제어 규칙 조건의 기준값이 문장에 없는 숫자면 AI가 지어낸 것이다. 반환: [(조건, 값), ...]
+
+    하네스 실험에서 "더우면 창문을 90도로 열어줘"에 AI가 28도를, "습하면"에 70%를,
+    "쌀쌀하면"에 18도를 넣었다. 형식이 멀쩡해 다른 검사를 다 통과한다.
+    센서값 비교는 단위를 바꾸지 않으므로 기준값은 문장에 숫자로 있어야 한다.
+    시간 조건(system/hour)은 "밤 10시"→22 처럼 바뀌는 게 정상이라 보지 않고,
+    호수(101호)는 기준값 후보에서 뺀다. 돌봄 규칙(무활동)은 "8시간"→480 으로 바뀌어서 보지 않는다.
+    """
+    said = {float(n) for n in re.findall(r"(?<![\d.])(\d+(?:\.\d+)?)(?![\d.]|\s*호)", sentence)}
+    invented = []
+    for c in [rule.get("when") or {}] + list(rule.get("and") or []):
+        p, v = (c.get("path") or "").strip(), str(c.get("value") or "").strip()
+        if not p or p == "system/hour" or not v:
+            continue
+        try:
+            n = float(v)
+        except ValueError:
+            continue                        # 숫자가 아닌 값은 대상 아님
+        if n not in said:
+            invented.append((c, v))
+    return invented
+
+
 def available_context(devices):
     """거절로 끝났을 때 '그럼 뭘 쓸 수 있나'를 알려주기 위한 목록 — AI가 아니라 트리에서 직접 읽는다."""
     return {"homes": scope.discover_homes(devices),
@@ -362,8 +386,8 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     if intent == "set_override":
         return _apply_override(sentence, out, devices, steps)
 
-    # 2) 검증기 — 장치·값 층 (기존 4중 검증)
-    result = validator.validate_translation(out, devices)
+    # 2) 검증기 — 장치·값 층 (기존 4중 검증 + 세대·종류 대조)
+    result = validator.validate_translation(out, devices, sentence)
 
     # 2-b) 되먹임 — AI가 '됐다'고 했는데 검증기에서 걸리면, 걸린 이유를 돌려주고 한 번만 다시 시킨다.
     #      사람이 문장을 처음부터 다시 쓰는 대신이다(어차피 나갈 호출을 자동으로 하는 것).
@@ -373,7 +397,7 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     if not result["ok"] and not result.get("refused_by_llm") and budget > 0:
         first_errors = result["errors"]
         out = tr.translate(sentence, devices, feedback=first_errors)
-        result = validator.validate_translation(out, devices)
+        result = validator.validate_translation(out, devices, sentence)
 
     val_ok = bool(result["ok"])
     if result.get("refused_by_llm"):
@@ -397,6 +421,16 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     if not val_ok:
         return _stop(steps, flow, result["errors"], rule=out.get("rule"),
                      reason="검증 실패로 건너뜀")
+
+    # 2-c) 문장에 없는 기준값은 AI가 지어낸 것 — 비워서 되묻기로 돌린다.
+    #      비우지 않으면 복지사가 승인만 눌러도 AI가 지어낸 28도가 그대로 실행된다.
+    invented = _invented_thresholds(sentence, out["rule"])
+    for c, _ in invented:
+        c["value"] = ""
+    if invented:
+        steps[-1]["detail"] += (f" · 문장에 없는 기준값({', '.join(v for _, v in invented)})을 "
+                                f"AI가 넣어서 비웠습니다 — 복지사가 정합니다")
+        steps[-1]["invented"] = [v for _, v in invented]
 
     rules = load_rules()
 

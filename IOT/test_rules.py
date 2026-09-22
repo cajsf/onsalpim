@@ -200,7 +200,8 @@ _real_translate = engine.tr.translate
 try:
     engine.save_rules([])
     engine.tr.translate, calls = _scripted(_control("M/door"), _control("M/led_cmd"))
-    res = engine.add_rule_from_sentence("더우면 불 켜줘", TREE)
+    # 문장에 30이 있어야 한다 — 없으면 '지어낸 기준값'으로 되묻기로 간다 (그건 아래에서 따로 본다)
+    res = engine.add_rule_from_sentence("30도 넘게 더우면 불 켜줘", TREE)
     assert res["status"] == "ok" and len(calls) == 2, "지어낸 장치 → 이유를 돌려주고 고친 답을 받는다"
     assert calls[0] is None and any("door" in e for e in calls[1]), "두 번째 호출에 처음 오류가 실려야 한다"
     v = next(s for s in res["steps"] if s["id"] == "validate")
@@ -350,3 +351,40 @@ finally:
 ctx = engine.available_context(TREE)
 assert "101" in ctx["homes"] and "motion" in ctx["types"], "거절 안내는 트리에서 직접 읽는다"
 print("  ✅ AI 거절 검사: 있는 세대를 없다고 하면 1회 되돌림, 정당한 거절은 그대로, 되먹임 합계 1회")
+
+
+# ── 종류 대조: 문장이 말한 센서와 AI가 고른 센서 종류 (하네스 실험 s09) ──
+_kt = TREE + [{"path": "M/h101_temp", "ct": "20260917T090000",
+               "meta": {"kind": "sensor", "type": "temperature", "home": "101", "unit": "C", "values": "0~50"}}]
+_kc = lambda path, value="30": {"scope": {"homes": ""}, "and": [],
+                                "when": {"path": path, "type": "", "op": ">", "value": value},
+                                "then": [{"path": "M/led_cmd", "value": "ON", "severity": ""}]}
+errs = _v.validate_rule(_kc("M/h101_batt"), _kt, "101호 온도가 30도 넘으면 불 켜줘")["errors"]
+assert any("종류 불일치" in e for e in errs), "온도라고 했는데 배터리 센서를 쓰면 막는다"
+assert _v.validate_rule(_kc("M/h101_temp"), _kt, "101호가 30도 넘게 더우면 불 켜줘")["ok"], "'더우면'은 온도 — 통과"
+assert _v.validate_rule(_kc("M/h101_temp"), _kt, "101호가 후끈하면 불 켜줘")["ok"], "표에 없는 말은 판단하지 않는다"
+assert _v.validate_rule(_kc("M/h101_temp"), _kt, "101호 온도가 30도 넘으면 창문 열어줘")["ok"], \
+    "'창문 열어줘'를 '문 열림'으로 잘못 읽으면 안 된다"
+assert _v.validate_rule(_kc("M/h101_temp"), _kt)["ok"], "문장을 안 주면 종류 대조는 건너뛴다"
+
+# ── 지어낸 기준값: 문장에 없는 숫자는 비워서 되묻기로 (하네스 실험 s12~s14) ──
+_hot = lambda v: {"ok": True, "error": "", "intent": "create_rule", "override": {"home": "", "type": "", "value": ""},
+                  "rule": {"scope": {"homes": ""}, "and": [], "reason": "",
+                           "when": {"path": "M/h101_temp", "type": "", "op": ">", "value": v},
+                           "then": [{"path": "M/led_cmd", "value": "ON", "severity": ""}]}}
+_real_translate = engine.tr.translate
+try:
+    engine.save_rules([])
+    engine.tr.translate, calls = _scripted(_hot("28"))
+    res = engine.add_rule_from_sentence("101호가 더우면 불 켜줘", _kt)
+    assert res["status"] == "needs_clarification", "AI가 지어낸 28도는 비우고 복지사에게 묻는다"
+    assert res["rule"]["when"]["value"] == "", "승인만 눌러도 28도가 들어가면 안 된다 — 값을 비워야 한다"
+    assert len(calls) == 1, "지어낸 값은 AI에게 다시 시키지 않는다 — 사람이 정할 값이다"
+
+    engine.save_rules([])
+    engine.tr.translate, calls = _scripted(_hot("30"))
+    res = engine.add_rule_from_sentence("101호가 30도 넘게 더우면 불 켜줘", _kt)
+    assert res["status"] == "ok" and res["rule"]["when"]["value"] == "30", "문장에 있는 30은 그대로"
+finally:
+    engine.tr.translate = _real_translate
+print("  ✅ 종류 대조·지어낸 기준값: 배터리를 온도로 쓰면 막고, 문장에 없는 기준값은 비워서 되묻기")
