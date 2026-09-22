@@ -24,6 +24,7 @@ llm_translator.py — 사용자 문장을 규칙 JSON으로 번역한다 (Gemini
 """
 
 import json
+import re
 import requests
 
 import scope
@@ -35,6 +36,39 @@ MODELS = [
     "gemini-3.1-flash-lite",   # 기본 (무료 한도 넉넉, 규칙 번역 품질 확인됨)
     "gemini-3.5-flash",        # 예비 (무료 하루 20회)
 ]
+
+
+# 로컬 모델 — Ollama 로 내 PC에서 돌린다. 모델 이름을 "ollama:qwen3:8b" 처럼 주면 이쪽으로 간다.
+# 유료 AI 없이도 하네스가 돌아가는지(라이선스·비용 질문) 재려는 것이다. 키가 필요 없다.
+OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
+
+
+def _plain_schema(node):
+    """Gemini 전용 키(propertyOrdering)를 뺀 JSON 스키마 — Ollama 는 표준 스키마만 받는다."""
+    if isinstance(node, dict):
+        return {k: _plain_schema(v) for k, v in node.items() if k != "propertyOrdering"}
+    if isinstance(node, list):
+        return [_plain_schema(v) for v in node]
+    return node
+
+
+def _call_ollama(model, prompt):
+    body = {
+        "model": model, "stream": False,
+        "think": False,                      # Qwen3 의 생각 모드를 끈다 — 규칙 번역엔 필요 없고 느려진다
+        "messages": [{"role": "user", "content": prompt}],
+        "format": _plain_schema(RESPONSE_SCHEMA),
+        "options": {"temperature": 0},
+    }
+    r = requests.post(OLLAMA_URL, json=body, timeout=300)
+    if r.status_code != 200:
+        return {"ok": False, "error": f"LLM 호출 실패 ollama {r.status_code}: {r.text[:200]}", "rule": {}}
+    text = re.sub(r"<think>.*?</think>", "", r.json()["message"]["content"], flags=re.S).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # 작은 모델은 형식을 깨뜨릴 수 있다 — 호출 실패가 아니라 '모델이 틀린 것'으로 센다
+        return {"ok": False, "error": f"AI 응답이 규칙 형식이 아님: {text[:120]}", "rule": {}}
 
 
 def _url(model):
@@ -217,6 +251,12 @@ def translate(sentence, devices, retries=2, feedback=None, models=None):
     }
     last_err = ""
     for model in models or MODELS:
+        if model.startswith("ollama:"):
+            try:
+                return _call_ollama(model[len("ollama:"):], body["contents"][0]["parts"][0]["text"])
+            except requests.exceptions.RequestException as e:
+                last_err = f"Ollama 에 연결 못 함 ({type(e).__name__}) — ollama 가 켜져 있는지 확인"
+                continue
         for attempt in range(retries + 1):
             try:
                 r = requests.post(_url(model), params={"key": GEMINI_API_KEY}, json=body, timeout=60)

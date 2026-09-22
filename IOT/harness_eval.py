@@ -12,6 +12,7 @@ AI 응답은 eval/cache.json 에 모델·프롬프트별로 저장한다 — 다
 실행:
     python harness_eval.py                         # 기본 모델
     python harness_eval.py gemini-2.5-flash-lite   # 모델 지정 (여러 개 가능)
+    python harness_eval.py ollama:qwen3:8b         # 로컬 모델 (Ollama 설치 후, 키 불필요)
     python harness_eval.py --offline               # 캐시에 있는 것만 (호출 0)
     python harness_eval.py --save                  # docs/HARNESS_EVAL.md 로 저장
 
@@ -140,8 +141,8 @@ def cached_translate(model, cache, stats, offline, real):
             return copy.deepcopy(cache[key]["out"])
         if offline:
             raise NotCached(sentence)
-        if stats["calls"]:
-            time.sleep(CALL_GAP_S)
+        if stats["calls"] and not model.startswith("ollama:"):
+            time.sleep(CALL_GAP_S)          # 로컬 모델은 분당 한도가 없다
         t0 = time.time()
         out = real(sentence, devices, feedback=feedback, models=[model])
         dt = round(time.time() - t0, 2)

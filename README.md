@@ -95,6 +95,20 @@ python harness_eval.py --offline   # 하네스 실험 — 저장된 AI 답으로
 npm run build --prefix dashboard
 ```
 
+### 로컬 모델로 하네스 실험 (GPU 있는 PC)
+
+유료 AI 없이도 하네스가 돌아가는지 재는 실험이다. API 키가 필요 없다.
+
+1. [Ollama](https://ollama.com/download) 설치
+2. 모델 받기: `ollama pull qwen3:4b`, `ollama pull qwen3:8b` (12GB 그래픽카드면 `qwen3:14b` 도 가능)
+3. `IOT/` 에서 실행 — Gemini 도 같이 넣어야 보고서에 비교가 남는다 (Gemini 는 저장된 답이라 호출 0)
+
+```bash
+python harness_eval.py gemini-3.1-flash-lite ollama:qwen3:4b ollama:qwen3:8b --save
+```
+
+로컬 모델 응답도 `eval/cache.json` 에 쌓이니 결과(`docs/HARNESS_EVAL.md`)와 같이 커밋한다.
+
 ## 같이 작업할 때 지킬 것
 
 - **비밀값은 절대 커밋하지 않는다.** `secrets_local.py`, `secrets.h` 는 `.gitignore` 에 있다. 새 비밀값이 생기면 같은 방식으로 분리.
