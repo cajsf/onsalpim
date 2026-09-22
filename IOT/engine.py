@@ -933,11 +933,32 @@ def _num(x):
         return None
 
 
-def read_value(path):
-    """조건 판단용 센서값 읽기. system/hour 는 현재 시각으로 대체."""
+def read_value(path, devices, now=None):
+    """조건 판단용 센서값 읽기. 반환: (값, 보류 사유) — 값을 믿을 수 있으면 사유는 None.
+
+    값만 보면 한 시간 전의 31도와 방금 온 31도를 구분할 수 없다. 그래서 센서가 죽어도
+    마지막 값으로 규칙이 계속 발동했다. 돌봄 판정과 같은 기준으로 도착 시각을 본다 —
+    마지막 도착이 라벨의 보고 주기(report_s) × 3 보다 오래됐으면 두절로 보고 믿지 않는다.
+
+    report_s 가 없으면 기본값으로 추측하지 않는다. 추측이 짧으면 멀쩡한 센서가 두절로 보이고,
+    길면 죽은 센서를 믿게 된다. 모르면 모른다고 하고 보류한다.
+    """
+    now = now or datetime.now()
     if path == "system/hour":
-        return str(datetime.now().hour)
-    return iot.get_latest_by_path(path)
+        return str(now.hour), None
+    dev = next((d for d in devices if d["path"] == path), None)
+    if dev is None:
+        return None, "트리에 없는 센서"
+    if "report_s" not in dev["meta"]:
+        return None, "보고 주기(report_s) 라벨이 없어 값이 최신인지 알 수 없음"
+    c = care_monitor.read_contact(dev)
+    if c["value"] is None or c["ts"] is None:
+        return None, "값이 한 번도 도착하지 않음"
+    silent = care_monitor._elapsed_s(c["ts"], now)
+    limit = care_monitor.STALE_FACTOR * c["period_s"]
+    if silent > limit:
+        return None, f"두절 — 마지막 값이 {care_monitor._human(silent)} 전 (기준 {limit:.0f}초)"
+    return c["value"], None
 
 
 def _compare(actual, op, target):
@@ -961,28 +982,38 @@ def _compare(actual, op, target):
     return False
 
 
-def eval_rule(rule):
-    """규칙의 모든 조건(when + and)이 참인지. 못 읽는 센서가 있으면 False."""
-    conds = [rule["when"]] + (rule.get("and") or [])
-    for c in conds:
-        actual = read_value(c["path"])
-        if actual is None:
-            print(f"    (센서 못 읽음: {c['path']})")
-            return False
-        if not _compare(actual, c["op"], c["value"]):
-            return False
-    return True
+def eval_rule(rule, devices, now=None):
+    """규칙의 모든 조건(when + and)이 참인지. 반환: (True | False | None, 보류 사유).
+
+    None 은 '모름' — 센서값을 믿을 수 없어 판단을 보류한다. 거짓과 구분해야 한다:
+    모름을 거짓으로 치면 '안 더워서 안 켬'과 '센서가 죽어서 모름'이 같아진다.
+    조건을 전부 본다. 하나라도 확실히 거짓이면 전체가 거짓이고(모르는 게 있어도 결론은 같다),
+    거짓은 없는데 모르는 게 있으면 보류다. 앞에서부터 보다 멈추면 이 둘이 섞인다.
+    """
+    unknown = None
+    for c in [rule["when"]] + (rule.get("and") or []):
+        actual, why = read_value(c["path"], devices, now)
+        if why:
+            unknown = unknown or f"{c['path']}: {why}"
+        elif not _compare(actual, c["op"], c["value"]):
+            return False, None
+    return (None, unknown) if unknown else (True, None)
 
 
 # ---------- 한 사이클 실행 ----------
 
-def run_once(rules, last_sent):
+_held = {}   # 규칙 id → 보류 사유. 사유가 바뀔 때만 출력한다 (4초마다 같은 줄이 쌓이지 않게)
+
+
+def run_once(rules, last_sent, devices=None, now=None):
     """규칙 전부 판단해서 액추에이터별 '목표값'을 정한 뒤, (값이 바뀌었을 때만) 전송.
 
     여러 규칙이 같은 장치에 다른 값을 명령하면 → '나중에 만든 규칙(id 큰 쪽)'이 이긴다.
     → 다른 센서 기반 규칙(예: 사람오면 켜기 vs 추우면 끄기)이 동시에 발동해도
       한 사이클에 장치당 명령은 딱 하나 → 깜빡임(ON/OFF 반복) 원천 차단.
     """
+    if devices is None:
+        devices = iot.read_tree("byeongari")
     desired = {}   # path → (value, 이긴 규칙)
     for r in sorted(rules, key=lambda x: x["id"]):
         if not is_active(r):        # 승인 전 규칙은 실행하지 않는다
@@ -991,7 +1022,16 @@ def run_once(rules, last_sent):
         # 여기로 들어오면 빈 경로로 플랫폼에 헛요청을 보낸다.
         if not ((r["rule"].get("when") or {}).get("path") or "").strip():
             continue
-        if not eval_rule(r["rule"]):
+        ok, why = eval_rule(r["rule"], devices, now)
+        if ok is None:
+            # 센서를 믿을 수 없으면 명령을 새로 보내지 않는다 — 장치는 마지막 상태 그대로 둔다.
+            if _held.get(r["id"]) != why:
+                print(f'  [규칙 {r["id"]}] 보류 — {why} (명령을 보내지 않음)')
+            _held[r["id"]] = why
+            continue
+        if _held.pop(r["id"], None):
+            print(f'  [규칙 {r["id"]}] 센서 복구 — 다시 판단함')
+        if not ok:
             continue
         for act in r["rule"]["then"]:
             desired[act["path"]] = (act["value"], r)   # id 순서라 나중 규칙이 덮어씀
@@ -1140,7 +1180,7 @@ def loop(interval=3):
             rules = load_rules()   # 매 사이클 다시 읽음 → 대시보드에서 추가/삭제 즉시 반영
             try:
                 devices = iot.read_tree("byeongari")   # 캐시됨 (장치 꽂을 때만 실제로 읽음)
-                run_once(rules, last_sent)
+                run_once(rules, last_sent, devices)
                 homes_state = collect_home_state(devices, rules)
             except requests.RequestException as e:
                 # 공용 서버가 한 번 늦거나 끊겼다고 엔진이 죽으면 안 된다 — 이번 판정만 건너뛴다.

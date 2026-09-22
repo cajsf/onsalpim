@@ -251,3 +251,61 @@ batt = {"scope": {"homes": "101"}, "and": [], "when": {"path": "", "type": "batt
 sc = scope.validate_scope(batt, TREE)
 assert sc["status"] == "rejected" and "무활동" in sc["errors"][0], "④ 판정에 안 쓰이는 돌봄 규칙은 받지 않는다"
 print("  ✅ 하네스 구멍: 세대-장치 불일치, 제어 규칙 기준값 누락, 실행 안 되는 돌봄 규칙")
+
+
+# ── 제어 규칙: 죽은 센서의 마지막 값으로 발동하지 않는다 ──
+from datetime import datetime as _dt, timedelta as _td
+import care_monitor as _cm
+
+_NOW = _dt(2026, 9, 22, 14, 0, 0)
+_T = {"path": "M/h101_temp", "meta": {"kind": "sensor", "type": "temperature", "home": "101",
+                                      "values": "0~50", "report_s": "5"}}
+_OLD = {"path": "M/temp", "meta": {"kind": "sensor", "type": "temperature", "values": "0~50"}}  # report_s 없음
+_DEVS = [_T, _OLD, {"path": "M/led_cmd", "meta": {"kind": "actuator", "type": "light", "accepts": "ON|OFF"}}]
+_reading = {}                                        # path → (값, 몇 초 전)
+_clock = [_NOW]                                      # 판단 시각 — 가짜 센서도 이걸 기준으로 "몇 초 전"을 만든다
+
+
+def _fake_contact(dev):
+    v, ago = _reading[dev["path"]]
+    return {"value": v, "ts": _clock[0] - _td(seconds=ago), "period_s": _cm._report_period(dev["meta"])}
+
+
+class _Res:
+    status_code = 201
+
+
+_sent = []
+_real = (engine.care_monitor.read_contact, engine.iot.post_cin_by_path)
+engine.care_monitor.read_contact = _fake_contact
+engine.iot.post_cin_by_path = lambda path, value: _sent.append((path, value)) or _Res()
+try:
+    hot = [{"id": 1, "sentence": "101호 30도 넘으면 불 켜", "enabled": True, "status": "approved",
+            "rule": {"when": {"path": "M/h101_temp", "op": ">", "value": "30"}, "and": [],
+                     "then": [{"path": "M/led_cmd", "value": "ON"}]}}]
+
+    _reading["M/h101_temp"] = ("31", 3)               # 3초 전 31도 — 믿을 수 있다
+    engine.run_once(hot, {}, _DEVS, _NOW)
+    assert _sent == [("M/led_cmd", "ON")], "방금 온 31도면 켠다"
+
+    _sent.clear()
+    _reading["M/h101_temp"] = ("31", 3600)            # 한 시간 전 31도 — 센서가 죽었다
+    ok, why = engine.eval_rule(hot[0]["rule"], _DEVS, _NOW)
+    assert ok is None and "두절" in why, "오래된 값은 '모름' — 거짓도 참도 아니다"
+    engine.run_once(hot, {}, _DEVS, _NOW)
+    assert _sent == [], "죽은 센서의 마지막 값으로 명령을 보내면 안 된다"
+
+    _reading["M/temp"] = ("31", 1)
+    ok, why = engine.eval_rule({"when": {"path": "M/temp", "op": ">", "value": "30"}, "and": []}, _DEVS, _NOW)
+    assert ok is None and "report_s" in why, "보고 주기를 모르면 추측하지 않고 보류"
+
+    both = {"when": {"path": "M/h101_temp", "op": ">", "value": "30"},
+            "and": [{"path": "system/hour", "op": ">=", "value": "22"}]}
+    assert engine.eval_rule(both, _DEVS, _NOW)[0] is False, \
+        "확실히 거짓인 조건(14시 < 22시)이 있으면 다른 센서를 몰라도 결론은 거짓"
+    _reading["M/h101_temp"] = ("31", 3)
+    _clock[0] = _NOW.replace(hour=23)
+    assert engine.eval_rule(both, _DEVS, _clock[0])[0] is True, "둘 다 믿을 수 있고 참이면 참"
+finally:
+    engine.care_monitor.read_contact, engine.iot.post_cin_by_path = _real
+print("  ✅ 제어 규칙: 두절된 센서·보고 주기 모름은 보류, 거짓과 모름을 구분")
