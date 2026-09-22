@@ -1,4 +1,4 @@
-# 온살핌 — Codex 인수인계 (2026-09-17, 저녁 갱신)
+# 온살핌 — 인수인계 (2026-09-17 시작, 09-22 저녁 갱신)
 
 > 코드는 직접 읽으면 된다. 이 문서는 **코드에 남지 않는 것**만 적었다:
 > 왜 그렇게 짰는지, 플랫폼에 무엇이 만들어져 있는지, 무엇을 실제로 돌려서 확인했는지, 다음에 할 일.
@@ -8,6 +8,83 @@
 > 이 문서는 계속 갱신한다. 작업하면서 결정·실측·할 일이 바뀌면 해당 장을 고치고, 새 작업은 0장처럼 날짜별 요약을 추가할 것.
 
 경로는 저장소(`IoTCOSS/`) 기준. 파이썬 코드는 `IOT/`. 제안서·대본(`제안서_개정안.md`, `멘토링_대본_0922.md`, hwpx)은 저장소 밖 팀 공유 폴더(`CO-SHOW/`)에 있다.
+
+---
+
+## 00. 지금 여기서 이어서 하기 (9/22 저녁 기준 — 가장 최신)
+
+일정: 제출 **10월 30일 예상**. 목표는 본선 수상. 9/22 멘토링 끝남.
+
+### 다른 PC에서 시작하는 순서
+
+1. `git pull` (처음이면 `git clone https://github.com/cajsf/onsalpim.git`)
+2. **비밀 파일 zip 풀기** — 팀 카톡의 `onsalpim_secrets.zip`, README 안내대로. 없으면 `llm_translator`·`iot_platform`이 `secrets_local` import 에서 바로 죽는다(Ollama 만 쓸 때도).
+3. 전체 실행은 `start.bat`, 끄기는 `stop.bat`.
+4. 점검: `cd IOT` → `python verify_report.py`(17/17) · `python test_rules.py` · `python harness_eval.py --offline`(키·네트워크 없이 4차 결과 재현)
+
+### 집에서 할 일 — 로컬 모델 하네스 실험 (32GB · RTX 4070)
+
+README "로컬 모델 실험" 절 그대로. Ollama 설치 → 모델 3개 pull → 한 번에 실행:
+
+```
+python harness_eval.py gemini-3.1-flash-lite ollama:qwen3:8b ollama:gemma4:e4b ollama:exaone3.5:7.8b --save
+```
+
+- Gemini 답은 `eval/cache.json` 에 이미 있어 **Gemini 할당량을 쓰지 않는다.** 새로 부르는 건 로컬 모델뿐.
+- 끝나면 `docs/HARNESS_EVAL.md` + `IOT/eval/cache.json` 을 커밋·push.
+- 볼 숫자: 모델별 **"잘못 앞으로 나감"**(하네스가 0으로 막는지), 되묻기, 과잉 거부. 로컬 모델이 Gemini보다 틀리는 건 괜찮다 — 주장은 "모델이 약해도 하네스가 막는다"이다. 그게 안 되면(0이 아니면) 그 문장이 새 구멍이다.
+- 라이선스: Qwen3·Gemma 4 는 Apache 2.0(상업 가능), **EXAONE 3.5 는 비상업** — 실험 비교용으로만.
+
+### 9/21~9/22 바뀐 것
+
+| 변경 | 위치 |
+|---|---|
+| 폴더 정리: 문서 `docs/`, 런타임 json `IOT/data/`, 배선 문서·회로도 `arduino/`, 구버전 보드 `arduino/archive/` | 저장소 전체 |
+| 보드 4대(ESP32, 101·102·201·202)를 `#define BOARD` 하나로. 서보·LED도 ESP32 | `arduino/home_node/home_node.ino`, `ARDUINO_WIRING.md`, `BOARD_WIRING.svg` |
+| `start.bat`/`stop.bat` — 서버 4개 한 번에 | 루트 |
+| 고장 4종 주입 오탐·미탐 측정 | `measure_faults.py`, `docs/FAULT_INJECTION.md` |
+| 시연 안정성: 엔진 3상태 칩, 플랫폼 끊김 이유 배너, **시연 초기화**(지우지 않고 `data/reset_backup/<시각>/` 로 옮김) | `engine.reset_demo`, `App.vue` |
+| **stale 수정**: 제어 규칙이 `report_s×3` 넘게 오래된 값이면 보류(참/거짓/모름). 보류 중인 규칙은 화면에 배너·카드 표시 | `engine.read_value/eval_rule/run_once`, `held_rules` |
+| **하네스**: 검증기 오류를 AI에게 돌려주고 1회 재시도(되먹임), AI 거절도 트리와 대조(있는 세대를 없다 하면 되돌림), 거절로 끝나면 쓸 수 있는 세대·센서 안내, 센서 **종류 대조**, **지어낸 기준값 비우기**(문장에 없는 숫자면 비우고 되묻기) | `engine.add_rule_from_sentence`, `validator._check_kind_match`, `engine._invented_thresholds` |
+| 대시보드에 하네스가 한 일 표시(고침 / 막음 / AI 자가 수정: 처음 답 → 다시 받은 답), 건너뜀 단계 접기 | `App.vue` `harnessNote`, `shownSteps` |
+| Ollama 로컬 모델 연결(`ollama:모델명`) | `llm_translator._call_ollama` |
+
+### 하네스 실험 결과 (51문장, Gemini)
+
+| | AI 결과 바로 실행 | 하네스 3차 | 하네스 4차(현재) |
+|---|---|---|---|
+| 정답 | 40 | 47 | **50** |
+| 잘못 앞으로 나감 | 10 | 3 | **0** |
+| 되묻기 | — | 4/8 | 7/8 |
+| 과잉 거부 | — | 0 | 0 |
+
+- 2차의 97%는 낙관적이었다 — 구멍 찾기에 안 쓴 새 14문장으로 재니 11/14. **4차 98%도 같은 이유로 낙관적** → 새 문장 묶음으로 다시 재야 한다.
+- 남은 1개: q05 "102호 기준 좀 늘려줘" — AI가 되물었는데 거부로 분류됨(프롬프트 수정 필요).
+- 되먹임(재시도)은 아직 효과를 못 보였다(발동 2회, 둘 다 되먹임 없이도 막혔을 것).
+- 없는 센서(가스·연기·문·소리 등) 8문장은 Gemini가 전부 스스로 거절. 실제 새던 건 종류 착각(배터리를 온도로)과 지어낸 기준값(28도/70%/18도).
+
+### 확인 못 한 것
+
+- "지어낸 기준값을 비웠습니다" 표시는 **빌드만 확인**. 대시보드에 "101호가 더우면 창문을 90도로 열어줘" 넣어서 한 번 볼 것.
+
+### 결정 안 한 것 (제안만 된 상태)
+
+- q05 되묻기 구분 / 새 문장 묶음으로 5차 측정
+- 거절 안내를 세대 선택 버튼으로
+- 성공했을 때도 "하네스 통과" 표시
+- 가상 세대 번호(103·104·105)를 전시 번호(201·202)로 — 공유 서버에 `h201`/`h202` 컨테이너 생성 필요 → **만들기 전에 확인**
+- Matter: 지금 만들지 않는다. 발표 "확장성" 한 장으로만(Matter 기기 → 게이트웨이(IPE) → Mobius, lbl만 맞추면 엔진 수정 없이 합류). Matter는 한 집 범위라 여러 세대를 기관이 모아 보는 건 oneM2M 몫 — "왜 Matter 아니냐" 질문의 답.
+
+### 사람이 할 일
+
+- 부품 주문(ESP32 5, PIR 5 등 — 세대별 부품은 `arduino/ARDUINO_WIRING.md`) → 도착하면 보드 굽기
+- 팀원 저장소 초대, 새 비밀 파일 zip 전달
+- 정보공개청구: 응급안전안심 활동 미감지 중 실제 응급 비율
+- 시장조사(`CO-SHOW/시장조사_0922.md`, 저장소 밖) 팀 공유 → 발표 방향 논의
+
+### 저장소 밖에 있는 것 (노트북 `CO-SHOW/` 폴더 — git에 없음, 필요하면 따로 옮길 것)
+
+`시장조사_0922.md`, 제안서 수정본 `…(개정안-최종-수정).hwpx`, 멘토링 녹취 텍스트, 비밀 파일 zip.
 
 ---
 
@@ -268,11 +345,11 @@ ty=28 flexCont AE 직하      → 500
 | 문제 | 위치 | 비고 |
 |---|---|---|
 | ~~제어 규칙이 stale 값으로 발동~~ | `engine.read_value` / `eval_rule` / `run_once` | 9/22 해결 |
-| **API 키·WiFi 비밀번호 평문** | `iot_platform.py`, `arduino/board_a`, `board_b`, `home_node` `.ino` | `.gitignore`는 `secrets_local.py`(Gemini 키)만 막음. **외부 공유·커밋 금지** |
+| ~~API 키·WiFi 비밀번호 평문~~ | `secrets_local.py`, 펌웨어 `secrets.h` | 분리 완료 — 저장소엔 예시 파일만. 실제 값은 비밀 파일 zip으로만 전달 |
 | `rules.json` 동시 쓰기 시 유실 가능 | `engine.save_rules`, `api_server` toggle/delete | 파일 기반 |
 | 규칙 재활성화 시 충돌 검사 없음 | `api_server.toggle_rule` | |
 | 엔진 재시작 시 `last_sent` 초기화 → 액추에이터 1회 재전송 | `engine.loop` | |
-| LLM 번역 정확도 자체는 미측정 | — | 17개 시험은 검증·판정 계층만 |
+| LLM 번역 정확도 | `harness_eval.py` | 9/22 측정 시작 — 00장 결과표. 문장 묶음이 작고 낙관적 |
 | 배터리는 가변저항 ADC 모사 | `home_node.ino` HAS_BATT | 전시에서 모사임을 밝힐 것 |
 | 문서 stale: `README.md`/진행노트는 챌린지 시점 기준 | | `arduino/ARDUINO_WIRING.md` 는 2026-09-21 최신화됨 |
 
