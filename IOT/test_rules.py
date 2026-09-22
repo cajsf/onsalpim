@@ -388,3 +388,35 @@ try:
 finally:
     engine.tr.translate = _real_translate
 print("  ✅ 종류 대조·지어낸 기준값: 배터리를 온도로 쓰면 막고, 문장에 없는 기준값은 비워서 되묻기")
+
+# ── 5차 실험에서 찾은 것 ──
+# (가) 위험도를 말한 적 없는데 AI가 골랐다 → 비우고 되묻는다
+rule_sev = {"scope": {"homes": "ALL"},
+            "when": {"path": "", "type": "motion", "op": scope.IDLE_OP, "value": "120"},
+            "and": [], "then": [{"path": "", "value": "", "severity": "URGENT"}], "overrides": {}}
+assert engine._invented_severity("전체 세대에서 2시간 움직임이 없으면 알려줘", rule_sev) == ["URGENT"]
+for said in ("2시간 움직임이 없으면 긴급으로 알려줘",
+             "8시간 무활동이면 복지사가 바로 가봐야 하는 상황으로 표시해줘",
+             "4시간 동안 움직임이 없으면 한번 확인해볼 정도로만 표시해줘"):
+    assert engine._invented_severity(said, rule_sev) == [], f"위험도를 말한 문장이다: {said}"
+# 비운 규칙은 저장이 아니라 되묻기로 간다 — 위험도 없는 규칙은 판정 엔진이 쓰지 않는다
+_blank = dict(rule_sev, then=[{"path": "", "value": ""}])
+assert scope.validate_scope(_blank, TREE, [])["status"] == "needs_clarification", \
+    "위험도가 비면 승인 대기가 아니라 되묻기"
+print("  ✅ 지어낸 위험도: 문장에 위험도 말이 없으면 비우고 되묻기")
+
+# (나) 한글 수사를 못 읽어 멀쩡한 문장을 막던 것
+assert 30 in engine._said_numbers("101호 온도가 서른 도 넘으면 불 켜줘")
+assert 35 in engine._said_numbers("서른다섯 도")
+_ko_rule = {"when": {"path": "Mobius/byeongari/h101_temp", "op": ">", "value": "30"}, "and": []}
+assert engine._invented_thresholds("101호 온도가 서른 도 넘으면 불 켜줘", _ko_rule) == [], \
+    "문장이 말한 '서른'은 지어낸 값이 아니다"
+assert engine._invented_thresholds("101호가 더우면 불 켜줘", _ko_rule), "안 말한 30은 지어낸 값"
+print("  ✅ 한글 수사: '서른 도'를 문장에 있는 숫자로 읽는다")
+# 위험도 비우기는 무활동 규칙만 — 배터리 규칙의 위험도를 비우면 '거부'가 '통과'로 뒤집힌다
+_batt = {"scope": {"homes": ["201"]},
+         "when": {"path": "Mobius/byeongari/h201_batt", "op": "<", "value": "20"},
+         "and": [], "then": [{"path": "", "value": "", "severity": "CHECK_DEVICE"}], "overrides": {}}
+assert engine._invented_severity("201호 배터리가 20% 밑으로 떨어지면 점검 필요로 표시해줘", _batt) == [], \
+    "무활동 규칙이 아니면 손대지 않는다 — scope 가 거부해야 할 규칙이다"
+print("  ✅ 위험도 비우기는 무활동 규칙만 (c12 뒤집힘 방지)")

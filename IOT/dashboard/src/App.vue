@@ -194,7 +194,7 @@ const harnessNote = computed(() => {
       : { kind: 'blocked', text: 'AI의 처음 답이 검사에 걸려 되돌려 보냈고, 다시 받은 답도 통과하지 못해 저장하지 않았습니다.' }
   }
   if (steps.some((s) => s.invented && s.invented.length)) {
-    return { kind: 'fixed', text: 'AI가 문장에 없는 기준값을 지어내서 비웠습니다. 기준값은 복지사가 정합니다.' }
+    return { kind: 'fixed', text: 'AI가 문장에 없는 값(기준값·위험도)을 지어내서 비웠습니다. 이 값은 복지사가 정합니다.' }
   }
   // AI가 스스로 거절한 건 하네스가 한 일이 아니다 — AI가 '됐다'고 한 걸 잡았을 때만 표시한다
   const blocked = steps.find((s) => (s.id === 'validate' || s.id === 'scope') && s.status === 'fail' && !s.refused_by_llm)

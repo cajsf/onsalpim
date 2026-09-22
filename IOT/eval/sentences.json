@@ -586,6 +586,189 @@
    "expect": {
     "outcome": "clarify"
    }
+  },
+  {
+   "id": "n01",
+   "cat": "조건 결합",
+   "sentence": "101호 온도가 30도 넘고 습도도 70% 넘으면 창문을 120도로 열어줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_window",
+     "then_value": 120
+    }
+   },
+   "note": "첫 조건을 when 으로 본다. AI가 습도를 when 으로 쓰면 뜻은 같아도 오답 처리된다 — 대조 방식의 한계."
+  },
+  {
+   "id": "n02",
+   "cat": "비교 방향",
+   "sentence": "101호 온도가 18도 아래로 떨어지면 불 켜줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": "<",
+     "value": 18,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   }
+  },
+  {
+   "id": "n03",
+   "cat": "단위",
+   "sentence": "101호가 화씨 80도 넘으면 창문을 90도로 열어줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "센서는 섭씨(unit=C). 80을 그대로 넣으면 영영 안 열리고, 26.7로 바꿔 넣으면 문장에 없는 값이다. 거부가 맞다."
+  },
+  {
+   "id": "n04",
+   "cat": "장치 없음",
+   "sentence": "201호 배터리가 20% 아래면 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "201호에 배터리 센서는 있지만 조명이 없다. 센서만 보고 통과시키면 안 된다."
+  },
+  {
+   "id": "n05",
+   "cat": "모호",
+   "sentence": "101호가 시원해지면 창문을 닫아줘",
+   "expect": {
+    "outcome": "clarify"
+   }
+  },
+  {
+   "id": "n06",
+   "cat": "규칙 아님",
+   "sentence": "전체 세대 불 꺼줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "규칙은 조건이 있어야 한다. 즉시 명령은 이 화면이 하는 일이 아니다."
+  },
+  {
+   "id": "n07",
+   "cat": "표현",
+   "sentence": "101호 온도가 30도 너므면 불켜죠",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   }
+  },
+  {
+   "id": "n08",
+   "cat": "표현",
+   "sentence": "101호 온도가 서른 도 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   },
+   "note": "지어낸 기준값 검사는 문장의 '숫자'와 대조한다. 한글 수사는 막힐 수 있다 — 과잉 차단 후보."
+  },
+  {
+   "id": "n09",
+   "cat": "규칙 아님",
+   "sentence": "1층 세대는 4시간, 2층 세대는 8시간 움직임이 없으면 긴급으로 해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "규칙 하나에 기준이 둘. 한쪽만 만들면 나머지 세대는 기준이 없는데 복지사는 만들었다고 믿는다."
+  },
+  {
+   "id": "n10",
+   "cat": "세대 범위",
+   "sentence": "101호부터 202호까지 6시간 움직임이 없으면 주의로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 360,
+     "severity": "WATCH"
+    }
+   }
+  },
+  {
+   "id": "n11",
+   "cat": "예외",
+   "sentence": "102호는 4시간으로 해줘",
+   "expect": {
+    "outcome": "override",
+    "override": {
+     "home": "102",
+     "value": 240
+    }
+   }
+  },
+  {
+   "id": "n12",
+   "cat": "모호",
+   "sentence": "전체 세대에서 2시간 움직임이 없으면 알려줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "주의인지 긴급인지 말하지 않았다. AI가 고르면 복지사가 말한 적 없는 위험도가 들어간다."
+  },
+  {
+   "id": "n13",
+   "cat": "세대 없음",
+   "sentence": "102호랑 303호가 6시간 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "102호만 만들고 넘어가면 303호는 조용히 사라진다."
+  },
+  {
+   "id": "n14",
+   "cat": "세대 불일치",
+   "sentence": "202호 습도가 70% 넘으면 101호 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "습도 센서는 101호에만 있다. 101호 센서로 바꿔 쓰면 안 된다."
+  },
+  {
+   "id": "n15",
+   "cat": "범위 밖",
+   "sentence": "101호 온도가 30도 넘으면 창문을 300도로 열어줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "창문은 0~180도."
+  },
+  {
+   "id": "n16",
+   "cat": "범위 밖",
+   "sentence": "101호 온도가 30도 넘으면 불을 50%로 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "조명은 ON|OFF 만 받는다."
   }
  ]
 }

@@ -306,6 +306,28 @@ def _refusal_contradicts_tree(sentence, error, devices):
             "이 세대로 다시 판단하라. 그래도 필요한 장치가 없으면 ok=false 로 그 이유를 적는다."]
 
 
+# 한글 수사 — "서른 도 넘으면"의 30 을 못 읽으면 멀쩡한 문장을 지어낸 값으로 오해한다.
+# ponytail: 표에 있는 만큼만 읽는다. "백스물"처럼 표 밖이면 예전처럼 되묻기로 갈 뿐 잘못 통과하지는 않는다.
+_KO_TENS = {"열": 10, "스물": 20, "서른": 30, "마흔": 40, "쉰": 50,
+            "예순": 60, "일흔": 70, "여든": 80, "아흔": 90, "백": 100}
+_KO_ONES = {"한": 1, "하나": 1, "두": 2, "둘": 2, "세": 3, "셋": 3, "네": 4, "넷": 4, "다섯": 5,
+            "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9}
+
+
+def _said_numbers(sentence):
+    """문장이 말한 숫자들. 아라비아 숫자 + 한글 수사. 호수(101호)는 기준값 후보가 아니라 뺀다."""
+    said = {float(n) for n in re.findall(r"(?<![\d.])(\d+(?:\.\d+)?)(?![\d.]|\s*호)", sentence)}
+    for t, tv in _KO_TENS.items():
+        for m in re.finditer(t, sentence):
+            rest = sentence[m.end():]
+            one = next((v for w, v in _KO_ONES.items() if rest.startswith(w)), 0)
+            said |= {float(tv), float(tv + one)}
+    for w, v in _KO_ONES.items():
+        if w in sentence:
+            said.add(float(v))
+    return said
+
+
 def _invented_thresholds(sentence, rule):
     """제어 규칙 조건의 기준값이 문장에 없는 숫자면 AI가 지어낸 것이다. 반환: [(조건, 값), ...]
 
@@ -315,7 +337,7 @@ def _invented_thresholds(sentence, rule):
     시간 조건(system/hour)은 "밤 10시"→22 처럼 바뀌는 게 정상이라 보지 않고,
     호수(101호)는 기준값 후보에서 뺀다. 돌봄 규칙(무활동)은 "8시간"→480 으로 바뀌어서 보지 않는다.
     """
-    said = {float(n) for n in re.findall(r"(?<![\d.])(\d+(?:\.\d+)?)(?![\d.]|\s*호)", sentence)}
+    said = _said_numbers(sentence)
     invented = []
     for c in [rule.get("when") or {}] + list(rule.get("and") or []):
         p, v = (c.get("path") or "").strip(), str(c.get("value") or "").strip()
@@ -328,6 +350,26 @@ def _invented_thresholds(sentence, rule):
         if n not in said:
             invented.append((c, v))
     return invented
+
+
+# 위험도를 말했다고 볼 수 있는 말. 하나라도 있으면 AI가 고른 위험도를 그대로 둔다.
+# 5차 실험에서 "2시간 움직임이 없으면 알려줘"에 AI가 긴급을 넣었다 — 복지사는 위험도를 말한 적이 없다.
+# ponytail: 표현이 열려 있어("119 부를 정도로") 표로 다 담을 수 없다. 표에 없으면 되묻는 쪽으로 틀린다 —
+# 거부가 아니라 "주의인가요 긴급인가요"를 묻는 것이라 한 번 더 누르면 된다.
+SEVERITY_WORDS = ("긴급", "응급", "위급", "심각", "즉시", "바로", "당장", "119",
+                  "주의", "살펴", "확인", "체크", "관찰", "한번", "한 번")
+
+
+def _invented_severity(sentence, rule):
+    """문장에 위험도를 가리키는 말이 하나도 없으면 AI가 고른 위험도는 지어낸 것이다. 반환: [위험도, ...]"""
+    # 무활동 규칙만 본다. 다른 규칙에 붙은 위험도는 scope 가 거부하는데(판정 엔진이 쓰지 않으므로),
+    # 여기서 비우면 그 거부를 피해 제어 규칙으로 통과해 버린다 (5차에서 c12 가 그렇게 뒤집혔다).
+    if (rule.get("when") or {}).get("op") != scope.IDLE_OP:
+        return []
+    sevs = [t for t in (rule.get("then") or []) if (t or {}).get("severity")]
+    if not sevs or any(w in sentence for w in SEVERITY_WORDS):
+        return []
+    return [t["severity"] for t in sevs]
 
 
 def available_context(devices):
@@ -427,10 +469,15 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     invented = _invented_thresholds(sentence, out["rule"])
     for c, _ in invented:
         c["value"] = ""
-    if invented:
-        steps[-1]["detail"] += (f" · 문장에 없는 기준값({', '.join(v for _, v in invented)})을 "
+    blanked = [v for _, v in invented]
+    for sev in _invented_severity(sentence, out["rule"]):
+        for t in out["rule"].get("then") or []:
+            t.pop("severity", None)
+        blanked.append(scope.SEV_KO.get(sev, sev))
+    if blanked:
+        steps[-1]["detail"] += (f" · 문장에 없는 값({', '.join(blanked)})을 "
                                 f"AI가 넣어서 비웠습니다 — 복지사가 정합니다")
-        steps[-1]["invented"] = [v for _, v in invented]
+        steps[-1]["invented"] = blanked
 
     rules = load_rules()
 

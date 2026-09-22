@@ -294,6 +294,10 @@ def validate_scope(rule, devices, existing_rules=None):
                 )
 
     # ⑦ 위험도 값 검증
+    # rule_severity 는 옛 규칙 호환으로 빈 값을 긴급으로 읽는다 — 새로 만드는 규칙에는 그 기본값을 쓰지 않는다.
+    # 복지사가 위험도를 말하지 않았으면 AI가 고르는 대신 되묻는다 (5차 실험 n12).
+    if when.get("op") == IDLE_OP and not any((t or {}).get("severity") for t in rule.get("then") or []):
+        questions.append("위험도가 정해지지 않았습니다. 주의와 긴급 중 무엇으로 할까요?")
     for act in rule.get("then") or []:
         sev = act.get("severity")
         if sev and sev not in SEVERITIES:
