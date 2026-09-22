@@ -22,6 +22,7 @@ engine.ABSENCES_FILE = os.path.join(TMP, "absences.json")
 engine.ALERTS_FILE = os.path.join(TMP, "alerts.json")
 engine.ACTIONS_FILE = os.path.join(TMP, "actions.json")
 engine.HISTORY_FILE = os.path.join(TMP, "history.json")
+engine.RESET_BACKUP_DIR = os.path.join(TMP, "reset_backup")   # 초기화가 옮겨 두는 곳도 임시 폴더로
 
 
 def saved(rid, rule, status="approved", enabled=True, sentence=""):
@@ -160,8 +161,11 @@ engine.save_rules([saved(1, care_rule(value="480", overrides={"102": {"value": "
 for f in (engine.ALERTS_FILE, engine.ACTIONS_FILE, engine.ABSENCES_FILE, engine.HISTORY_FILE):
     io.open(f, "w", encoding="utf-8").write("[]")
 
-cleared = engine.reset_demo()
+res = engine.reset_demo()
+cleared = res["cleared"]
 assert len(cleared) == 4, f"네 가지를 다 비워야 한다: {cleared}"
+assert sorted(os.listdir(res["backup"])) == ["absences.json", "actions.json", "alerts.json", "history.json"], \
+    "지운 게 아니라 백업 폴더로 옮겨야 한다 — 잘못 눌러도 되살릴 수 있게"
 for f in (engine.ALERTS_FILE, engine.ACTIONS_FILE, engine.ABSENCES_FILE, engine.HISTORY_FILE):
     assert not os.path.exists(f), f"{f} 가 남았다"
 
@@ -169,8 +173,8 @@ kept = engine.load_rules()
 assert len(kept) == 1 and kept[0]["rule"]["overrides"]["102"]["value"] == "360", \
     "규칙과 세대 예외는 시연 초기화로 사라지면 안 된다 — 준비해 둔 것이다"
 assert engine.load_alerts() == [] and engine.load_absences() == [], "지운 뒤에도 로더가 견뎌야 한다"
-assert engine.reset_demo() == [], "두 번 눌러도 안전해야 한다"
-print("  ✅ 시연 초기화: 기록 4종 삭제, 규칙·예외 유지")
+assert engine.reset_demo() == {"cleared": [], "backup": None}, "두 번 눌러도 안전해야 한다 (빈 백업 폴더도 안 만든다)"
+print("  ✅ 시연 초기화: 기록 4종을 백업 폴더로 옮김, 규칙·예외 유지")
 
 
 # ── 하네스 되먹임: 검증기에서 걸리면 이유를 돌려주고 한 번만 다시 시킨다 ──
@@ -200,7 +204,7 @@ try:
     assert res["status"] == "ok" and len(calls) == 2, "지어낸 장치 → 이유를 돌려주고 고친 답을 받는다"
     assert calls[0] is None and any("door" in e for e in calls[1]), "두 번째 호출에 처음 오류가 실려야 한다"
     v = next(s for s in res["steps"] if s["id"] == "validate")
-    assert v["retried"] and "스스로 수정" in v["detail"], "고쳤다는 사실이 화면에 남아야 한다"
+    assert v["retried"] and any("door" in e for e in v["first_errors"]), "처음 답의 오류가 화면용으로 따로 남아야 한다"
 
     engine.save_rules([])
     engine.tr.translate, calls = _scripted(_control("M/door"), _control("M/door"))

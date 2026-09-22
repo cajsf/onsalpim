@@ -170,6 +170,26 @@ const homes = computed(() => care.value.homes || [])
 const pendingRules = computed(() => rules.value.filter((r) => r.status === 'pending'))
 const activeRules = computed(() => rules.value.filter((r) => r.status !== 'pending'))
 
+/* 센서를 믿을 수 없어 엔진이 멈춘 제어 규칙 — { 규칙 id: 이유 } */
+const heldRules = computed(() => care.value.held_rules || {})
+const heldCount = computed(() => Object.keys(heldRules.value).length)
+
+/* 규칙을 만들 때 하네스가 한 일을 한 줄로 — 시연에서 '검사층이 있다'가 눈에 보여야 한다 */
+const harnessNote = computed(() => {
+  const steps = pipelineSteps.value
+  if (steps.some((s) => s.running || s.status === 'running')) return null
+  const retried = steps.find((s) => s.retried)
+  if (retried) {
+    return retried.status === 'ok'
+      ? { kind: 'fixed', text: 'AI의 처음 답이 검사에 걸려, 이유를 돌려주고 다시 받았습니다.' }
+      : { kind: 'blocked', text: 'AI의 처음 답이 검사에 걸려 되돌려 보냈고, 다시 받은 답도 통과하지 못해 저장하지 않았습니다.' }
+  }
+  // AI가 스스로 거절한 건 하네스가 한 일이 아니다 — AI가 '됐다'고 한 걸 잡았을 때만 표시한다
+  const blocked = steps.find((s) => (s.id === 'validate' || s.id === 'scope') && s.status === 'fail' && !s.refused_by_llm)
+  if (blocked) return { kind: 'blocked', text: 'AI가 만든 규칙에서 문제를 찾아 저장하지 않았습니다.' }
+  return null
+})
+
 const counts = computed(() => {
   const c = { NORMAL: 0, WATCH: 0, URGENT: 0, CHECK_DEVICE: 0 }
   for (const h of homes.value) if (c[h.severity] !== undefined) c[h.severity]++
@@ -459,7 +479,8 @@ async function resetDemo() {
   try {
     const r = await api.resetDemo()
     resetNotice.value = r.cleared.length
-      ? `시연 기록을 비웠습니다 (${r.cleared.join(' · ')}). 규칙은 그대로입니다.`
+      ? `시연 기록을 비웠습니다 (${r.cleared.join(' · ')}). 규칙은 그대로이고, ` +
+        `이전 기록은 data/reset_backup/${r.backup.split(/[\\/]/).pop()} 에 보관했습니다.`
       : '비울 기록이 없었습니다. 규칙은 그대로입니다.'
     autoClear(resetNotice, 5000)
     await refresh()
@@ -582,6 +603,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
         공용 서버(Mobius)가 응답하지 않아 판정을 잠시 멈췄습니다 ({{ platformError }}).
         <strong>엔진은 살아 있고, 서버가 돌아오면 저절로 이어집니다.</strong>
         마지막 판정 {{ timeOf(care.updated) }} — 그때까지의 상태를 그대로 보여주는 중입니다.
+      </p>
+      <p v-else-if="heldCount" class="banner warn">
+        제어 규칙 {{ heldCount }}개가 센서 두절로 보류 중입니다 — 죽은 센서의 마지막 값으로는 장치를 움직이지 않습니다.
+        <a href="#" @click.prevent="activeView = 'rules'">규칙 관리</a>에서 이유를 확인하세요.
       </p>
       <p v-else-if="care.stale" class="banner warn">
         판정이 {{ timeOf(care.updated) }} 이후 갱신되지 않았습니다. 화면의 상태가 최신이 아닐 수 있습니다.
@@ -812,11 +837,21 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <!-- 파이프라인 -->
             <div v-if="pipelineSteps.length" class="pipe">
               <p class="sec-title">규칙 생성 파이프라인</p>
+              <p v-if="harnessNote" class="harness-note" :class="harnessNote.kind">
+                <span class="hbadge">하네스</span> {{ harnessNote.text }}
+              </p>
               <div v-for="(s, i) in pipelineSteps" :key="s.id" class="pstep" :class="s.status">
                 <span class="pico">{{ stepIcon(s.status) }}</span>
                 <span class="pnum">{{ i + 1 }}</span>
                 <span class="plabel">{{ s.label }}</span>
-                <span class="pdetail">{{ s.detail }}</span>
+                <span class="pdetail">
+                  <template v-if="s.retried">
+                    <span class="hbadge">AI 자가 수정</span>
+                    <span class="retry-line">처음 답: {{ s.first_errors.join('; ') }}</span>
+                    <span class="retry-line">다시 받은 답: {{ s.detail }}</span>
+                  </template>
+                  <template v-else>{{ s.detail }}</template>
+                </span>
               </div>
             </div>
 
@@ -980,7 +1015,11 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 #{{ r.superseded_by }}로 대체됨 · {{ r.superseded_who }} · {{ stampOf(r.superseded_at) }}
               </span>
               <span v-if="r.replaced && r.replaced.length" class="muted">#{{ r.replaced.join(', #') }} 대체</span>
+              <span v-if="r.enabled && heldRules[r.id]" class="tag tag-watch">센서 두절로 보류 중</span>
             </div>
+            <p v-if="r.enabled && heldRules[r.id]" class="msg warn held-why">
+              {{ heldRules[r.id] }} — 새 명령을 보내지 않고 장치를 마지막 상태로 둡니다. 센서가 돌아오면 다시 판단합니다.
+            </p>
             <dl class="mini">
               <div><dt>조건</dt><dd>{{ condText(r.rule) }}</dd></div>
               <div><dt>동작</dt><dd>{{ actText(r.rule) }}</dd></div>
@@ -1371,6 +1410,13 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .pstep.ok .pico { color: var(--normal); }
 .pstep.fail .pico { color: var(--urgent); }
 .pstep.warn .pico { color: var(--watch); }
+.hbadge { display: inline-block; font-size: 0.66rem; font-weight: 700; padding: 0.05rem 0.4rem; margin-right: 0.35rem;
+          border-radius: 4px; background: var(--brand-soft); color: var(--brand-dim); vertical-align: 1px; }
+.retry-line { display: block; }
+.harness-note { font-size: 0.76rem; margin: 0.1rem 0 0.4rem; padding: 0.35rem 0.55rem; border-radius: var(--radius-sm); }
+.harness-note.blocked { background: var(--urgent-soft); color: var(--urgent); }
+.harness-note.fixed { background: var(--brand-soft); color: var(--brand-dim); }
+.held-why { margin: 0.35rem 0 0.2rem; }
 .ov-list { display: grid; gap: 0.25rem; }
 .ov-item { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
 .kpi.clickable { cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }

@@ -41,6 +41,7 @@ HISTORY_FILE = os.path.join(DATA_DIR, "care_history.json")
 STATS_FILE = os.path.join(DATA_DIR, "care_stats.json")
 ACTIONS_FILE = os.path.join(DATA_DIR, "alert_actions.json")
 ABSENCES_FILE = os.path.join(DATA_DIR, "absences.json")
+RESET_BACKUP_DIR = os.path.join(DATA_DIR, "reset_backup")   # 시연 초기화가 비운 기록을 옮겨 두는 곳
 
 # 규칙 상태 — 전시 계획안 ③ "AI가 만든 규칙을 즉시 실행하지 않고 담당자가 확인한 후 적용"
 PENDING, APPROVED = "pending", "approved"
@@ -87,20 +88,26 @@ def write_heartbeat(platform_error=None):
         json.dump(beat, f)
 
 
-def reset_demo():
-    """시연을 처음부터 다시 하려고 '돌면서 쌓인 기록'만 비운다.
+def reset_demo(now=None):
+    """시연을 처음부터 다시 하려고 '돌면서 쌓인 기록'만 비운다. 반환: {'cleared': [...], 'backup': 폴더|None}
 
     규칙은 건드리지 않는다 — 시연 전에 준비해 둔 것이고, 지우면 다시 만들어야 한다.
-    파일을 비우는 대신 지운다. 모든 로더가 '파일 없음'을 이미 견디므로(갓 받은 폴더가 그렇다)
+    파일을 비우는 대신 치운다. 모든 로더가 '파일 없음'을 이미 견디므로(갓 받은 폴더가 그렇다)
     빈 구조를 새로 지어내는 것보다 틀릴 여지가 적다.
+
+    지우지 않고 reset_backup/<시각>/ 으로 옮긴다. 처음엔 지웠는데, 기능을 올린 직후
+    눌러보다가 알림 53건과 대응 기록 17건이 되살릴 방법 없이 사라졌다 (2026-09-21).
+    전시장에서도 누가 잘못 누를 수 있다. 되살리려면 그 폴더의 파일을 data/ 로 다시 옮기면 된다.
     """
+    dest = os.path.join(RESET_BACKUP_DIR, (now or datetime.now()).strftime("%Y%m%d-%H%M%S"))
     cleared = []
     for label, path in (("알림", ALERTS_FILE), ("대응 기록", ACTIONS_FILE),
                         ("부재 등록", ABSENCES_FILE), ("타임라인", HISTORY_FILE)):
         if os.path.exists(path):
-            os.remove(path)
+            os.makedirs(dest, exist_ok=True)
+            os.replace(path, os.path.join(dest, os.path.basename(path)))
             cleared.append(label)
-    return cleared
+    return {"cleared": cleared, "backup": dest if cleared else None}
 
 
 # 파이프라인 단계 이름 (대시보드가 이 순서로 보여준다)
@@ -327,8 +334,7 @@ def add_rule_from_sentence(sentence, devices, retry=1):
         val_detail = "트리와 대조 검증 통과"
     else:
         val_detail = "; ".join(result["errors"])
-    if first_errors:
-        val_detail = f"AI가 1회 스스로 수정 (처음 오류: {'; '.join(first_errors)}) → {val_detail}"
+
 
     steps.append({
         "id": "validate",
@@ -337,6 +343,7 @@ def add_rule_from_sentence(sentence, devices, retry=1):
         "detail": val_detail,
         "refused_by_llm": bool(result.get("refused_by_llm")),
         "retried": bool(first_errors),
+        "first_errors": first_errors or [],     # 되먹임 전 AI 답이 걸린 이유 — 화면이 따로 보여준다
     })
 
     if not val_ok:
@@ -1014,6 +1021,9 @@ def run_once(rules, last_sent, devices=None, now=None):
     """
     if devices is None:
         devices = iot.read_tree("byeongari")
+    live = {r["id"] for r in rules if is_active(r)}
+    for rid in [k for k in _held if k not in live]:
+        _held.pop(rid)                     # 꺼지거나 지워진 규칙은 보류 목록에서도 뺀다
     desired = {}   # path → (value, 이긴 규칙)
     for r in sorted(rules, key=lambda x: x["id"]):
         if not is_active(r):        # 승인 전 규칙은 실행하지 않는다
@@ -1140,7 +1150,9 @@ def write_care_state(results, homes_state, rules=None, devices=None):
         applied = (homes_state.get(r["home"]) or {}).get("applied") or {}
         payload.append({**r, "applied": applied, "rules": by_home.get(r["home"], [])})
     with open(CARE_STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump({"updated": datetime.now().isoformat(), "homes": payload},
+        json.dump({"updated": datetime.now().isoformat(), "homes": payload,
+                   # 센서를 믿을 수 없어 멈춘 제어 규칙 — 로그에만 있으면 복지사는 모른다
+                   "held_rules": {str(k): v for k, v in _held.items()}},
                   f, ensure_ascii=False, indent=2)
 
 

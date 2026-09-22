@@ -17,6 +17,7 @@ IOT/data/alerts.json
 IOT/data/alert_actions.json
 IOT/data/absences.json
 IOT/data/engine_heartbeat.json
+IOT/data/reset_backup/
 
 # ── 개인 환경 ──
 .claude/settings.local.json

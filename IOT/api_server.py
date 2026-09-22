@@ -273,8 +273,8 @@ def care_state():
 
 @app.route("/api/demo/reset", methods=["POST"])
 def demo_reset():
-    """시연 초기화 — 알림·대응·부재·타임라인을 비운다. 규칙은 그대로 둔다."""
-    return jsonify({"ok": True, "cleared": engine.reset_demo()})
+    """시연 초기화 — 알림·대응·부재·타임라인을 비운다(백업 폴더로 옮김). 규칙은 그대로 둔다."""
+    return jsonify({"ok": True, **engine.reset_demo()})
 
 
 @app.route("/api/health")
