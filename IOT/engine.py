@@ -271,7 +271,7 @@ def _attach_override(target, rules, home, value, devices, steps, by="복지사")
     }
 
 
-def add_rule_from_sentence(sentence, devices):
+def add_rule_from_sentence(sentence, devices, retry=1):
     """문장 → 번역 → 검증 → 통과하면 저장.
 
     반환: {'ok', 'status', 'errors', 'questions', 'warnings', 'rule', 'id', 'steps'}
@@ -309,6 +309,17 @@ def add_rule_from_sentence(sentence, devices):
 
     # 2) 검증기 — 장치·값 층 (기존 4중 검증)
     result = validator.validate_translation(out, devices)
+
+    # 2-b) 되먹임 — AI가 '됐다'고 했는데 검증기에서 걸리면, 걸린 이유를 돌려주고 한 번만 다시 시킨다.
+    #      사람이 문장을 처음부터 다시 쓰는 대신이다(어차피 나갈 호출을 자동으로 하는 것).
+    #      AI가 스스로 거부했거나(필요한 장치가 없음), 뒤의 범위 단계에서 걸리는 것(없는 세대, 기준값 누락)은
+    #      사람 의도의 문제라 다시 시켜도 못 고친다 — 그건 되묻는다. 헛호출을 막으려고 여기서만 한다.
+    first_errors = None
+    if not result["ok"] and not result.get("refused_by_llm") and retry > 0:
+        first_errors = result["errors"]
+        out = tr.translate(sentence, devices, feedback=first_errors)
+        result = validator.validate_translation(out, devices)
+
     val_ok = bool(result["ok"])
     if result.get("refused_by_llm"):
         val_detail = result["errors"][0] if result["errors"] else "LLM이 거부함"
@@ -316,6 +327,8 @@ def add_rule_from_sentence(sentence, devices):
         val_detail = "트리와 대조 검증 통과"
     else:
         val_detail = "; ".join(result["errors"])
+    if first_errors:
+        val_detail = f"AI가 1회 스스로 수정 (처음 오류: {'; '.join(first_errors)}) → {val_detail}"
 
     steps.append({
         "id": "validate",
@@ -323,6 +336,7 @@ def add_rule_from_sentence(sentence, devices):
         "status": "ok" if val_ok else "fail",
         "detail": val_detail,
         "refused_by_llm": bool(result.get("refused_by_llm")),
+        "retried": bool(first_errors),
     })
 
     if not val_ok:

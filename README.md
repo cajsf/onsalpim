@@ -91,6 +91,7 @@ python verify_report.py      # 17/17 이어야 함 (--save 로 docs/VERIFY_RESUL
 python test_history.py       # 타임라인·집계·알림 대응 점검
 python test_rules.py         # 규칙 겹침·단계 경보 점검
 python measure_faults.py     # 고장 4종 오탐·미탐 (--save 로 docs/FAULT_INJECTION.md 갱신)
+python harness_eval.py --offline   # 하네스 실험 — 저장된 AI 답으로 재현 (--save 로 docs/HARNESS_EVAL.md)
 npm run build --prefix dashboard
 ```
 

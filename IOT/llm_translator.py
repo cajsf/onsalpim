@@ -183,13 +183,32 @@ def _build_prompt(sentence, devices):
 """
 
 
-def translate(sentence, devices, retries=2):
+def _feedback_block(errors):
+    """직전 답이 검증기에서 걸린 이유 — 프롬프트 끝에 붙여 AI가 스스로 고치게 한다."""
+    lines = "\n".join(f"- {e}" for e in errors)
+    return f"""
+
+[직전 답의 문제 — 검증기가 거부함]
+{lines}
+위 문제를 고쳐서 같은 형식으로 다시 답한다. 목록에 없는 세대·장치는 여전히 쓰지 않는다.
+고칠 방법이 없으면(필요한 장치가 없는 등) ok=false 로 하고 error 에 이유를 적는다.
+"""
+
+
+def prompt_for(sentence, devices, feedback=None):
+    """AI에게 실제로 보내는 글. 실험 도구가 같은 글인지 확인(캐시 키)할 때도 쓴다."""
+    return _build_prompt(sentence, devices) + (_feedback_block(feedback) if feedback else "")
+
+
+def translate(sentence, devices, retries=2, feedback=None, models=None):
     """문장 → 규칙 JSON(dict) 번역. 반환: {"ok":..., "error":..., "rule":...}.
 
     네트워크(핫스팟)가 느려 타임아웃 나는 경우가 있어 재시도한다.
+    feedback: 직전 답이 검증기에서 걸린 이유 목록. 주면 그걸 보고 다시 답한다 (하네스 되먹임).
+    models:   부를 모델 목록. 없으면 MODELS 순서로 폴백한다. (실험에서 모델을 고정할 때 쓴다)
     """
     body = {
-        "contents": [{"parts": [{"text": _build_prompt(sentence, devices)}]}],
+        "contents": [{"parts": [{"text": prompt_for(sentence, devices, feedback)}]}],
         "generationConfig": {
             "responseMimeType": "application/json",
             "responseSchema": RESPONSE_SCHEMA,
@@ -197,7 +216,7 @@ def translate(sentence, devices, retries=2):
         },
     }
     last_err = ""
-    for model in MODELS:
+    for model in models or MODELS:
         for attempt in range(retries + 1):
             try:
                 r = requests.post(_url(model), params={"key": GEMINI_API_KEY}, json=body, timeout=60)

@@ -1,0 +1,388 @@
+"""
+harness_eval.py — 같은 문장 묶음을 세 방식으로 돌려 하네스가 무엇을 막는지 잰다.
+
+  A. 직접 실행       AI가 ok 라고 하면 그대로 실행된다고 본다 (하네스 없음)
+  B. 하네스          번역 → 검증 → 범위 → 충돌 → 승인 대기 (되먹임 없음, retry=0)
+  C. 하네스+되먹임   B 에 '검증기 오류를 AI에게 1회 돌려주기'를 더한 것 (retry=1, 제품 기본값)
+
+A·B·C 는 같은 첫 AI 응답을 쓴다. C 만 되먹임 때 한 번 더 부를 수 있다.
+정답은 eval/sentences.json 에 사람이 적는다 (팀 검토 대상).
+AI 응답은 eval/cache.json 에 모델·프롬프트별로 저장한다 — 다시 돌려도 무료 한도를 쓰지 않는다.
+
+실행:
+    python harness_eval.py                         # 기본 모델
+    python harness_eval.py gemini-2.5-flash-lite   # 모델 지정 (여러 개 가능)
+    python harness_eval.py --offline               # 캐시에 있는 것만 (호출 0)
+    python harness_eval.py --save                  # docs/HARNESS_EVAL.md 로 저장
+
+실제 규칙 파일은 건드리지 않는다 (임시 파일로 돌린다). 공용 서버에도 접속하지 않는다.
+"""
+import copy
+import hashlib
+import json
+import os
+import sys
+import tempfile
+import time
+from datetime import datetime
+
+import engine
+import llm_translator as tr
+import scope
+import validator
+
+HERE = os.path.dirname(__file__)
+SENTENCES = os.path.join(HERE, "eval", "sentences.json")
+CACHE = os.path.join(HERE, "eval", "cache.json")
+DEFAULT_MODELS = ["gemini-3.1-flash-lite"]
+CALL_GAP_S = 4          # 무료 등급 분당 한도에 걸리지 않게 실제 호출 사이를 띄운다
+
+# ── 전시 구성과 같은 장치 트리 (공용 서버 대신 고정) ──
+P = "Mobius/byeongari/"
+FIXTURE = []
+for _h in ["101", "102", "201", "202"]:
+    FIXTURE += [
+        {"path": f"{P}h{_h}_pir", "ct": "20260922T090000",
+         "meta": {"kind": "sensor", "type": "motion", "home": _h, "values": "0|1", "report_s": "5"}},
+        {"path": f"{P}h{_h}_evt", "ct": "20260922T090000",
+         "meta": {"kind": "event", "type": "motion", "home": _h, "role": "activity"}},
+    ]
+FIXTURE += [
+    {"path": f"{P}h101_temp", "ct": "20260922T090000",
+     "meta": {"kind": "sensor", "type": "temperature", "home": "101", "unit": "C", "values": "0~50"}},
+    {"path": f"{P}h101_humi", "ct": "20260922T090000",
+     "meta": {"kind": "sensor", "type": "humidity", "home": "101", "unit": "%", "values": "20~90"}},
+    {"path": f"{P}h101_led", "ct": "20260922T090000",
+     "meta": {"kind": "actuator", "type": "light", "home": "101", "accepts": "ON|OFF"}},
+    {"path": f"{P}h101_window", "ct": "20260922T090000",
+     "meta": {"kind": "actuator", "type": "window", "home": "101", "accepts": "range=0~180", "unit": "deg"}},
+    {"path": f"{P}h201_batt", "ct": "20260922T090000",
+     "meta": {"kind": "sensor", "type": "battery", "home": "201", "unit": "%", "values": "0~100"}},
+]
+
+# 세대 예외 문장이 붙을 곳 — 모든 문장이 같은 출발 상태에서 시작한다
+BASE_RULES = [{
+    "id": 1, "sentence": "전체 세대에서 8시간 동안 움직임이 없으면 긴급으로 표시해줘",
+    "rule": {"scope": {"homes": "ALL"},
+             "when": {"path": "", "type": "motion", "op": scope.IDLE_OP, "value": "480"},
+             "and": [], "then": [{"path": "", "value": "", "severity": "URGENT"}], "overrides": {}},
+    "enabled": True, "status": "approved",
+}]
+
+
+# 실험 이력 — 숫자만 남기면 '왜 좋아졌는지'를 설명할 수 없다. 1차 원본은 docs/HARNESS_EVAL_v1.md
+HISTORY = [
+    "## 실험 이력",
+    "",
+    "| 차수 | 날짜 | 하네스 | 정답 (C) | 잘못 앞으로 나감 (C) |",
+    "|---|---|---|---|---|",
+    "| 1차 | 2026-09-22 | 기존 검사만 | 33/37 | 3 |",
+    "| 2차 | 2026-09-22 | 아래 검사 3개 추가 | 36/37 | 0 |",
+    "",
+    "**AI 답은 1차와 똑같다** (캐시에서 그대로 읽음). 바뀐 건 하네스뿐이다.",
+    "",
+    "1차에서 찾은 구멍과 고친 방법:",
+    "",
+    "1. **세대-장치 불일치** (r06) — \"102호 온도가 30도 넘으면 불 켜줘\"에 102호엔 온도 센서가 없자 AI가 "
+    "101호 센서와 101호 조명을 넣었다. 장치는 존재해서 통과했고, 승인 화면엔 '102호 규칙'으로 떴다. "
+    "→ 검증기에 소속 검사 추가 (AI 실수이므로 되먹임 대상).",
+    "2. **제어 규칙 기준값 누락** (q04) — \"더우면 불 켜줘\"에 AI는 지시대로 온도를 비웠는데, "
+    "기준값 검사가 돌봄 규칙에만 있어 빈 값이 승인 대기에 올라갔다. → 제어 규칙도 되묻기.",
+    "3. **실행되지 않는 규칙** (c12) — 배터리 기준 위험도 규칙은 저장되지만 판정 엔진이 쓰지 않는다(20% 고정). "
+    "복지사는 켰다고 믿는데 효과가 없다. → 이유를 알려주고 거부. 이 문장의 정답도 '받음'에서 '거부'로 고쳤다.",
+    "",
+    "⚠️ **2차의 97%는 낙관적인 숫자다.** 구멍을 찾은 문장으로 다시 쟀기 때문이다. "
+    "새로 만든 문장 묶음으로 다시 재야 실제 성능을 말할 수 있다.",
+    "",
+    "**되먹임은 아직 효과를 보이지 못했다.** 이 모델은 형식 실수를 거의 하지 않아 되먹임이 1번만 발동했고, "
+    "그 문장은 되먹임이 없어도 검증기에서 이미 막혔다. 형식 실수가 많은 작은 모델에서 다시 봐야 한다.",
+    "",
+    "**남은 1개 (q05)** — \"102호 기준 좀 늘려줘\"에 AI는 '센서 종류와 시간을 말씀해주세요'라고 되물었는데, "
+    "파이프라인이 AI의 거절을 모두 '거부'로 표시한다. 되묻기 의도를 구분하려면 프롬프트를 고쳐야 한다.",
+    "",
+]
+
+
+class Unavailable(Exception):
+    """쿼터 소진·네트워크 — 이 모델은 여기서 멈춘다 (캐시는 남는다)."""
+
+
+class NotCached(Exception):
+    """--offline 인데 캐시에 없다."""
+
+
+def _num(v):
+    try:
+        return float(str(v).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _load_cache():
+    if os.path.exists(CACHE):
+        with open(CACHE, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _save_cache(cache):
+    with open(CACHE, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=1, sort_keys=True)
+
+
+def cached_translate(model, cache, stats, offline, real):
+    """tr.translate 자리에 끼우는 함수. 같은 모델·같은 프롬프트면 저장된 답을 돌려준다.
+    real 은 바꿔 끼우기 전의 원래 함수 — 이걸 안 넘기면 자기 자신을 끝없이 부른다."""
+    def translate(sentence, devices, feedback=None, **_):
+        prompt = tr.prompt_for(sentence, devices, feedback)
+        key = hashlib.sha1(f"{model}\n{prompt}".encode("utf-8")).hexdigest()
+        if key in cache:
+            return copy.deepcopy(cache[key]["out"])
+        if offline:
+            raise NotCached(sentence)
+        if stats["calls"]:
+            time.sleep(CALL_GAP_S)
+        t0 = time.time()
+        out = real(sentence, devices, feedback=feedback, models=[model])
+        dt = round(time.time() - t0, 2)
+        if str(out.get("error", "")).startswith("LLM 호출 실패"):
+            raise Unavailable(out["error"])
+        cache[key] = {"model": model, "sentence": sentence, "feedback": feedback,
+                      "out": out, "latency_s": dt, "at": datetime.now().isoformat(timespec="seconds")}
+        _save_cache(cache)          # 중간에 끊겨도 여기까지는 남는다
+        stats["calls"] += 1
+        stats["latency"].append(dt)
+        return copy.deepcopy(out)
+    return translate
+
+
+# ── 정답 대조 ──
+
+def care_match(rule, exp):
+    if not rule:
+        return False
+    try:
+        homes = set(scope.validate_scope(rule, FIXTURE, [])["homes"])
+    except Exception:
+        homes = set()
+    w = rule.get("when") or {}
+    t = (rule.get("then") or [{}])[0]
+    return (homes == set(exp["homes"]) and w.get("type") == exp["type"] and w.get("op") == exp["op"]
+            and _num(w.get("value")) == exp["value"] and t.get("severity") == exp["severity"])
+
+
+def control_match(rule, exp):
+    if not rule:
+        return False
+    w = rule.get("when") or {}
+    t = (rule.get("then") or [{}])[0]
+    tv = t.get("value")
+    same_then = (_num(tv) == _num(exp["then_value"])) if _num(exp["then_value"]) is not None else tv == exp["then_value"]
+    return (w.get("path") == exp["when_path"] and w.get("op") == exp["op"]
+            and _num(w.get("value")) == exp["value"] and t.get("path") == exp["then_path"] and same_then)
+
+
+def override_match(home, value, exp):
+    return str(home).strip() == exp["home"] and _num(value) == exp["value"]
+
+
+def content_match(exp, rule=None, ov_home=None, ov_value=None):
+    if "care" in exp:
+        return care_match(rule, exp["care"])
+    if "control" in exp:
+        return control_match(rule, exp["control"])
+    if "override" in exp:
+        return override_match(ov_home, ov_value, exp["override"])
+    return True
+
+
+# ── 세 방식 ──
+
+def run_direct(out, exp):
+    """A. 하네스 없이 AI 답을 그대로 실행한다고 볼 때."""
+    executed = bool(out.get("ok"))
+    if not executed:
+        return {"outcome": "reject", "correct": exp["outcome"] == "reject", "executed": False}
+    if (out.get("intent") or "create_rule") == "set_override":
+        ov = out.get("override") or {}
+        ok = exp["outcome"] == "override" and content_match(exp, ov_home=ov.get("home"), ov_value=ov.get("value"))
+    else:
+        ok = exp["outcome"] == "accept" and content_match(exp, rule=out.get("rule"))
+    return {"outcome": "executed", "correct": ok, "executed": True}
+
+
+def run_harness(sentence, exp, retry):
+    """B·C. 제품 파이프라인을 그대로 돌린다 (임시 규칙 파일)."""
+    engine.save_rules(copy.deepcopy(BASE_RULES))
+    res = engine.add_rule_from_sentence(sentence, FIXTURE, retry=retry)
+    status = res.get("status")
+    outcome = {"ok": "accept", "needs_choice": "override",
+               "needs_clarification": "clarify"}.get(status, "reject")
+    retried = any(s.get("retried") for s in res.get("steps", []))
+
+    ok = outcome == exp["outcome"]
+    format_leak = False
+    if outcome == "accept":
+        rule = res.get("rule") or {}
+        # 형식 오류가 승인 대기까지 올라왔는가 — 구조상 0이어야 한다
+        format_leak = not validator.validate_rule(rule, FIXTURE)["ok"] or \
+            bool(scope.validate_scope(rule, FIXTURE, [])["errors"])
+        ok = ok and content_match(exp, rule=rule)
+    elif outcome == "override":
+        ch = res.get("choice") or {}
+        ok = ok and content_match(exp, ov_home=ch.get("home"), ov_value=ch.get("value"))
+    return {"outcome": outcome, "correct": ok, "retried": retried, "format_leak": format_leak,
+            "errors": res.get("errors") or [], "questions": res.get("questions") or []}
+
+
+def evaluate(model, items, cache, offline):
+    stats = {"calls": 0, "latency": []}
+    real = tr.translate
+    tr.translate = cached_translate(model, cache, stats, offline, real)
+    rows, stopped = [], None
+    try:
+        for it in items:
+            exp = it["expect"]
+            try:
+                out = tr.translate(it["sentence"], FIXTURE)
+                a = run_direct(out, exp)
+                b = run_harness(it["sentence"], exp, 0)
+                c = run_harness(it["sentence"], exp, 1)
+            except (Unavailable, NotCached) as e:
+                stopped = f"{it['id']}에서 멈춤: {e}"
+                break
+            rows.append({"id": it["id"], "cat": it["cat"], "sentence": it["sentence"],
+                         "expect": exp["outcome"], "A": a, "B": b, "C": c})
+            print(f"  {it['id']} {'O' if a['correct'] else 'X'}{'O' if b['correct'] else 'X'}"
+                  f"{'O' if c['correct'] else 'X'}  {it['sentence']}")
+    finally:
+        tr.translate = real
+    return rows, stats, stopped
+
+
+# ── 집계 ──
+
+def summarize(rows):
+    n = len(rows)
+    s = {}
+    for m in "ABC":
+        s[m] = {
+            "correct": sum(r[m]["correct"] for r in rows),
+            # 잘못된 것이 앞으로 나갔는가 — A 는 실행, B·C 는 승인 대기(복지사가 잡아야 함)
+            "wrong_forward": sum(1 for r in rows if not r[m]["correct"]
+                                 and r[m]["outcome"] in ("executed", "accept", "override")),
+        }
+    for m in "BC":
+        s[m]["format_leak"] = sum(r[m]["format_leak"] for r in rows)
+        s[m]["clarified"] = sum(1 for r in rows if r["expect"] == "clarify" and r[m]["outcome"] == "clarify")
+        s[m]["over_reject"] = sum(1 for r in rows if r["expect"] in ("accept", "override")
+                                  and r[m]["outcome"] in ("reject", "clarify"))
+        s[m]["meaning_err"] = sum(1 for r in rows if r[m]["outcome"] == r["expect"]
+                                  and r[m]["outcome"] in ("accept", "override") and not r[m]["correct"])
+    s["C"]["retried"] = sum(r["C"]["retried"] for r in rows)
+    s["C"]["saved_by_retry"] = sum(1 for r in rows if r["C"]["correct"] and not r["B"]["correct"])
+    s["n"] = n
+    s["clarify_n"] = sum(1 for r in rows if r["expect"] == "clarify")
+    return s
+
+
+def pct(a, n):
+    return f"{a}/{n} ({round(100 * a / n)}%)" if n else "-"
+
+
+def to_markdown(results):
+    lines = [
+        "# 온살핌 — 하네스 실험 결과",
+        "",
+        f"> 실행 시각 {datetime.now():%Y-%m-%d %H:%M} · `python harness_eval.py` 로 재현 "
+        "(AI 응답은 `eval/cache.json` 에 저장돼 있어 다시 돌려도 호출하지 않는다)",
+        "",
+        "같은 문장 묶음을 세 방식으로 돌렸다. 세대는 전시 구성(101·102·201·202호), 정답은 사람이 정했다.",
+        "",
+        "- **A. 직접 실행** — AI가 ok 라고 하면 그대로 실행된다고 본다 (하네스 없음)",
+        "- **B. 하네스** — 검증 → 범위 → 충돌 → 승인 대기",
+        "- **C. 하네스 + 되먹임** — B 에 '검증기 오류를 AI에게 1회 돌려주기'를 더한 것 (제품 기본값)",
+        "",
+        "**잘못 앞으로 나감**: A 는 잘못된 규칙이 실행된 것, B·C 는 잘못된 규칙이 승인 대기에 올라간 것"
+        "(복지사가 승인 화면에서 잡아야 한다). **형식 오류 통과**는 없는 세대·장치·범위 밖 값이 승인 대기까지 온 것.",
+        "",
+    ]
+    for model, rows, stats, stopped in results:
+        if not rows:
+            lines += [f"## {model}", "", f"실행 못 함 — {stopped}", ""]
+            continue
+        s = summarize(rows)
+        n = s["n"]
+        lat = stats["latency"]
+        lines += [
+            f"## {model} — 문장 {n}개",
+            "",
+            "| | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |",
+            "|---|---|---|---|",
+            f"| 정답 | {pct(s['A']['correct'], n)} | {pct(s['B']['correct'], n)} | **{pct(s['C']['correct'], n)}** |",
+            f"| 잘못 앞으로 나감 | **{s['A']['wrong_forward']}** | {s['B']['wrong_forward']} | **{s['C']['wrong_forward']}** |",
+            f"| └ 형식 오류 통과 | — | {s['B']['format_leak']} | {s['C']['format_leak']} |",
+            f"| └ 의미 오류 (형식은 맞는데 내용이 다름) | — | {s['B']['meaning_err']} | {s['C']['meaning_err']} |",
+            f"| 되묻기 성공 | 불가 | {pct(s['B']['clarified'], s['clarify_n'])} | {pct(s['C']['clarified'], s['clarify_n'])} |",
+            f"| 과잉 거부 (받아야 할 걸 막음) | — | {s['B']['over_reject']} | {s['C']['over_reject']} |",
+            "",
+            f"- 되먹임 발동 {s['C']['retried']}회, 그중 정답으로 살린 문장 **{s['C']['saved_by_retry']}개**",
+            f"- 이번 실행의 실제 AI 호출 {stats['calls']}회"
+            + (f", 평균 응답 {sum(lat) / len(lat):.1f}초" if lat else " (전부 캐시)"),
+        ]
+        if stopped:
+            lines.append(f"- ⚠️ 중간에 멈춤: {stopped}")
+        lines += ["", "### 틀린 문장 (C 기준 — 사람이 봐야 할 것)", ""]
+        wrong = [r for r in rows if not r["C"]["correct"]]
+        if not wrong:
+            lines.append("없음")
+        else:
+            lines += ["| id | 분류 | 문장 | 정답 | C 결과 | 이유 |", "|---|---|---|---|---|---|"]
+            for r in wrong:
+                why = "; ".join(r["C"]["errors"] or r["C"]["questions"])[:80] or "내용이 정답과 다름"
+                lines.append(f"| {r['id']} | {r['cat']} | {r['sentence']} | {r['expect']} | {r['C']['outcome']} | {why} |")
+        lines += ["", "### 문장별", "", "| id | 분류 | 정답 | A | B | C |", "|---|---|---|---|---|---|"]
+        mark = lambda x: ("✅ " if x["correct"] else "❌ ") + x["outcome"]
+        for r in rows:
+            lines.append(f"| {r['id']} | {r['cat']} | {r['expect']} | {mark(r['A'])} | {mark(r['B'])} | {mark(r['C'])} |")
+        lines.append("")
+    lines += HISTORY
+    lines += [
+        "## 해석할 때 주의",
+        "",
+        "- 문장 수가 적다. 비율보다 **어떤 종류에서 틀리는지**를 봐야 한다.",
+        "- 정답은 우리가 정했다. 애매한 문장의 정답은 팀이 검토해야 한다.",
+        "- 모델은 temperature 0 으로 불렀다. 같은 입력이면 거의 같은 답이 나온다.",
+        "- **의미 오류는 하네스가 막지 못한다.** 형식이 맞기 때문이다. 승인 화면의 '생성된 규칙 요약'을 복지사가 읽는 것이 마지막 방어선이다.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    offline = "--offline" in sys.argv
+    models = args or DEFAULT_MODELS
+    with open(SENTENCES, encoding="utf-8") as f:
+        items = json.load(f)["sentences"]
+    cache = _load_cache()
+
+    tmp = tempfile.mkdtemp()
+    engine.RULES_FILE = os.path.join(tmp, "rules.json")   # 실제 규칙은 건드리지 않는다
+
+    results = []
+    for model in models:
+        print(f"\n=== {model} (문장 {len(items)}개) — A/B/C 정답 여부 ===")
+        rows, stats, stopped = evaluate(model, items, cache, offline)
+        if stopped:
+            print("  ⚠️", stopped)
+        results.append((model, rows, stats, stopped))
+
+    md = to_markdown(results)
+    print("\n" + md)
+    if "--save" in sys.argv:
+        path = os.path.join(HERE, "..", "docs", "HARNESS_EVAL.md")
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(md + "\n")
+        print("저장:", os.path.normpath(path))

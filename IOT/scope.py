@@ -198,9 +198,26 @@ def validate_scope(rule, devices, existing_rules=None):
     # 여기서 걸러내야 기존 규칙이 깨지지 않는다.
     is_care = bool((when.get("type") or "").strip()) and not (when.get("path") or "").strip()
 
+    # 위험도를 표시하는 돌봄 동작은 지금 '무활동 시간' 기준만 실제 판정에 쓰인다 (engine.effective_idle_levels).
+    # 배터리·온도처럼 비교 기준으로 위험도를 정하는 규칙은 저장돼도 아무 일도 하지 않는다 — 복지사는
+    # 규칙을 켰다고 믿는데 효과가 없다. 하네스 실험에서 "배터리 20% 밑이면 점검 필요"가 그렇게 통과했다.
+    if any((t or {}).get("severity") for t in rule.get("then") or []) and when.get("op") != IDLE_OP:
+        return {"ok": False, "status": "rejected", "warnings": [], "questions": [], "homes": [],
+                "errors": [f"돌봄 규칙은 지금 '움직임 없음(무활동) 시간'만 기준으로 정할 수 있습니다. "
+                           f"'{when.get('type') or when.get('path') or '?'}' 기준 위험도는 판정에 쓰이지 않아 "
+                           f"저장하지 않습니다 (배터리는 20% 미만이면 자동으로 '주의')"]}
+
     if not is_care:
-        ok = {"ok": True, "status": "ok", "errors": [], "warnings": [],
-              "questions": [], "homes": []}
+        # 제어 규칙도 기준값이 비면 되묻는다 — "더우면 불 켜줘"처럼 숫자가 없는 문장.
+        # AI는 지시대로 값을 비웠는데 여기서 통과시켜 빈 기준값이 승인 대기에 올라간 적이 있다 (하네스 실험).
+        # 승인 화면에서 채울 수 있는 건 when 의 값뿐이라, and 조건이 비면 되묻지 않고 거부한다.
+        questions = ([f"기준값이 정해지지 않았습니다. '{when.get('path')}' 조건의 값을 지정해주세요."]
+                     if (when.get("op") or "").strip() and _needs_threshold(when) else [])
+        errors = [f"추가 조건 '{c.get('path')}'의 기준값이 비어 있음"
+                  for c in rule.get("and") or [] if (c.get("op") or "").strip() and _needs_threshold(c)]
+        ok = {"ok": not (questions or errors),
+              "status": "rejected" if errors else ("needs_clarification" if questions else "ok"),
+              "errors": errors, "warnings": [], "questions": questions, "homes": []}
         if str(spec.get("homes", "")).strip():
             ok["warnings"] = ["장치를 직접 지목한 제어 규칙이라 세대 범위는 적용되지 않습니다"]
         return ok

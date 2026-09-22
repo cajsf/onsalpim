@@ -18,7 +18,7 @@ LLM이 없는 장치를 지어내거나(hallucination), 센서에 명령을 내�
     #   -> {"ok": True/False, "errors": [한국어 메시지...]}
 """
 
-from scope import IDLE_OP, SEVERITIES
+from scope import IDLE_OP, SEVERITIES, discover_homes, parse_homes
 
 VALID_OPS = {"==", "!=", ">", "<", ">=", "<="}
 
@@ -236,7 +236,36 @@ def validate_rule(rule, devices):
     for i, action in enumerate(then or []):
         errors += _check_action(action, by_path, i)
 
+    # 4. 대상 세대와 장치 소속이 맞는가
+    errors += _check_home_match(rule, by_path, devices)
+
     return {"ok": len(errors) == 0, "errors": errors}
+
+
+def _check_home_match(rule, by_path, devices):
+    """대상 세대를 지목했는데 다른 세대의 장치를 쓰는가.
+
+    하네스 실험(docs/HARNESS_EVAL.md)에서 실제로 나온 실수다: "102호 온도가 30도 넘으면 불 켜줘"에
+    102호엔 온도 센서가 없자 AI가 101호 센서와 101호 조명을 가져다 썼다. 장치는 존재하므로 위 검사를
+    다 통과했고, 승인 화면엔 '102호 규칙'으로 뜨는데 실제로는 101호가 움직이는 규칙이 됐다.
+    AI의 실수이므로 검증기에서 걸러 되먹임으로 돌려보낸다 (고칠 수 없으면 AI가 거부하게 된다).
+    """
+    spec = str((rule.get("scope") or {}).get("homes", "")).strip()
+    if not spec or spec.upper() == "ALL":
+        return []
+    homes, bad = parse_homes(spec, discover_homes(devices))
+    if bad or not homes:
+        return []                     # 없는 세대 지목은 범위 검사가 따로 거른다
+    paths = [(rule.get("when") or {}).get("path")]
+    paths += [c.get("path") for c in rule.get("and") or []]
+    paths += [a.get("path") for a in rule.get("then") or []]
+    errs = []
+    for p in (str(x or "").strip() for x in paths):
+        home = (by_path.get(p) or {}).get("home") if p else None
+        if home and home not in homes:
+            errs.append(f"세대 불일치: 대상은 {', '.join(homes)}호인데 '{p}'는 {home}호 장치임 "
+                        f"— {', '.join(homes)}호에 필요한 장치가 없으면 거부해야 함")
+    return errs
 
 
 # ---------- 규칙 간 충돌 감지 ----------

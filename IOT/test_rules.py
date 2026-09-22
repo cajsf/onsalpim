@@ -171,3 +171,83 @@ assert len(kept) == 1 and kept[0]["rule"]["overrides"]["102"]["value"] == "360",
 assert engine.load_alerts() == [] and engine.load_absences() == [], "지운 뒤에도 로더가 견뎌야 한다"
 assert engine.reset_demo() == [], "두 번 눌러도 안전해야 한다"
 print("  ✅ 시연 초기화: 기록 4종 삭제, 규칙·예외 유지")
+
+
+# ── 하네스 되먹임: 검증기에서 걸리면 이유를 돌려주고 한 번만 다시 시킨다 ──
+def _control(then_path):
+    return {"ok": True, "error": "", "intent": "create_rule",
+            "rule": {"scope": {"homes": ""},
+                     "when": {"path": "M/temp", "type": "", "op": ">", "value": "30"},
+                     "and": [], "then": [{"path": then_path, "value": "ON", "severity": ""}], "reason": ""},
+            "override": {"home": "", "type": "", "value": ""}}
+
+
+def _scripted(*answers):
+    """정해진 답을 차례로 돌려주는 가짜 AI. 몇 번 불렸는지, 무슨 되먹임을 받았는지 기록한다."""
+    calls = []
+
+    def fake(sentence, devices, feedback=None, **kw):
+        calls.append(feedback)
+        return answers[min(len(calls), len(answers)) - 1]
+    return fake, calls
+
+
+_real_translate = engine.tr.translate
+try:
+    engine.save_rules([])
+    engine.tr.translate, calls = _scripted(_control("M/door"), _control("M/led_cmd"))
+    res = engine.add_rule_from_sentence("더우면 불 켜줘", TREE)
+    assert res["status"] == "ok" and len(calls) == 2, "지어낸 장치 → 이유를 돌려주고 고친 답을 받는다"
+    assert calls[0] is None and any("door" in e for e in calls[1]), "두 번째 호출에 처음 오류가 실려야 한다"
+    v = next(s for s in res["steps"] if s["id"] == "validate")
+    assert v["retried"] and "스스로 수정" in v["detail"], "고쳤다는 사실이 화면에 남아야 한다"
+
+    engine.save_rules([])
+    engine.tr.translate, calls = _scripted(_control("M/door"), _control("M/door"))
+    res = engine.add_rule_from_sentence("더우면 문 열어줘", TREE)
+    assert res["status"] == "rejected" and len(calls) == 2, "고쳐도 틀리면 한 번에서 멈추고 거부"
+
+    engine.save_rules([])
+    refused = {"ok": False, "error": "가스 센서가 없습니다", "intent": "create_rule", "rule": {}, "override": {}}
+    engine.tr.translate, calls = _scripted(refused)
+    engine.add_rule_from_sentence("가스 새면 창문 열어줘", TREE)
+    assert len(calls) == 1, "AI가 스스로 거부한 건 다시 시키지 않는다 — 필요한 장치가 없으면 못 고친다"
+
+    engine.save_rules([])
+    no_home = {"ok": True, "error": "", "intent": "create_rule",
+               "rule": dict(care_rule(homes="113"), reason=""), "override": {"home": "", "type": "", "value": ""}}
+    engine.tr.translate, calls = _scripted(no_home)
+    res = engine.add_rule_from_sentence("113호 8시간 무활동이면 긴급", TREE)
+    assert res["status"] == "rejected" and len(calls) == 1, "없는 세대는 사람 의도 문제 — 다시 시키지 않는다"
+
+    engine.save_rules([])
+    engine.tr.translate, calls = _scripted(_control("M/door"), _control("M/led_cmd"))
+    res = engine.add_rule_from_sentence("더우면 불 켜줘", TREE, retry=0)
+    assert res["status"] == "rejected" and len(calls) == 1, "retry=0 이면 되먹임 없이 거부 (실험 대조군)"
+finally:
+    engine.tr.translate = _real_translate
+print("  ✅ 되먹임: 검증기 오류만 1회 재시도, AI 거부·범위 문제는 재시도 안 함")
+
+
+# ── 하네스 실험에서 찾은 구멍 세 개 (docs/HARNESS_EVAL.md) ──
+import validator as _v
+_ctrl = lambda homes, when_path, value: {
+    "scope": {"homes": homes}, "and": [],
+    "when": {"path": when_path, "type": "", "op": ">", "value": value},
+    "then": [{"path": "M/led_cmd", "value": "ON", "severity": ""}]}
+_home_tree = TREE + [{"path": "M/h101_temp", "ct": "20260917T090000",
+                      "meta": {"kind": "sensor", "type": "temperature", "home": "101", "unit": "C", "values": "0~50"}}]
+
+errs = _v.validate_rule(_ctrl("102", "M/h101_temp", "30"), _home_tree)["errors"]
+assert any("세대 불일치" in e and "101호" in e for e in errs), "① 102호 규칙에 101호 센서를 쓰면 막아야 한다"
+assert _v.validate_rule(_ctrl("101", "M/h101_temp", "30"), _home_tree)["ok"], "① 같은 세대 장치는 통과"
+assert _v.validate_rule(_ctrl("", "M/temp", "30"), _home_tree)["ok"], "① 세대를 안 정한 제어 규칙은 대상 아님"
+
+sc = scope.validate_scope(_ctrl("", "M/temp", ""), _home_tree)
+assert sc["status"] == "needs_clarification" and sc["questions"], "② '더우면 불 켜줘' — 기준값이 비면 되묻는다"
+
+batt = {"scope": {"homes": "101"}, "and": [], "when": {"path": "", "type": "battery", "op": "<", "value": "20"},
+        "then": [{"path": "", "value": "", "severity": "CHECK_DEVICE"}]}
+sc = scope.validate_scope(batt, TREE)
+assert sc["status"] == "rejected" and "무활동" in sc["errors"][0], "④ 판정에 안 쓰이는 돌봄 규칙은 받지 않는다"
+print("  ✅ 하네스 구멍: 세대-장치 불일치, 제어 규칙 기준값 누락, 실행 안 되는 돌봄 규칙")
