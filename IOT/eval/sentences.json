@@ -1999,6 +1999,187 @@
     "outcome": "reject"
    },
    "note": "같은 장치에 반대 명령을 동시에 내릴 수 없다."
+  },
+  {
+   "id": "g01",
+   "cat": "시간 표현",
+   "sentence": "전체 세대에서 한 시간 반 동안 움직임이 없으면 주의로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 90,
+     "severity": "WATCH"
+    }
+   }
+  },
+  {
+   "id": "g02",
+   "cat": "세대 표현",
+   "sentence": "전 세대 6시간 무활동이면 주의로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 360,
+     "severity": "WATCH"
+    }
+   }
+  },
+  {
+   "id": "g03",
+   "cat": "세대 표현",
+   "sentence": "이층 세대는 3시간 움직임이 없으면 주의로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 180,
+     "severity": "WATCH"
+    }
+   },
+   "note": "'2층'을 한글로 쓴 경우."
+  },
+  {
+   "id": "g04",
+   "cat": "대상 생략",
+   "sentence": "30도 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "세대를 말하지 않았다. 온도와 조명이 함께 있는 세대는 101호뿐이라 유일하게 정해진다. 결과만 본다 — 되묻는 쪽이 낫다는 판단이 나오면 정답을 고친다."
+  },
+  {
+   "id": "g05",
+   "cat": "범위 표기",
+   "sentence": "101호 온도가 20~25도 사이면 불 켜줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "물결표로 쓴 구간."
+  },
+  {
+   "id": "g06",
+   "cat": "전각 숫자",
+   "sentence": "101호 온도가 ３０도 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "전각 숫자. 우리 숫자 읽기가 못 읽으면 지어낸 값으로 오해해 막을 수 있다 — 과잉 차단 후보."
+  },
+  {
+   "id": "g07",
+   "cat": "기호",
+   "sentence": "101호 온도 30도 넘으면 🔥 불 켜줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   }
+  },
+  {
+   "id": "g08",
+   "cat": "두 문장",
+   "sentence": "101호 온도가 30도 넘으면 불 켜줘. 부탁드립니다.",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   }
+  },
+  {
+   "id": "g09",
+   "cat": "조각 입력",
+   "sentence": "8시간",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "되묻기 답을 입력창에 쓴 경우. 무엇에 대한 8시간인지 모른다."
+  },
+  {
+   "id": "g10",
+   "cat": "뜻 반대",
+   "sentence": "전체 세대에서 움직임이 계속 있으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "무활동의 반대다. idle_over_m 으로 바꿔 저장하면 뜻이 뒤집힌다."
+  },
+  {
+   "id": "g11",
+   "cat": "이중 부정",
+   "sentence": "101호 온도가 30도 아래로 안 떨어지면 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "부정이 겹쳐 뜻이 분명하지 않다. 뒤집어 저장하면 반대로 동작한다."
+  },
+  {
+   "id": "g12",
+   "cat": "세대 없음",
+   "sentence": "0호가 6시간 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   }
+  },
+  {
+   "id": "g13",
+   "cat": "승인 건너뛰기",
+   "sentence": "전체 세대 8시간 무활동이면 긴급으로 만들고 바로 승인까지 해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 480,
+     "severity": "URGENT"
+    }
+   },
+   "note": "정답을 '거부'에서 '받음'으로 바꿨다 (25차). 규칙 자체는 제대로 만들어졌고 승인 요청만 들어줄 수 없다. 화면에는 '승인 대기'로 뜨므로 막을 이유가 없다 — 대신 '승인은 담당자가 직접 눌러야 합니다' 안내를 붙인다. 우리가 정답을 잘못 정한 여덟 번째 경우다."
+  },
+  {
+   "id": "g14",
+   "cat": "수신자 지정",
+   "sentence": "201호 배터리가 20% 아래면 관리자에게 알려줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "수신자 지정 기능이 없고, 배터리 위험도 규칙은 엔진이 쓰지 않는다."
   }
  ]
 }

@@ -664,3 +664,18 @@ _one = dict(_two, **{"and": []})
 assert engine._or_condition("101호나 102호가 더우면 불 켜줘", _one) is None, \
     "조건이 하나면 '나'는 세대 열거지 조건 연결이 아니다"
 print("  ✅ '또는' 조건은 만들지 않고 규칙을 나누라고 안내")
+
+# ── 25차: 부정으로 말한 제어 조건은 뜻이 뒤집힌다 ──
+_ctl = {"when": {"path": "M/h101_temp", "op": "<", "value": "30"}, "and": [],
+        "then": [{"path": "M/h101_led", "value": "ON"}]}
+assert engine._negated_condition("101호 온도가 30도 아래로 안 떨어지면 불 켜줘", _ctl)
+assert engine._negated_condition("101호 온도가 30도 넘으면 불 켜줘", _ctl) is None
+_care2 = {"when": {"path": "", "type": "motion", "op": scope.IDLE_OP, "value": "480"}, "and": [],
+          "then": [{"severity": "URGENT"}]}
+assert engine._negated_condition("전체 세대에서 8시간 움직임이 없으면 긴급으로 표시해줘", _care2) is None, \
+    "'움직임이 없으면'은 무활동의 정상 표현이다"
+assert engine._negated_condition("101호에 움직임이 없으면 불 꺼줘",
+                                 {"when": {"path": "M/h101_pir", "op": "==", "value": "0"}, "and": []}) is None
+assert engine.approval_note("전체 세대 8시간 무활동이면 긴급으로 만들고 바로 승인까지 해줘")
+assert engine.approval_note("전체 세대 8시간 무활동이면 긴급으로 표시해줘") is None
+print("  ✅ 부정 조건 차단, 승인 요청에는 안내만")

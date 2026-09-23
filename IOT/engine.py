@@ -546,6 +546,23 @@ _LIFE_STATE = re.compile(r"(자고|잘 때|주무|수면|식사|밥 먹|외출|�
 _OR_COND = re.compile(r"(거나|또는|혹은|이든|든지)")
 
 
+# 부정으로 말한 조건은 뜻이 뒤집히기 쉽다.
+# 25차(g11): "30도 아래로 안 떨어지면 불 켜줘"에 AI가 '< 30'(30도 아래면)을 만들었다 — 정반대다.
+# 형식이 멀쩡해 모든 검사를 통과하고, 실행되면 반대로 동작한다.
+# ponytail: '없으면'은 무활동의 정상 표현이라 표에 넣지 않는다. '안/않' 이 붙은 경우만 본다.
+_NEGATED = re.compile(r"(안\s*[가-힣]+면|않으면|않을 때|않는다면|아니면|안\s*되면)")
+
+
+def _negated_condition(sentence, rule):
+    """제어 조건을 부정으로 말했는가. 맞으면 왜 다시 말해달라는지 알려줄 문장."""
+    if not (rule.get("when") or {}).get("path"):
+        return None                      # 돌봄 규칙의 "움직임이 없으면"은 정상 표현이다
+    if not _NEGATED.search(sentence):
+        return None
+    return ("부정으로 말한 조건('안 ~하면')은 뜻이 뒤집히기 쉬워 만들지 않습니다. "
+            "'30도 이상이면' 처럼 곧바로 말씀해 주세요.")
+
+
 def _or_condition(sentence, rule):
     """조건을 '또는'으로 이었는가. 맞으면 왜 못 만드는지 알려줄 문장."""
     if not (rule.get("and") or []):
@@ -690,6 +707,12 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
     # 2-c) 문장에 없는 기준값은 AI가 지어낸 것 — 비워서 되묻기로 돌린다.
     #      비우지 않으면 복지사가 승인만 눌러도 AI가 지어낸 28도가 그대로 실행된다.
+    # 2-b3) 조건을 부정으로 말했는가 — 뒤집혀 저장되면 반대로 동작한다
+    negated = _negated_condition(sentence, out["rule"])
+    if negated:
+        steps.append({"id": "scope", "label": STEP_LABELS["scope"], "status": "fail", "detail": negated})
+        return _stop(steps, CREATE_STEPS, [negated], reason="부정 조건은 지원하지 않음")
+
     # 2-b'') 조건을 '또는'으로 이었는가 — and 로 저장하면 뜻이 달라진다
     ored = _or_condition(sentence, out["rule"])
     if ored:
@@ -801,6 +824,15 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
 
 # ---------- 승인 대기함 ----------
+
+_ASKED_APPROVE = re.compile(r"(승인까지|바로 적용|즉시 적용|자동 승인|승인해 ?줘|승인도)")
+
+
+def approval_note(sentence):
+    """'승인까지 해줘'라는 요청에 붙일 안내. 승인은 사람이 누르는 절차다 (25차 g13)."""
+    return ("승인은 담당자가 직접 눌러야 합니다 — 규칙은 승인 대기함에 넣었습니다."
+            if _ASKED_APPROVE.search(sentence or "") else None)
+
 
 def _save_new(rules, sentence, rule, questions=None, conflicts=None):
     """새 규칙을 '승인 대기' 상태로 저장하고 id 를 돌려준다. conflicts = 겹치는 기존 규칙 (승인 때 다시 계산한다)."""
