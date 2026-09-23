@@ -420,3 +420,29 @@ _batt = {"scope": {"homes": ["201"]},
 assert engine._invented_severity("201호 배터리가 20% 밑으로 떨어지면 점검 필요로 표시해줘", _batt) == [], \
     "무활동 규칙이 아니면 손대지 않는다 — scope 가 거부해야 할 규칙이다"
 print("  ✅ 위험도 비우기는 무활동 규칙만 (c12 뒤집힘 방지)")
+
+# ── AI가 되물은 것을 '거부'로 보여주던 것 (5차 q05) ──
+assert engine._is_question("기준을 변경할 센서 종류(예: motion)와 시간(분)을 말씀해주세요")
+assert engine._is_question("어떤 것을 말씀하시는 걸까요?")
+# 같은 뜻을 이렇게도 쓴다 — 실제 호출에서 나온 문구다 (캐시 문구와 달랐다)
+assert engine._is_question("무활동 기준을 몇 분으로 변경할지 구체적인 시간 값이 필요합니다")
+assert not engine._is_question("201호에는 온도 센서가 없습니다")
+assert not engine._is_question("가스 센서가 등록되어 있지 않아 규칙을 만들 수 없습니다")
+# '이렇게 해보라'는 제안은 거절이다 — 되묻기는 '빠진 정보를 달라'일 때만
+assert not engine._is_question("전체 세대의 불을 끄는 규칙은 지원하지 않습니다. 개별 세대별로 설정해 주세요")
+assert not engine._is_question("하나의 규칙으로 만들 수 없습니다. 세대별로 나누어 생성해 주세요")
+_real2 = engine.tr.translate
+try:
+    engine.save_rules([])
+    engine.tr.translate, _ = _scripted({"ok": False, "error": "센서 종류와 시간을 말씀해주세요"})
+    res = engine.add_rule_from_sentence("102호 기준 좀 늘려줘", TREE)
+    assert res["status"] == "needs_clarification", "되묻기는 거부가 아니다"
+    assert res["questions"] and not res["errors"], "안내는 questions 로 나가야 화면이 되묻기로 보여준다"
+
+    engine.save_rules([])
+    engine.tr.translate, _ = _scripted({"ok": False, "error": "201호에는 온도 센서가 없습니다"})
+    res = engine.add_rule_from_sentence("201호 온도가 30도 넘으면 불 켜줘", TREE)
+    assert res["status"] == "rejected", "정당한 거절은 그대로 거부"
+finally:
+    engine.tr.translate = _real2
+print("  ✅ 되묻기 구분: AI가 되물으면 거부가 아니라 되묻기로 보여준다")

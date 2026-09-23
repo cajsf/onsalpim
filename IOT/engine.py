@@ -290,6 +290,25 @@ def _home_denied(home, error):
                           r"(없|등록된 세대가 아|등록되지 않|존재하지 않)", error or ""))
 
 
+# AI가 "못 만들겠다"가 아니라 "뭘 말씀해주세요"라고 답한 경우를 가려내는 말.
+# 5차 실험 q05 — "102호 기준 좀 늘려줘"에 AI는 센서 종류와 시간을 되물었는데, 화면엔 '거부'로 떴다.
+# 되묻기와 거부는 복지사가 할 일이 다르다: 되묻기는 한 줄 더 쓰면 되고, 거부는 다른 방법을 찾아야 한다.
+# ponytail: AI 문구를 정규식으로 읽는 휴리스틱이다. 틀려도 저장되는 것은 없다 —
+# 둘 다 규칙을 만들지 않고 멈추며, 바뀌는 것은 복지사에게 보여줄 안내뿐이다.
+# 빠진 정보를 달라는 말만 넣는다. "개별 세대별로 설정해 주세요" 같은 '다르게 해보라'는 말은 거절이다
+# (5차에서 이걸 되묻기로 잘못 잡아 n06·n09 가 뒤집혔다).
+_ASKING = re.compile(r"(말씀해|알려\s*주|지정해|입력해|명시해|어느 것|무엇을|어떤 것"
+                     r"|몇 ?분|몇 ?시간|구체적|필요합니다|필요해요|필요한 값)|\?\s*$")
+# 못 한다고 말했으면 뒤에 무슨 제안이 붙어도 거절이다
+_REFUSING = re.compile(r"(없습니다|없어|없는|지원하지 않|할 수 없|불가능|불가합)")
+
+
+def _is_question(error):
+    """AI의 거절이 '정보를 더 달라'는 되묻기인가. 못 한다고 말했으면 되묻기가 아니다."""
+    e = (error or "").strip()
+    return bool(_ASKING.search(e)) and not _REFUSING.search(e)
+
+
 def _refusal_contradicts_tree(sentence, error, devices):
     """AI가 '그 세대는 없다'며 거절했는데 트리에 실제로 있으면, 그 거절은 틀렸다.
 
@@ -421,8 +440,12 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     })
 
     if not llm_ok:
-        return _stop(steps, flow, [out.get("error") or "LLM이 거부함"],
-                     reason="번역 실패로 건너뜀")
+        msg = out.get("error") or "LLM이 거부함"
+        if _is_question(msg):
+            # 거부가 아니라 되묻기 — 복지사가 한 줄 더 쓰면 되는 상황이다
+            steps[-1]["status"] = "warn"
+            return _stop(steps, flow, [], questions=[msg], reason="되물어야 해서 멈춤")
+        return _stop(steps, flow, [msg], reason="번역 실패로 건너뜀")
 
     # 1-b) 예외 설정이면 새 규칙을 만들지 않고 기존 규칙에 붙인다
     if intent == "set_override":
