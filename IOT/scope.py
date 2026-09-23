@@ -215,6 +215,11 @@ def validate_scope(rule, devices, existing_rules=None):
         # 승인 화면에서 채울 수 있는 건 when 의 값뿐이라, and 조건이 비면 되묻지 않고 거부한다.
         questions = ([f"기준값이 정해지지 않았습니다. '{when.get('path')}' 조건의 값을 지정해주세요."]
                      if (when.get("op") or "").strip() and _needs_threshold(when) else [])
+        # 동작 값이 비어도 되묻는다 — "창문 열어줘"에 몇 도로 열지 말하지 않은 경우.
+        # 11차 실험(p06): AI가 180도를 지어냈고, 그 값을 비워도 여기서 통과해 빈 명령이 저장됐다.
+        questions += [f"'{t.get('path')}' 을(를) 어떤 값으로 할지 정해주세요."
+                      for t in rule.get("then") or []
+                      if (t or {}).get("path") and not str(t.get("value") or "").strip()]
         errors = [f"추가 조건 '{c.get('path')}'의 기준값이 비어 있음"
                   for c in rule.get("and") or [] if (c.get("op") or "").strip() and _needs_threshold(c)]
         ok = {"ok": not (questions or errors),

@@ -541,3 +541,49 @@ res = engine.approve_rule(2, fill_value="여덟시간", devices=TREE)
 assert not res["ok"] and "읽지 못했습니다" in res["errors"][0], res
 assert engine.load_rules()[0]["rule"]["when"]["value"] == "", "못 읽으면 아무것도 저장하지 않는다"
 print("  ✅ 되묻기 답: '8시간'을 480분으로 바꿔 저장, 못 읽으면 되묻기")
+
+# ── 11차 실험에서 찾은 것 ──
+# (가) 동작 값도 지어낼 수 있다 — "창문 열어줘"에 AI가 각도를 넣었다
+_act = {"when": {"path": "Mobius/byeongari/h101_humi", "op": ">", "value": "80"}, "and": [],
+        "then": [{"path": "Mobius/byeongari/h101_window", "value": "90"}]}
+assert engine._invented_thresholds("101호 습도가 80퍼센트 넘으면 창문 열어줘", _act), \
+    "문장에 없는 각도 90은 지어낸 값이다"
+_act2 = {"when": {"path": "Mobius/byeongari/h101_humi", "op": ">", "value": "80"}, "and": [],
+         "then": [{"path": "Mobius/byeongari/h101_window", "value": "120"}]}
+assert engine._invented_thresholds("101호 습도가 80% 넘으면 창문을 120도로 열어줘", _act2) == [], \
+    "문장이 말한 120은 그대로 쓴다"
+_led = {"when": {"path": "Mobius/byeongari/h101_temp", "op": ">", "value": "30"}, "and": [],
+        "then": [{"path": "Mobius/byeongari/h101_led", "value": "ON"}]}
+assert engine._invented_thresholds("101호 온도가 30도 넘으면 불 켜줘", _led) == [], "ON/OFF 는 숫자가 아니다"
+
+# (나) 시각 조건도 문장에 숫자가 있어야 한다
+_hour = {"when": {"path": "system/hour", "op": ">=", "value": "7"}, "and": [],
+         "then": [{"path": "Mobius/byeongari/h101_led", "value": "ON"}]}
+assert engine._invented_thresholds("아침마다 101호 불 켜줘", _hour), "'아침'에는 숫자가 없다 — 7은 지어낸 값"
+assert engine._invented_thresholds("밤 10시 넘으면 101호 불 켜줘",
+                                   dict(_hour, when=dict(_hour["when"], value="22"))) == [], \
+    "'밤 10시'→22 는 정상 변환이다"
+
+# (다) 반복 일정은 AI를 부르기 전에 멈춘다
+assert engine._repeating_request("아침마다 101호 불 켜줘")
+assert engine._repeating_request("매일 8시에 확인해줘")
+assert engine._repeating_request("세대마다 8시간 무활동이면 긴급") is None, "'세대마다'는 시간표가 아니다"
+assert engine._repeating_request("101호 온도가 30도 넘으면 불 켜줘") is None
+_real5 = engine.tr.translate
+try:
+    _calls = []
+    engine.tr.translate = lambda *a, **k: _calls.append(1) or {"ok": False, "error": "x"}
+    engine.save_rules([])
+    res = engine.add_rule_from_sentence("아침마다 101호 불 켜줘", TREE)
+    assert res["status"] == "rejected" and "반복 일정" in res["errors"][0], res
+    assert not _calls, "만들 수 없는 것은 AI에게 묻지 않는다"
+finally:
+    engine.tr.translate = _real5
+print("  ✅ 지어낸 동작 값·시각, 반복 일정 요청 차단")
+# 동작 값이 비면 저장이 아니라 되묻기 (11차 p06)
+_blank_act = {"scope": {"homes": "101"}, "and": [],
+              "when": {"path": "Mobius/byeongari/h101_humi", "type": "humidity", "op": ">", "value": "80"},
+              "then": [{"path": "Mobius/byeongari/h101_window", "value": ""}], "overrides": {}}
+assert scope.validate_scope(_blank_act, TREE, [])["status"] == "needs_clarification", \
+    "몇 도로 열지 모르면 되물어야 한다"
+print("  ✅ 동작 값이 비면 되묻기")

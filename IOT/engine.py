@@ -421,9 +421,19 @@ def _invented_thresholds(sentence, rule):
     """
     said = _said_numbers(sentence)
     invented = []
-    for c in [rule.get("when") or {}] + list(rule.get("and") or []):
+    # 11차 실험(p06): "습도가 80% 넘으면 창문 열어줘"에 AI가 각도 90을 지어냈다.
+    # 조건만 보고 동작을 안 봐서 그대로 통과했다 — 승인하면 AI가 정한 각도로 열린다.
+    # 동작 값이 숫자가 아니면(ON/OFF) 대상이 아니다.
+    actions = [t for t in (rule.get("then") or []) if (t or {}).get("path")]
+    for c in [rule.get("when") or {}] + list(rule.get("and") or []) + actions:
         p, v = (c.get("path") or "").strip(), str(c.get("value") or "").strip()
-        if not p or p == "system/hour" or not v:
+        if not p or not v:
+            continue
+        if p == "system/hour":
+            # "밤 10시"→22 처럼 바뀌는 건 정상이다. 다만 문장에 숫자가 하나도 없는데
+            # 시각 조건을 만들었다면 그 시각은 지어낸 것이다 (11차 p08: "아침마다").
+            if not said:
+                invented.append((c, v))
             continue
         try:
             n = float(v)
@@ -478,6 +488,20 @@ def _delete_request(sentence):
             f"누가 언제 지웠는지 기록됩니다.")
 
 
+# 규칙은 센서 조건으로만 발동한다. "아침마다"처럼 시간표로 도는 일정은 만들 수 없다.
+# 11차 실험(p08)에서 AI가 이런 문장에 시각 조건을 만들어 붙였다 — 사람이 말한 적 없는 시각이다.
+# ponytail: 단어 표다. '세대마다'처럼 시간과 무관한 '마다'는 넣지 않았다.
+_REPEATING = re.compile(r"(매일|매주|매시간|매번|아침마다|저녁마다|밤마다|낮마다|날마다|정기적으로|주기적으로)")
+
+
+def _repeating_request(sentence):
+    """반복 일정 요청인가. 맞으면 왜 못 만드는지 알려줄 문장."""
+    if not _REPEATING.search(sentence):
+        return None
+    return ("반복 일정(매일·아침마다 같은 시간표)은 만들 수 없습니다. "
+            "규칙은 센서 조건으로 발동합니다 — '움직임이 없으면', '온도가 30도 넘으면'처럼 말씀해 주세요.")
+
+
 def add_rule_from_sentence(sentence, devices, retry=1):
     """문장 → 번역 → 검증 → 통과하면 저장.
 
@@ -492,6 +516,11 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     deleting = _delete_request(sentence)
     if deleting:
         return _stop(steps, CREATE_STEPS, [deleting], reason="지우는 요청은 화면에서 처리")
+
+    # 0-b) 반복 일정도 마찬가지다 — 만들 수 없는 것은 AI에게 묻지 않는다
+    repeating = _repeating_request(sentence)
+    if repeating:
+        return _stop(steps, CREATE_STEPS, [repeating], reason="반복 일정은 지원하지 않음")
 
     # 1) LLM 번역
     out = tr.translate(sentence, devices)
