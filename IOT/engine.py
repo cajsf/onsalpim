@@ -158,6 +158,24 @@ def _find_override_target(ov_type, rules):
             and ((r.get("rule", {}).get("when") or {}).get("type") == ov_type)]
 
 
+# "30분 줄여줘"는 30분으로 바꾸라는 말이 아니라 지금 기준에서 30분을 빼라는 말이다.
+# AI는 둘을 구분하지 못해 8시간 기준을 30분으로 만들었다 (2026-09-23 확인). 방향은 코드가 읽는다.
+_LESS = re.compile(r"(줄여|줄이|낮춰|낮추|단축|짧게|당겨|앞당겨)")
+_MORE = re.compile(r"(늘려|늘리|올려|높여|길게|연장)")
+# "6시간으로 늘려줘"처럼 '얼마로'를 말했으면 상대 변경이 아니다.
+# 숫자 없는 시간 표현도 같다 — "하루로 늘려줘"를 상대 변경으로 읽어 8시간+24시간=32시간이 됐었다 (o04).
+_ABSOLUTE = re.compile(r"(\d+\s*(분|시간)|하루|한나절|반나절|이틀|사흘|종일)\s*(으로|로)")
+
+
+def _relative_delta(sentence):
+    """문장이 '지금보다 얼마만큼' 바꾸라는 것인가. 반환: +1 | -1 | 0(그대로 '얼마로')"""
+    if _ABSOLUTE.search(sentence):
+        return 0
+    if _LESS.search(sentence):
+        return -1
+    return 1 if _MORE.search(sentence) else 0
+
+
 def _apply_override(sentence, out, devices, steps):
     """세대별 예외 설정 — 새 규칙을 만들지 않고 기존 규칙에 예외를 붙인다."""
     ov = out.get("override") or {}
@@ -172,6 +190,34 @@ def _apply_override(sentence, out, devices, steps):
         return _stop(steps, OVERRIDE_STEPS,
                      [f"'{ov_type}' 기준을 쓰는 공통 규칙이 없습니다. "
                       f"먼저 전체 세대 규칙을 만들어 주세요."])
+    # "30분 줄여줘" — AI가 준 값은 바꿀 양이다. 지금 값에서 더하거나 뺀다 (계산은 코드가 한다).
+    sign, changed = _relative_delta(sentence), None
+    if sign and value:
+        if len(matches) > 1:
+            return _stop(steps, OVERRIDE_STEPS, [],
+                         questions=[f"'{ov_type}' 기준을 쓰는 규칙이 여러 개라 얼마에서 바꿀지 알 수 없습니다. "
+                                    f"'{home}호 기준을 N분으로' 처럼 값을 직접 말해 주세요."],
+                         reason="어느 기준에서 바꿀지 모름")
+        cur = next((p for p in scope.expand(matches[0]["rule"], devices) if p["home"] == home), None)
+        try:
+            base, delta = float(cur["value"]), float(value)
+        except (TypeError, ValueError, KeyError):
+            base = None
+        if base is None:
+            return _stop(steps, OVERRIDE_STEPS, [],
+                         questions=[f"{home}호의 지금 기준을 읽을 수 없어 얼마에서 바꿀지 알 수 없습니다. "
+                                    f"값을 직접 말해 주세요."],
+                         reason="현재 기준을 모름")
+        new_value = base + sign * delta
+        if new_value <= 0:
+            return _stop(steps, OVERRIDE_STEPS, [],
+                         questions=[f"지금 기준 {scope._fmt_minutes(base)}에서 {scope._fmt_minutes(delta)}을(를) "
+                                    f"{'빼면' if sign < 0 else '더하면'} {new_value:.0f}분이 됩니다. "
+                                    f"기준은 0보다 커야 합니다 — 값을 다시 말해 주세요."],
+                         reason="계산 결과가 0 이하")
+        changed = (base, delta)
+        value = str(int(new_value)) if float(new_value).is_integer() else str(new_value)
+
     # 대상이 하나여도 바로 저장하지 않는다. 새 규칙이 승인을 거치듯, AI 가 읽은 예외도
     # "102호 무활동 기준 6시간(360분) → 규칙 #8" 을 복지사가 보고 적용을 눌러야 저장된다.
     # 후보마다 미리 검증해서 통과한 것만 보여준다 (고른 뒤에 막히면 헛걸음이다).
@@ -197,7 +243,11 @@ def _apply_override(sentence, out, devices, steps):
 
     steps.append({"id": "scope", "label": STEP_LABELS["scope"], "status": "ok",
                   "detail": f"{home}호 예외 {scope._fmt_minutes(value)} 적용 가능"})
-    ask = (f"AI가 읽은 내용: {home}호 무활동 기준을 {scope._fmt_minutes(value)}({value}분)으로. "
+    read_as = (f"{home}호 무활동 기준을 지금 {scope._fmt_minutes(changed[0])}에서 "
+               f"{scope._fmt_minutes(changed[1])} {'줄여' if sign < 0 else '늘려'} "
+               f"{scope._fmt_minutes(value)}({value}분)으로"
+               if changed else f"{home}호 무활동 기준을 {scope._fmt_minutes(value)}({value}분)으로")
+    ask = (f"AI가 읽은 내용: {read_as}. "
            + ("아래 규칙에 적용할까요?" if len(candidates) == 1
               else f"적용할 규칙이 {len(candidates)}개입니다. 하나를 골라 주세요."))
     result = _stop(steps, OVERRIDE_STEPS, [], questions=[ask], reason="복지사 확인 후 적용")

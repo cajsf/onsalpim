@@ -5,6 +5,7 @@
 같은 세대·같은 위험도의 무활동 규칙이 둘이면: 저장은 하되 승인 때 '대체' 아니면 막는다.
 위험도가 다르면 겹침이 아니라 단계 경보 (3시간 주의 → 8시간 긴급).
 """
+import copy
 import io
 import os
 import tempfile
@@ -450,3 +451,43 @@ try:
 finally:
     engine.tr.translate = _real2
 print("  ✅ 되묻기 구분: AI가 되물으면 거부가 아니라 되묻기로 보여준다")
+
+# ── "30분 줄여줘"는 30분으로 바꾸라는 말이 아니다 (2026-09-23) ──
+assert engine._relative_delta("102호 기준 30분 줄여줘") == -1
+assert engine._relative_delta("102호 무활동 기준 1시간 늘려줘") == 1
+assert engine._relative_delta("102호만 무활동 기준을 6시간으로 바꿔줘") == 0
+assert engine._relative_delta("102호 기준을 6시간으로 늘려줘") == 0, "'얼마로'를 말했으면 상대 변경이 아니다"
+assert engine._relative_delta("101호 무활동 기준만 하루로 늘려줘") == 0, "숫자 없는 '하루로'도 얼마로 말한 것"
+
+_base = [{"id": 1, "sentence": "전체 세대에서 8시간 동안 움직임이 없으면 긴급으로 표시해줘",
+          "rule": {"scope": {"homes": "ALL"},
+                   "when": {"path": "", "type": "motion", "op": scope.IDLE_OP, "value": "480"},
+                   "and": [], "then": [{"path": "", "value": "", "severity": "URGENT"}], "overrides": {}},
+          "enabled": True, "status": "approved"}]
+_ov = lambda v: {"ok": True, "intent": "set_override", "error": "", "need": "",
+                 "override": {"home": "102", "type": "motion", "value": v}, "rule": {}}
+_real3 = engine.tr.translate
+try:
+    engine.save_rules(copy.deepcopy(_base))
+    engine.tr.translate, _ = _scripted(_ov("30"))
+    res = engine.add_rule_from_sentence("102호 기준 30분 줄여줘", TREE)
+    assert res["choice"]["value"] == "450", f"8시간에서 30분을 빼야 한다: {res.get('choice')}"
+    assert "줄여" in res["questions"][0], "무엇을 어떻게 읽었는지 화면에 보여야 한다"
+
+    engine.save_rules(copy.deepcopy(_base))
+    engine.tr.translate, _ = _scripted(_ov("60"))
+    res = engine.add_rule_from_sentence("102호 무활동 기준 1시간 늘려줘", TREE)
+    assert res["choice"]["value"] == "540", f"8시간에 1시간을 더해야 한다: {res.get('choice')}"
+
+    engine.save_rules(copy.deepcopy(_base))
+    engine.tr.translate, _ = _scripted(_ov("360"))
+    res = engine.add_rule_from_sentence("102호만 무활동 기준을 6시간으로 바꿔줘", TREE)
+    assert res["choice"]["value"] == "360", "'얼마로'는 그대로 쓴다"
+
+    engine.save_rules(copy.deepcopy(_base))
+    engine.tr.translate, _ = _scripted(_ov("600"))
+    res = engine.add_rule_from_sentence("102호 기준 10시간 줄여줘", TREE)
+    assert res["status"] == "needs_clarification", "0보다 작아지면 저장이 아니라 되묻기"
+finally:
+    engine.tr.translate = _real3
+print("  ✅ 상대 변경: '30분 줄여줘'를 지금 기준에서 계산 (30분으로 바꾸지 않는다)")

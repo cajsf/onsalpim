@@ -1179,6 +1179,38 @@
   },
   "sentence": "1층만 90분 무활동이면 주의"
  },
+ "33bd8d04ebb3bf267535187b5aebf37947682110": {
+  "at": "2026-09-23T09:22:41",
+  "feedback": null,
+  "latency_s": 2.87,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "60"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 무활동 기준 1시간 늘려줘"
+ },
  "39caf24ec2cace3701c4a368c11b2c75d859c1d3": {
   "at": "2026-09-23T08:50:36",
   "feedback": null,
@@ -1388,6 +1420,38 @@
    }
   },
   "sentence": "101호 조도가 낮으면 불 켜줘"
+ },
+ "46fac3891bc71e9c035bdfda1ddfcf88800b646e": {
+  "at": "2026-09-23T09:22:54",
+  "feedback": null,
+  "latency_s": 2.53,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 기준 10시간 줄여줘"
  },
  "4727ad8ce5019d471f8d87b2f14cf977351b9a4f": {
   "at": "2026-09-23T08:50:44",
@@ -2560,6 +2624,38 @@
    }
   },
   "sentence": "101호부터 202호까지 6시간 움직임이 없으면 주의로 표시해줘"
+ },
+ "793bf69634a4be74882ac668095cea599a5f29c2": {
+  "at": "2026-09-23T09:22:34",
+  "feedback": null,
+  "latency_s": 2.3,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "30"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 기준 30분 줄여줘"
  },
  "7a6cf3d7f3de63f7a383d7d169a792d8f86915e2": {
   "at": "2026-09-23T09:08:07",
@@ -4709,6 +4805,38 @@
    }
   },
   "sentence": "101호 습도가 80% 이상이면 창문을 90도로 열어줘"
+ },
+ "f635e19ba4faddf1ed39488208c7cd577e638f99": {
+  "at": "2026-09-23T09:22:48",
+  "feedback": null,
+  "latency_s": 2.85,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "360"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 기준을 6시간으로 늘려줘"
  },
  "f70c6834646524a8e9edb24886da5d19d9f9b701": {
   "at": "2026-09-23T09:07:18",

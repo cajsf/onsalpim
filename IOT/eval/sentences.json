@@ -770,6 +770,53 @@
     "outcome": "reject"
    },
    "note": "조명은 ON|OFF 만 받는다."
+  },
+  {
+   "id": "x01",
+   "cat": "상대 변경",
+   "sentence": "102호 기준 30분 줄여줘",
+   "expect": {
+    "outcome": "override",
+    "override": {
+     "home": "102",
+     "value": 450
+    }
+   },
+   "note": "공통 기준 480분에서 30분을 뺀 값. '30분으로'가 아니다."
+  },
+  {
+   "id": "x02",
+   "cat": "상대 변경",
+   "sentence": "102호 무활동 기준 1시간 늘려줘",
+   "expect": {
+    "outcome": "override",
+    "override": {
+     "home": "102",
+     "value": 540
+    }
+   }
+  },
+  {
+   "id": "x03",
+   "cat": "상대 변경",
+   "sentence": "102호 기준을 6시간으로 늘려줘",
+   "expect": {
+    "outcome": "override",
+    "override": {
+     "home": "102",
+     "value": 360
+    }
+   },
+   "note": "'늘려'가 있지만 '6시간으로'라고 얼마인지 말했다 — 상대 변경이 아니다."
+  },
+  {
+   "id": "x04",
+   "cat": "상대 변경",
+   "sentence": "102호 기준 10시간 줄여줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "480분에서 600분을 빼면 음수. 계산해서 저장하면 안 된다."
   }
  ]
 }
