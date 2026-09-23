@@ -400,6 +400,30 @@ def to_markdown(results):
         "(복지사가 승인 화면에서 잡아야 한다). **형식 오류 통과**는 없는 세대·장치·범위 밖 값이 승인 대기까지 온 것.",
         "",
     ]
+    # 모델이 둘 이상이면 맨 앞에 모델 대조표를 둔다.
+    # 보는 사람이 "어느 모델이 좋은가"가 아니라 "모델이 바뀌어도 안전한가"를 읽어야 한다 —
+    # AI 자체 정답률은 참고 숫자이고, 봐야 할 칸은 '잘못 앞으로 나감'이다.
+    ok = [(m, rows) for m, rows, _, _ in results if rows]
+    if len(ok) > 1:
+        lines += [
+            "## 모델이 바뀌어도 안전한가 (모델 대조)",
+            "",
+            "| 모델 | AI 자체 정답률 (참고) | AI 결과를 바로 실행하면 잘못 나감 | **하네스 통과 후 잘못 나감** | 하네스 정답 |",
+            "|---|---|---|---|---|",
+        ]
+        for model, rows in ok:
+            s = summarize(rows)
+            n = s["n"]
+            lines.append(f"| {model} | {pct(s['A']['correct'], n)} | {s['A']['wrong_forward']} | "
+                         f"**{s['C']['wrong_forward']}** | {pct(s['C']['correct'], n)} |")
+        lines += [
+            "",
+            "읽는 법: 모델마다 AI 자체 정답률은 다르다(왼쪽). 봐야 할 칸은 **굵은 칸**이다 — "
+            "모델이 무엇이든 잘못된 규칙이 사람 앞까지 나가지 않아야 한다. "
+            "굵은 칸이 0이 아니면 그 문장이 하네스의 새 구멍이다.",
+            "",
+        ]
+
     for model, rows, stats, stopped in results:
         if not rows:
             lines += [f"## {model}", "", f"실행 못 함 — {stopped}", ""]
