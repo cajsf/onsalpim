@@ -1202,6 +1202,175 @@
     "outcome": "clarify"
    },
    "note": "정답을 '거부'에서 '되묻기'로 바꿨다 (13차). 잡담에 '무엇을 만들까요'라고 되묻는 것은 자연스럽다. 중요한 것은 저장되지 않는 것이고 그것은 지켜진다."
+  },
+  {
+   "id": "y01",
+   "cat": "동작 방향",
+   "sentence": "101호 온도가 20도 아래로 떨어지면 창문 닫아줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "'닫아줘'는 각도가 하나로 정해진다(0). 열어달라는 말과 달리 되물을 필요가 없다."
+  },
+  {
+   "id": "y02",
+   "cat": "동작 방향",
+   "sentence": "101호 온도가 30도 넘으면 불 꺼줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "OFF"
+    }
+   },
+   "note": "켜는 것과 끄는 것을 뒤집어 읽지 않는지."
+  },
+  {
+   "id": "y03",
+   "cat": "영어 혼용",
+   "sentence": "101호 temperature 30도 넘으면 LED 켜줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   }
+  },
+  {
+   "id": "y04",
+   "cat": "긴 문장",
+   "sentence": "우리 어르신들 중에서 혹시라도 여덟 시간 넘게 아무 움직임이 없으신 분이 계시면 바로 알려주세요",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 480,
+     "severity": "URGENT"
+    }
+   },
+   "note": "수식어가 많은 실제 말투. '바로'가 긴급을 가리킨다."
+  },
+  {
+   "id": "y05",
+   "cat": "범위 밖 값",
+   "sentence": "101호 습도가 15% 아래로 떨어지면 창문을 0도로 닫아줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "습도 센서 범위는 20~90%다."
+  },
+  {
+   "id": "y06",
+   "cat": "세대 열거",
+   "sentence": "101호와 201호 온도가 30도 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "201호에는 온도 센서가 없다. 한 세대만 만들고 넘어가면 안 된다."
+  },
+  {
+   "id": "y07",
+   "cat": "부정 조건",
+   "sentence": "101호에 움직임이 없으면 불 꺼줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "0|1 센서의 반대쪽 값."
+  },
+  {
+   "id": "y08",
+   "cat": "조건 없음",
+   "sentence": "전체 세대를 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "정답을 '거부'에서 '되묻기'로 바꿨다 (15차). 조건만 말해주면 만들 수 있는 문장이라 되묻는 것이 맞다. 우리가 정한 정답이 틀린 네 번째 경우다."
+  },
+  {
+   "id": "y09",
+   "cat": "소수 시간",
+   "sentence": "전체 세대에서 1.5시간 동안 움직임이 없으면 주의로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 90,
+     "severity": "WATCH"
+    }
+   }
+  },
+  {
+   "id": "y10",
+   "cat": "기호",
+   "sentence": "101호 온도 30도↑ 이면 불 켜줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   },
+   "note": "기호로 쓴 비교."
+  },
+  {
+   "id": "y11",
+   "cat": "상대 변경",
+   "sentence": "102호 기준을 두 배로 늘려줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "'두 배'는 곱셈이다. 우리 상대 변경은 더하기·빼기만 한다 — 얼마로 할지 되물어야 한다."
+  },
+  {
+   "id": "y12",
+   "cat": "예외 대상 없음",
+   "sentence": "103호만 무활동 기준을 6시간으로 바꿔줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "103호는 트리에 없다."
+  },
+  {
+   "id": "y13",
+   "cat": "중복 동작",
+   "sentence": "101호 온도가 30도 넘으면 불 켜고 창문을 90도로 열어줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "동작이 둘이다. 하나만 저장하고 나머지를 버리면 안 된다 — 결과만 본다."
+  },
+  {
+   "id": "y14",
+   "cat": "모호",
+   "sentence": "102호 좀 더 자주 확인해줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "무엇을 얼마나인지 없다."
   }
  ]
 }

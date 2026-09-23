@@ -421,6 +421,11 @@ def _said_numbers(sentence):
     return said
 
 
+# 끄고 닫는 동작은 값이 하나로 정해진다(0 / OFF). 여는 동작은 각도가 여러 개라 되물어야 한다.
+# 15차 실험(y01): "창문 닫아줘"의 0 을 지어낸 값으로 보고 되물었다 — 사람은 0을 말할 이유가 없다.
+_CLOSING = re.compile(r"(닫아|닫기|닫는|꺼줘|꺼주|끄기|끄는|내려|해제)")
+
+
 def _is_enumerated(path, devices):
     """값이 목록으로 정해진 센서인가 (values=0|1 처럼). 그러면 값은 기준값이 아니라 상태 이름이다."""
     d = next((x for x in (devices or []) if x["path"] == path), None)
@@ -446,6 +451,8 @@ def _invented_thresholds(sentence, rule, devices=None):
         p, v = (c.get("path") or "").strip(), str(c.get("value") or "").strip()
         if not p or not v:
             continue
+        if v in ("0", "0.0") and _CLOSING.search(sentence):
+            continue                        # "닫아줘"의 0 은 지어낸 값이 아니다
         if _is_enumerated(p, devices):
             # "움직임이 있으면"에는 숫자가 없지만 값(1)은 지어낸 것이 아니다 — 상태가 둘뿐이다 (13차 w01·w02)
             continue

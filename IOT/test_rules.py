@@ -604,3 +604,14 @@ assert 30 in engine._said_numbers("101호 온도가 삼십 도 넘으면 불 켜
 assert 25 in engine._said_numbers("이십오도")
 assert 10 in engine._said_numbers("십분")
 print("  ✅ 0|1 센서 상태값·한자어 수사를 지어낸 값으로 오해하지 않는다")
+
+# ── 15차: 닫는 동작의 0 은 지어낸 값이 아니다 ──
+_close = {"when": {"path": "Mobius/byeongari/h101_temp", "op": "<", "value": "20"}, "and": [],
+          "then": [{"path": "Mobius/byeongari/h101_window", "value": "0"}]}
+assert engine._invented_thresholds("101호 온도가 20도 아래로 떨어지면 창문 닫아줘", _close) == [], \
+    "'닫아줘'의 0 은 뜻이 하나다 — 되물을 필요가 없다"
+_open = {"when": {"path": "Mobius/byeongari/h101_temp", "op": ">", "value": "30"}, "and": [],
+         "then": [{"path": "Mobius/byeongari/h101_window", "value": "90"}]}
+assert engine._invented_thresholds("101호 온도가 30도 넘으면 창문 열어줘", _open), \
+    "'열어줘'는 각도가 여러 개다 — 90은 지어낸 값이다"
+print("  ✅ 닫는 동작(0)은 통과, 여는 동작의 각도는 되묻기")

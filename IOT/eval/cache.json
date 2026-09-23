@@ -799,6 +799,38 @@
   },
   "sentence": "101호 습도가 80% 이상이면 창문을 90도로 열어줘"
  },
+ "1fd6a79e09c4e14a5014cfcea9a9da0a600b7867": {
+  "at": "2026-09-23T13:12:25",
+  "feedback": null,
+  "latency_s": 3.79,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "전체 세대를 긴급으로 표시하기 위한 조건(센서 종류 및 무활동 시간 등)이 명시되지 않았습니다.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "전체 세대를 긴급으로 표시해줘"
+ },
  "1fe59cd1f10c4341e7c5a8e864f502fe53ef4be1": {
   "at": "2026-09-23T08:52:34",
   "feedback": null,
@@ -1503,6 +1535,120 @@
   },
   "sentence": "102호만 무활동 기준을 6시간으로 바꿔줘"
  },
+ "3b313d5a7578060e2c69e7fe07a8ded423610d23": {
+  "at": "2026-09-23T13:11:42",
+  "feedback": null,
+  "latency_s": 3.04,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호의 온도가 30도를 초과할 경우 LED를 켜는 제어 규칙입니다.",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "ON"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 temperature 30도 넘으면 LED 켜줘"
+ },
+ "3c4686308e71e356dfbc17055c6e94fca8cfbf35": {
+  "at": "2026-09-23T13:11:48",
+  "feedback": null,
+  "latency_s": 2.76,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "전체 세대 대상 8시간 무활동 시 긴급 알림 설정",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "480"
+    }
+   }
+  },
+  "sentence": "우리 어르신들 중에서 혹시라도 여덟 시간 넘게 아무 움직임이 없으신 분이 계시면 바로 알려주세요"
+ },
+ "3ed80b31507e61a02f73f504179378ef47d01ce7": {
+  "at": "2026-09-23T13:12:31",
+  "feedback": null,
+  "latency_s": 2.56,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "전체 세대에서 90분 동안 움직임이 없을 경우 주의 상태로 표시하는 규칙 생성",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "90"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 1.5시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
  "3fffd191d8c956bc2df2fa58a2894448f64ec5f5": {
   "at": "2026-09-23T09:06:36",
   "feedback": null,
@@ -1768,6 +1914,38 @@
    }
   },
   "sentence": "101호 미세먼지가 나쁘면 창문 닫아줘"
+ },
+ "49579df5723a6b2d5f4b1e88d9c8d48c80ce91f3": {
+  "at": "2026-09-23T13:13:08",
+  "feedback": null,
+  "latency_s": 4.67,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "확인 주기나 기준에 대한 구체적인 수치 정보가 부족합니다.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 좀 더 자주 확인해줘"
  },
  "4a48430fa8abda9416807911f58804cefea1ce6b": {
   "at": "2026-09-23T09:06:14",
@@ -2192,6 +2370,44 @@
   },
   "sentence": "4시간 동안 움직임이 없으면 한번 확인해볼 정도로만 표시해줘"
  },
+ "5b751d0d6acc9c532374b0d1e7ed61e6e6e6a501": {
+  "at": "2026-09-23T13:12:39",
+  "feedback": null,
+  "latency_s": 3.45,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호 온도가 30도를 초과하면 조명을 켭니다.",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "ON"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도 30도↑ 이면 불 켜줘"
+ },
  "5c15e9618f0bbf26ec40b5a853068ac4471ee721": {
   "at": "2026-09-22T16:20:46",
   "feedback": null,
@@ -2535,6 +2751,38 @@
    }
   },
   "sentence": "102호랑 303호가 6시간 움직임이 없으면 긴급으로 표시해줘"
+ },
+ "68b0cdb6adadc4eef317b7abd7fda1a8dfa39576": {
+  "at": "2026-09-23T13:12:09",
+  "feedback": null,
+  "latency_s": 2.67,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "한 규칙에 여러 세대의 센서 조건을 동시에 설정할 수 없습니다.",
+   "intent": "create_rule",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "101호와 201호 온도가 30도 넘으면 불 켜줘"
  },
  "68bc72d6a6a93286b2e342782d0fb7a3c03d2e6e": {
   "at": "2026-09-22T16:19:44",
@@ -3260,6 +3508,38 @@
   },
   "sentence": "전체 세대 불 꺼줘"
  },
+ "83e08034b792ef9abce80d742b277f4a1a2c1196": {
+  "at": "2026-09-23T13:12:45",
+  "feedback": null,
+  "latency_s": 2.19,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "기준값을 두 배로 늘리는 것은 시스템에서 지원하지 않는 연산입니다. 구체적인 분 단위 정수를 입력해주세요.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 기준을 두 배로 늘려줘"
+ },
  "84cbaa1171c1812715f377ec48b67b1961ccf82d": {
   "at": "2026-09-23T09:11:23",
   "feedback": null,
@@ -3472,6 +3752,44 @@
    }
   },
   "sentence": "102호 온도가 30도 넘으면 불 켜줘"
+ },
+ "8aab4911c5bfafe520cd1b79ef31ca4c09750ccb": {
+  "at": "2026-09-23T13:11:28",
+  "feedback": null,
+  "latency_s": 2.41,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호 온도가 20도 미만일 때 창문을 닫아 온도를 유지하기 위함",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "0"
+     }
+    ],
+    "when": {
+     "op": "<",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "20"
+    }
+   }
+  },
+  "sentence": "101호 온도가 20도 아래로 떨어지면 창문 닫아줘"
  },
  "8b23770fb1498d0b9a3668c43437597c820da61b": {
   "at": "2026-09-23T13:06:42",
@@ -3811,6 +4129,78 @@
    }
   },
   "sentence": "202호 습도가 70% 넘으면 101호 불 켜줘"
+ },
+ "95c635eb6300ddc351eb9fd0089844dee0ba4307": {
+  "at": "2026-09-23T13:11:56",
+  "feedback": null,
+  "latency_s": 3.24,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호 습도가 15% 미만일 때 창문을 0도로 닫는 제어 규칙 생성",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "0"
+     }
+    ],
+    "when": {
+     "op": "<",
+     "path": "Mobius/byeongari/h101_humi",
+     "type": "humidity",
+     "value": "15"
+    }
+   }
+  },
+  "sentence": "101호 습도가 15% 아래로 떨어지면 창문을 0도로 닫아줘"
+ },
+ "9a428e4507f12f8d552d6bc2ac0f46f6b045af10": {
+  "at": "2026-09-23T13:12:03",
+  "feedback": [
+   "when: 'Mobius/byeongari/h101_humi' 값 15가 센서 범위(20~90) 밖"
+  ],
+  "latency_s": 3.01,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "101호 습도 센서의 허용 범위는 20~90%입니다. 15%는 설정할 수 없는 값입니다.",
+   "intent": "create_rule",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "101호 습도가 15% 아래로 떨어지면 창문을 0도로 닫아줘"
  },
  "9b8099dca342be1dad541a2424e3a2ebc4d99a98": {
   "at": "2026-09-23T09:08:54",
@@ -4676,6 +5066,44 @@
   },
   "sentence": "101호 지금 온도가 몇 도야?"
  },
+ "bea99a20c30a9bfb1d05f5cd5894d1f7262c1db8": {
+  "at": "2026-09-23T13:11:35",
+  "feedback": null,
+  "latency_s": 2.55,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호 온도가 30도를 초과하면 조명을 끕니다.",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "OFF"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 꺼줘"
+ },
  "bf12685cac00f902d3471bad48bec4d1fe4f3db9": {
   "at": "2026-09-23T13:06:17",
   "feedback": null,
@@ -4785,6 +5213,44 @@
    }
   },
   "sentence": "201호 배터리가 20% 아래면 불 켜줘"
+ },
+ "c3e94cd48db9e5449a46c6154edac83cd8a77eec": {
+  "at": "2026-09-23T13:12:17",
+  "feedback": null,
+  "latency_s": 3.61,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호에 움직임이 감지되지 않으면 조명을 끕니다.",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "OFF"
+     }
+    ],
+    "when": {
+     "op": "==",
+     "path": "Mobius/byeongari/h101_pir",
+     "type": "motion",
+     "value": "0"
+    }
+   }
+  },
+  "sentence": "101호에 움직임이 없으면 불 꺼줘"
  },
  "c43a7d7948bacc923b3d206f2d7fc9ef6da55fcc": {
   "at": "2026-09-22T16:21:42",
@@ -5243,6 +5709,49 @@
   },
   "sentence": "101호 온도가 30도 넘고 습도도 70% 넘으면 창문을 120도로 열어줘"
  },
+ "d89b5e9461bf270948174262d88f549870aab158": {
+  "at": "2026-09-23T13:12:59",
+  "feedback": null,
+  "latency_s": 3.34,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호 온도가 30도를 초과할 경우 조명을 켜고 창문을 90도로 개방하는 제어 규칙입니다.",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "ON"
+     },
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "90"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 켜고 창문을 90도로 열어줘"
+ },
  "db83ea2b458161fe73853bf2cb3ac9dcd6ef4242": {
   "at": "2026-09-23T13:07:16",
   "feedback": [
@@ -5489,6 +5998,38 @@
    }
   },
   "sentence": "101호가 더우면 창문을 90도로 열어줘"
+ },
+ "e199ba95ac00bceee0c4bff64646f1409c9e6536": {
+  "at": "2026-09-23T13:12:52",
+  "feedback": null,
+  "latency_s": 2.51,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "103호는 등록된 세대가 아닙니다.",
+   "intent": "set_override",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "103호만 무활동 기준을 6시간으로 바꿔줘"
  },
  "e2d7e50a69e9621af017925be178d9f0727fd2f9": {
   "at": "2026-09-22T17:30:25",
