@@ -587,3 +587,20 @@ _blank_act = {"scope": {"homes": "101"}, "and": [],
 assert scope.validate_scope(_blank_act, TREE, [])["status"] == "needs_clarification", \
     "몇 도로 열지 모르면 되물어야 한다"
 print("  ✅ 동작 값이 비면 되묻기")
+
+# ── 13차: 과잉 차단 두 가지 ──
+# (가) 0|1 센서는 값이 상태다 — 문장에 숫자가 없어도 지어낸 값이 아니다
+_pir_rule = {"when": {"path": "M/h101_pir", "op": "==", "value": "1"}, "and": [],
+             "then": [{"path": "M/led_cmd", "value": "ON"}]}
+_pir_dev = [{"path": "M/h101_pir", "ct": "", "meta": {"kind": "sensor", "type": "motion",
+                                                      "home": "101", "values": "0|1", "report_s": "5"}}]
+assert engine._invented_thresholds("101호에 움직임이 있으면 불 켜줘", _pir_rule, _pir_dev) == [], \
+    "움직임 센서의 1은 기준값이 아니라 상태다"
+assert engine._invented_thresholds("101호에 움직임이 있으면 불 켜줘", _pir_rule, []), \
+    "장치를 모르면 예전처럼 지어낸 값으로 본다 (되묻기로 간다)"
+
+# (나) 한자어 수사도 문장의 숫자로 친다
+assert 30 in engine._said_numbers("101호 온도가 삼십 도 넘으면 불 켜줘")
+assert 25 in engine._said_numbers("이십오도")
+assert 10 in engine._said_numbers("십분")
+print("  ✅ 0|1 센서 상태값·한자어 수사를 지어낸 값으로 오해하지 않는다")

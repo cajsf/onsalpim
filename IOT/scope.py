@@ -222,6 +222,7 @@ def validate_scope(rule, devices, existing_rules=None):
                       if (t or {}).get("path") and not str(t.get("value") or "").strip()]
         errors = [f"추가 조건 '{c.get('path')}'의 기준값이 비어 있음"
                   for c in rule.get("and") or [] if (c.get("op") or "").strip() and _needs_threshold(c)]
+        # 값이 비어 있을 때만 걸러야 한다. 0|1 센서는 값이 채워져 오므로 여기 걸리지 않는다.
         ok = {"ok": not (questions or errors),
               "status": "rejected" if errors else ("needs_clarification" if questions else "ok"),
               "errors": errors, "warnings": [], "questions": questions, "homes": []}

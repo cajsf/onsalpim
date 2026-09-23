@@ -1,6 +1,6 @@
 # 온살핌 — 하네스 실험 결과
 
-> 실행 시각 2026-09-23 12:02 · `python harness_eval.py` 로 재현 (AI 응답은 `eval/cache.json` 에 저장돼 있어 다시 돌려도 호출하지 않는다)
+> 실행 시각 2026-09-23 13:10 · `python harness_eval.py` 로 재현 (AI 응답은 `eval/cache.json` 에 저장돼 있어 다시 돌려도 호출하지 않는다)
 
 같은 문장 묶음을 세 방식으로 돌렸다. 세대는 전시 구성(101·102·201·202호), 정답은 사람이 정했다.
 
@@ -10,18 +10,18 @@
 
 **잘못 앞으로 나감**: A 는 잘못된 규칙이 실행된 것, B·C 는 잘못된 규칙이 승인 대기에 올라간 것(복지사가 승인 화면에서 잡아야 한다). **형식 오류 통과**는 없는 세대·장치·범위 밖 값이 승인 대기까지 온 것.
 
-## gemini-3.1-flash-lite — 문장 90개
+## gemini-3.1-flash-lite — 문장 106개
 
 | | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |
 |---|---|---|---|
-| 정답 | 63/90 (70%) | 90/90 (100%) | **90/90 (100%)** |
-| 잘못 앞으로 나감 | **23** | 0 | **0** |
+| 정답 | 76/106 (72%) | 106/106 (100%) | **106/106 (100%)** |
+| 잘못 앞으로 나감 | **25** | 0 | **0** |
 | └ 형식 오류 통과 | — | 0 | 0 |
 | └ 의미 오류 (형식은 맞는데 내용이 다름) | — | 0 | 0 |
-| 되묻기 성공 | 불가 | 15/15 (100%) | 15/15 (100%) |
+| 되묻기 성공 | 불가 | 17/17 (100%) | 17/17 (100%) |
 | 과잉 거부 (받아야 할 걸 막음) | — | 0 | 0 |
 
-- 되먹임 발동 6회, 그중 정답으로 살린 문장 **0개**
+- 되먹임 발동 7회, 그중 정답으로 살린 문장 **0개**
 - 이번 실행의 실제 AI 호출 0회 (전부 캐시)
 
 ### 틀린 문장 (C 기준 — 사람이 봐야 할 것)
@@ -122,6 +122,22 @@
 | p14 | 상대 변경 | reject | ✅ reject | ✅ reject | ✅ reject |
 | p15 | 규칙 아님 | reject | ❌ executed | ✅ reject | ✅ reject |
 | p16 | 범위 밖 값 | reject | ❌ executed | ✅ reject | ✅ reject |
+| w01 | 움직임 제어 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w02 | 조건 결합 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w03 | 단위 생략 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w04 | 구간 조건 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w05 | 시각 조건 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w06 | 다세대 제어 | reject | ✅ reject | ✅ reject | ✅ reject |
+| w07 | 한글 수사 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w08 | 세대 불일치 | reject | ✅ reject | ✅ reject | ✅ reject |
+| w09 | 세대 불일치 | reject | ❌ executed | ✅ reject | ✅ reject |
+| w10 | 표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w11 | 정밀도 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w12 | 단위 없는 숫자 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| w13 | 예외 | override | ✅ executed | ✅ override | ✅ override |
+| w14 | 어순 뒤집기 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w15 | 규칙 아님 | reject | ✅ reject | ✅ reject | ✅ reject |
+| w16 | 규칙 아님 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
 
 ## 실험 이력
 

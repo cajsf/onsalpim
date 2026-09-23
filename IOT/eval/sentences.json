@@ -1024,6 +1024,184 @@
     "outcome": "reject"
    },
    "note": "무활동 기준은 0보다 커야 한다."
+  },
+  {
+   "id": "w01",
+   "cat": "움직임 제어",
+   "sentence": "101호에 움직임이 있으면 불 켜줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "PIR 은 values=0|1 이라 제어 조건으로 쓸 수 있다."
+  },
+  {
+   "id": "w02",
+   "cat": "조건 결합",
+   "sentence": "101호 온도가 30도 넘고 습도도 70% 넘고 움직임도 있으면 창문을 120도로 열어줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "조건 3개. 어느 것을 when 으로 잡든 뜻은 같다."
+  },
+  {
+   "id": "w03",
+   "cat": "단위 생략",
+   "sentence": "101호 온도가 30 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   },
+   "note": "'도'를 안 붙여도 센서 단위는 라벨(unit=C)에 있다."
+  },
+  {
+   "id": "w04",
+   "cat": "구간 조건",
+   "sentence": "101호 온도가 20도에서 25도 사이면 불 켜줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "조건 두 개로 표현된다. 어느 쪽을 when 으로 잡는지는 상관없다."
+  },
+  {
+   "id": "w05",
+   "cat": "시각 조건",
+   "sentence": "밤 10시 넘으면 101호 불 켜줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "'밤 10시'→22 변환은 정상이다. 문장에 숫자가 있다."
+  },
+  {
+   "id": "w06",
+   "cat": "다세대 제어",
+   "sentence": "모든 세대 온도가 30도 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "제어 규칙은 장치를 직접 지목한다. 온도·조명이 있는 세대는 101호뿐이다."
+  },
+  {
+   "id": "w07",
+   "cat": "한글 수사",
+   "sentence": "101호 온도가 삼십 도 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "'서른'은 6차에서 봤고, '삼십'은 다른 계열 수사다."
+  },
+  {
+   "id": "w08",
+   "cat": "세대 불일치",
+   "sentence": "101호가 30도 넘게 더우면 102호 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "102호에는 조명이 없다."
+  },
+  {
+   "id": "w09",
+   "cat": "세대 불일치",
+   "sentence": "201호 배터리가 20% 아래로 떨어지면 101호 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "조건과 동작이 다른 세대다. 한 세대 안에서 닫혀야 한다."
+  },
+  {
+   "id": "w10",
+   "cat": "표현",
+   "sentence": "전체 세대에서 8시간 8시간 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 480,
+     "severity": "URGENT"
+    }
+   },
+   "note": "말이 겹쳐도 뜻은 하나다. 음성 입력에서 자주 생긴다."
+  },
+  {
+   "id": "w11",
+   "cat": "정밀도",
+   "sentence": "101호 온도가 30.125도 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30.125,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   }
+  },
+  {
+   "id": "w12",
+   "cat": "단위 없는 숫자",
+   "sentence": "전체 세대 무활동 기준을 480으로 해줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "정답을 '거부'에서 '되묻기'로 바꿨다 (13차). 위험도만 말해주면 만들 수 있는 문장이라 되묻는 것이 맞다. 우리가 정한 정답이 틀렸다."
+  },
+  {
+   "id": "w13",
+   "cat": "예외",
+   "sentence": "102호만 주의 기준을 3시간으로 해줘",
+   "expect": {
+    "outcome": "override",
+    "override": {
+     "home": "102",
+     "value": 180
+    }
+   }
+  },
+  {
+   "id": "w14",
+   "cat": "어순 뒤집기",
+   "sentence": "불 켜줘, 101호 온도가 30도 넘으면",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   }
+  },
+  {
+   "id": "w15",
+   "cat": "규칙 아님",
+   "sentence": "101호 지금 온도가 몇 도야?",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "질문이다. 규칙이 아니다."
+  },
+  {
+   "id": "w16",
+   "cat": "규칙 아님",
+   "sentence": "안녕하세요 수고 많으십니다",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "정답을 '거부'에서 '되묻기'로 바꿨다 (13차). 잡담에 '무엇을 만들까요'라고 되묻는 것은 자연스럽다. 중요한 것은 저장되지 않는 것이고 그것은 지켜진다."
   }
  ]
 }

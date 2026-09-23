@@ -394,6 +394,8 @@ _KO_TENS = {"열": 10, "스물": 20, "서른": 30, "마흔": 40, "쉰": 50,
             "예순": 60, "일흔": 70, "여든": 80, "아흔": 90, "백": 100}
 _KO_ONES = {"한": 1, "하나": 1, "두": 2, "둘": 2, "세": 3, "셋": 3, "네": 4, "넷": 4, "다섯": 5,
             "여섯": 6, "일곱": 7, "여덟": 8, "아홉": 9}
+# 한자어 수사 — "삼십 도"(13차 w07). 고유어(서른)만 읽어서 멀쩡한 문장을 막았다.
+_SINO = {"영": 0, "일": 1, "이": 2, "삼": 3, "사": 4, "오": 5, "육": 6, "칠": 7, "팔": 8, "구": 9, "십": 10}
 
 
 def _said_numbers(sentence):
@@ -407,10 +409,25 @@ def _said_numbers(sentence):
     for w, v in _KO_ONES.items():
         if w in sentence:
             said.add(float(v))
+    # 한자어: "삼십"=30, "이십오"=25, "십"=10, "백"=100
+    for m in re.finditer(r"([일이삼사오육칠팔구])?십([일이삼사오육칠팔구])?", sentence):
+        tens = _SINO.get(m.group(1), 1) * 10
+        said.add(float(tens + _SINO.get(m.group(2), 0)))
+    if "백" in sentence:
+        said.add(100.0)
+    for w, v in _SINO.items():
+        if w in sentence:
+            said.add(float(v))
     return said
 
 
-def _invented_thresholds(sentence, rule):
+def _is_enumerated(path, devices):
+    """값이 목록으로 정해진 센서인가 (values=0|1 처럼). 그러면 값은 기준값이 아니라 상태 이름이다."""
+    d = next((x for x in (devices or []) if x["path"] == path), None)
+    return bool(d) and "|" in str(d["meta"].get("values") or "")
+
+
+def _invented_thresholds(sentence, rule, devices=None):
     """제어 규칙 조건의 기준값이 문장에 없는 숫자면 AI가 지어낸 것이다. 반환: [(조건, 값), ...]
 
     하네스 실험에서 "더우면 창문을 90도로 열어줘"에 AI가 28도를, "습하면"에 70%를,
@@ -428,6 +445,9 @@ def _invented_thresholds(sentence, rule):
     for c in [rule.get("when") or {}] + list(rule.get("and") or []) + actions:
         p, v = (c.get("path") or "").strip(), str(c.get("value") or "").strip()
         if not p or not v:
+            continue
+        if _is_enumerated(p, devices):
+            # "움직임이 있으면"에는 숫자가 없지만 값(1)은 지어낸 것이 아니다 — 상태가 둘뿐이다 (13차 w01·w02)
             continue
         if p == "system/hour":
             # "밤 10시"→22 처럼 바뀌는 건 정상이다. 다만 문장에 숫자가 하나도 없는데
@@ -603,7 +623,7 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
     # 2-c) 문장에 없는 기준값은 AI가 지어낸 것 — 비워서 되묻기로 돌린다.
     #      비우지 않으면 복지사가 승인만 눌러도 AI가 지어낸 28도가 그대로 실행된다.
-    invented = _invented_thresholds(sentence, out["rule"])
+    invented = _invented_thresholds(sentence, out["rule"], devices)
     for c, _ in invented:
         c["value"] = ""
     blanked = [v for _, v in invented]
