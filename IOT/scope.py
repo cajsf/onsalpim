@@ -32,6 +32,8 @@ scope.py — 규칙의 '적용 세대 범위'와 '세대별 예외'를 검증하
     plan   = scope.expand(rule, devices)     # 세대별 실행 계획 = 추적표/승인화면의 데이터
 """
 
+import re
+
 # 무활동 판정 전용 연산자. "마지막 활동 이후 N분 경과"를 뜻한다.
 # 일반 비교(>, < ...)와 달리 센서값이 아니라 '경과 시간'을 본다.
 #
@@ -446,6 +448,38 @@ def expand(rule, devices):
             "applicable": dev is not None,
         })
     return plan
+
+
+# 담당자가 되묻기에 답할 때 "8시간"이라고 쓰는 것이 자연스럽다. 저장은 분이지만 입력까지 분을 강요하지 않는다.
+# 계산은 코드가 한다 — 이 값은 AI를 거치지 않는다 (되묻는 이유가 'AI가 값을 정하면 안 된다'는 것이기 때문이다).
+_DUR = re.compile(r"(\d+(?:\.\d+)?)\s*(시간|분)")
+
+
+def parse_duration(text):
+    """사람이 쓴 시간 표현 → 분. 못 읽으면 None.
+
+    "8시간"→480  "90분"→90  "1시간 30분"→90  "2시간 반"→150  "하루"→1440  "480"→480
+    숫자만 있으면 분으로 본다 (저장 단위가 분이고, 화면 안내도 분으로 적혀 있다).
+    """
+    t = str(text or "").strip()
+    if not t:
+        return None
+    if t in ("하루", "온종일", "종일"):
+        return 1440.0
+    if t in ("반나절", "한나절"):
+        return 720.0
+    total, found = 0.0, False
+    for num, unit in _DUR.findall(t):
+        total += float(num) * (60 if unit == "시간" else 1)
+        found = True
+    if found:
+        if "반" in t.split("시간")[-1]:      # "2시간 반"
+            total += 30
+        return total
+    try:
+        return float(t)                      # 숫자만 쓴 경우 — 분
+    except ValueError:
+        return None
 
 
 def _fmt_minutes(value):

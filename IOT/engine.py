@@ -705,7 +705,17 @@ def approve_rule(rule_id, fill_value=None, by="복지사", replace=False, device
         return {"ok": False, "errors": [f"규칙 #{rule_id}을 찾을 수 없습니다."]}
 
     if fill_value is not None and str(fill_value).strip():
-        target["rule"].setdefault("when", {})["value"] = str(fill_value).strip()
+        raw = str(fill_value).strip()
+        if (target["rule"].get("when") or {}).get("op") == scope.IDLE_OP:
+            # 무활동 기준은 분으로 저장한다. 담당자는 "8시간"이라고 써도 된다 — 변환은 코드가 한다
+            minutes = scope.parse_duration(raw)
+            if minutes is None:
+                return {"ok": False, "errors": [
+                    f"기준값 '{raw}'을 읽지 못했습니다. '8시간', '90분', '1시간 30분' 처럼 적어 주세요."]}
+            if minutes <= 0:
+                return {"ok": False, "errors": [f"기준값은 0보다 커야 합니다 ('{raw}')."]}
+            raw = str(int(minutes)) if float(minutes).is_integer() else str(minutes)
+        target["rule"].setdefault("when", {})["value"] = raw
         target["questions"] = []
 
     if not str((target["rule"].get("when") or {}).get("value", "")).strip():

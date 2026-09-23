@@ -512,3 +512,32 @@ try:
 finally:
     engine.tr.translate = _real4
 print("  ✅ 지우기: 말로 받지 않고 어디서 지우는지 안내 (AI 호출 없음, 데이터 그대로)")
+
+# ── 되묻기 답을 "8시간"처럼 사람 말로 받는다 (2026-09-23) ──
+assert scope.parse_duration("8시간") == 480
+assert scope.parse_duration("90분") == 90
+assert scope.parse_duration("1시간 30분") == 90
+assert scope.parse_duration("2시간 반") == 150
+assert scope.parse_duration("하루") == 1440
+assert scope.parse_duration("480") == 480, "숫자만 쓰면 분으로 본다"
+assert scope.parse_duration("여덟시간") is None, "못 읽으면 저장하지 말고 다시 묻는다"
+engine.save_rules([{
+    "id": 1, "sentence": "오래 움직임이 없으면 긴급으로 알려줘",
+    "rule": {"scope": {"homes": "ALL"},
+             "when": {"path": "", "type": "motion", "op": scope.IDLE_OP, "value": ""},
+             "and": [], "then": [{"path": "", "value": "", "severity": "URGENT"}], "overrides": {}},
+    "enabled": True, "status": "pending", "questions": ["기준값이 없습니다"]}])
+res = engine.approve_rule(1, fill_value="8시간", devices=TREE)
+assert res["ok"], res
+assert engine.load_rules()[0]["rule"]["when"]["value"] == "480", "8시간은 480분으로 저장한다"
+
+engine.save_rules([{
+    "id": 2, "sentence": "오래 움직임이 없으면 긴급으로 알려줘",
+    "rule": {"scope": {"homes": "ALL"},
+             "when": {"path": "", "type": "motion", "op": scope.IDLE_OP, "value": ""},
+             "and": [], "then": [{"path": "", "value": "", "severity": "URGENT"}], "overrides": {}},
+    "enabled": True, "status": "pending", "questions": ["기준값이 없습니다"]}])
+res = engine.approve_rule(2, fill_value="여덟시간", devices=TREE)
+assert not res["ok"] and "읽지 못했습니다" in res["errors"][0], res
+assert engine.load_rules()[0]["rule"]["when"]["value"] == "", "못 읽으면 아무것도 저장하지 않는다"
+print("  ✅ 되묻기 답: '8시간'을 480분으로 바꿔 저장, 못 읽으면 되묻기")

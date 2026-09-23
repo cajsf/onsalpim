@@ -712,7 +712,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 <div class="pending-act">
                   <input
                     v-if="r.questions && r.questions.length"
-                    v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
+                    v-model="fillValue" class="fill" type="text" placeholder="기준값 (예: 8시간, 90분, 480)"
                   />
                   <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? (((r.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((r.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
                   <button class="btn primary" :disabled="(r.conflicts || []).some((c) => !c.covers_all)"
@@ -899,7 +899,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <div class="summary-act">
                 <input
                   v-if="lastResult.status === 'needs_clarification'"
-                  v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
+                  v-model="fillValue" class="fill" type="text" placeholder="기준값 (예: 8시간, 90분, 480)"
                 />
                 <button class="btn ghost" :class="{ danger: confirmingId === lastResult.id }" :disabled="ruleBusy === lastResult.id" @click="reject(lastResult.id)">{{ confirmingId === lastResult.id ? (((lastResult.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((lastResult.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
                 <button class="btn primary" :disabled="(lastResult.conflicts || []).some((c) => !c.covers_all)"
@@ -1004,7 +1004,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div class="pending-act">
               <input
                 v-if="r.questions && r.questions.length"
-                v-model="fillValue" class="fill" type="text" placeholder="기준값 · 분 (예: 480 = 8시간)"
+                v-model="fillValue" class="fill" type="text" placeholder="기준값 (예: 8시간, 90분, 480)"
               />
               <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? (((r.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((r.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
               <button class="btn primary" :disabled="(r.conflicts || []).some((c) => !c.covers_all)"
