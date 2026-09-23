@@ -552,6 +552,38 @@
   },
   "sentence": "101호가 시원해지면 창문을 닫아줘"
  },
+ "14e64aed9ee81d92300171024b563241b83f661e": {
+  "at": "2026-09-23T09:27:29",
+  "feedback": null,
+  "latency_s": 3.25,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "현재 시스템은 예외 설정을 삭제하는 기능을 지원하지 않습니다.",
+   "intent": "set_override",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 예외 지워줘"
+ },
  "18f55a3b92588c14f28616c8ccbf44a8486b4a50": {
   "at": "2026-09-22T16:20:52",
   "feedback": null,
@@ -3596,6 +3628,38 @@
   },
   "sentence": "101호 온도가 서른 도 넘으면 불 켜줘"
  },
+ "b41d9ef6821f16ced50afeb2402e52f4300695c6": {
+  "at": "2026-09-23T09:27:43",
+  "feedback": null,
+  "latency_s": 2.99,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "현재 시스템은 규칙 삭제 기능을 지원하지 않습니다.",
+   "intent": "create_rule",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "8시간 규칙 삭제해줘"
+ },
  "b42006e2320a0618bef26bd068173f00adcd2de7": {
   "at": "2026-09-22T16:21:19",
   "feedback": null,
@@ -4004,6 +4068,38 @@
    }
   },
   "sentence": "한참 동안 안 움직이면 알려줘"
+ },
+ "cb8ad247e28cb1b9511e1a089fcc60eedc808326": {
+  "at": "2026-09-23T09:27:36",
+  "feedback": null,
+  "latency_s": 3.12,
+  "model": "gemini-3.1-flash-lite",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "reset",
+    "value": "default"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호는 이제 공통 기준으로 돌려줘"
  },
  "cbea246b27404679d8fa05b0d4a44f8e8c189a65": {
   "at": "2026-09-23T09:07:41",

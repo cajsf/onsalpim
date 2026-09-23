@@ -491,3 +491,24 @@ try:
 finally:
     engine.tr.translate = _real3
 print("  ✅ 상대 변경: '30분 줄여줘'를 지금 기준에서 계산 (30분으로 바꾸지 않는다)")
+
+# ── 지우는 요청은 말로 받지 않는다 (2026-09-23) ──
+assert engine._delete_request("102호 예외 지워줘") and "102호" in engine._delete_request("102호 예외 지워줘")
+assert engine._delete_request("102호는 이제 공통 기준으로 돌려줘"), "'공통 기준으로 돌려줘'도 지우는 요청이다"
+assert engine._delete_request("8시간 규칙 삭제해줘")
+assert engine._delete_request("102호 기준 30분 줄여줘") is None, "바꾸는 것은 지우는 게 아니다"
+assert engine._delete_request("전체 세대에서 8시간 무활동이면 긴급") is None
+_real4 = engine.tr.translate
+try:
+    _called = []
+    engine.tr.translate = lambda *a, **k: _called.append(1) or {"ok": False, "error": "x"}
+    _saved = copy.deepcopy(_base)
+    _saved[0]["rule"]["overrides"] = {"102": {"value": "180"}}
+    engine.save_rules(_saved)
+    res = engine.add_rule_from_sentence("102호 예외 지워줘", TREE)
+    assert res["status"] == "rejected" and "두 번 눌러" in res["errors"][0], res
+    assert not _called, "지우는 요청은 AI를 부르지도 않는다"
+    assert engine.load_rules()[0]["rule"]["overrides"], "예외는 그대로 있어야 한다"
+finally:
+    engine.tr.translate = _real4
+print("  ✅ 지우기: 말로 받지 않고 어디서 지우는지 안내 (AI 호출 없음, 데이터 그대로)")

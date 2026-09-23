@@ -187,6 +187,12 @@ def _apply_override(sentence, out, devices, steps):
     matches = _find_override_target(ov_type, rules)
 
     if not matches:
+        known_types = {d["meta"].get("type") for d in devices if d["meta"].get("kind") == "sensor"}
+        if ov_type not in known_types:
+            # AI가 없는 기준 이름을 만들어낸 경우 — 그 이름을 그대로 보여주면 복지사가 오해한다
+            return _stop(steps, OVERRIDE_STEPS,
+                         [f"무슨 기준을 바꾸라는 말인지 알 수 없습니다. "
+                          f"쓸 수 있는 기준: {', '.join(sorted(t for t in known_types if t)) or '없음'}"])
         return _stop(steps, OVERRIDE_STEPS,
                      [f"'{ov_type}' 기준을 쓰는 공통 규칙이 없습니다. "
                       f"먼저 전체 세대 규칙을 만들어 주세요."])
@@ -455,6 +461,23 @@ def available_context(devices):
                              if d["meta"].get("kind") == "sensor" and d["meta"].get("type")})}
 
 
+# 지우는 일은 말로 받지 않는다. 화면에서 두 번 눌러야 지워지고, 누가 언제 지웠는지 남는다.
+# 말로 받으면 AI가 대상을 잘못 짚어도 되돌릴 수 없다 — 규칙이 사라지면 그 세대는 아무도 안 본다.
+# AI에게 물어볼 것도 없어 호출 전에 여기서 멈춘다 (2026-09-23: "102호 예외 지워줘"에 AI가 'reset'
+# 이라는 없는 기준을 만들어내 엉뚱한 안내가 나갔다).
+_DELETING = re.compile(r"(지워|지우|삭제|없애|해제|취소|되돌려|돌려놔|돌려줘|원래대로|공통 기준으로)")
+
+
+def _delete_request(sentence):
+    """지워달라는 말인가. 맞으면 어디서 지우는지 알려줄 안내 문장."""
+    if not _DELETING.search(sentence):
+        return None
+    home = next(iter(re.findall(r"(\d{3,4})\s*호", sentence)), None)
+    where = f"{home}호 예외는 세대 관리 → {home}호" if home else "규칙 관리 화면"
+    return (f"지우는 것은 말로 받지 않습니다. {where} 에서 [예외 삭제] 또는 [규칙 삭제] 를 두 번 눌러 주세요. "
+            f"누가 언제 지웠는지 기록됩니다.")
+
+
 def add_rule_from_sentence(sentence, devices, retry=1):
     """문장 → 번역 → 검증 → 통과하면 저장.
 
@@ -464,6 +487,11 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     steps 는 대시보드에서 파이프라인을 단계별로 보여준다.
     """
     steps = []
+
+    # 0) 지워달라는 말은 AI에게 보내지 않는다 — 어디서 지우는지 알려주고 멈춘다
+    deleting = _delete_request(sentence)
+    if deleting:
+        return _stop(steps, CREATE_STEPS, [deleting], reason="지우는 요청은 화면에서 처리")
 
     # 1) LLM 번역
     out = tr.translate(sentence, devices)

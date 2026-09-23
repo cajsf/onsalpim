@@ -817,6 +817,32 @@
     "outcome": "clarify"
    },
    "note": "480분에서 600분을 빼면 음수. 계산해서 저장하면 안 된다."
+  },
+  {
+   "id": "d01",
+   "cat": "지우기",
+   "sentence": "102호 예외 지워줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "지우는 일은 화면에서 두 번 눌러야 한다. 말로 받으면 AI가 대상을 잘못 짚어도 되돌릴 수 없다."
+  },
+  {
+   "id": "d02",
+   "cat": "지우기",
+   "sentence": "102호는 이제 공통 기준으로 돌려줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "예외 삭제를 돌려 말한 것. AI는 'reset' 이라는 없는 기준을 만들어냈었다."
+  },
+  {
+   "id": "d03",
+   "cat": "지우기",
+   "sentence": "8시간 규칙 삭제해줘",
+   "expect": {
+    "outcome": "reject"
+   }
   }
  ]
 }
