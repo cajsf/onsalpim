@@ -303,9 +303,16 @@ _ASKING = re.compile(r"(말씀해|알려\s*주|지정해|입력해|명시해|어
 _REFUSING = re.compile(r"(없습니다|없어|없는|지원하지 않|할 수 없|불가능|불가합)")
 
 
-def _is_question(error):
-    """AI의 거절이 '정보를 더 달라'는 되묻기인가. 못 한다고 말했으면 되묻기가 아니다."""
-    e = (error or "").strip()
+def _is_question(out):
+    """AI가 '정보를 더 달라'고 되물은 것인가 (못 만들겠다는 거절과 구분).
+
+    모델이 need 칸에 직접 적는다. 그 칸을 안 채우는 모델(작은 로컬 모델 등)만 이유 문장으로 짐작한다 —
+    7차에서 문장만 읽었다가 같은 뜻의 다른 문구("시간 값이 필요합니다")에 빗나갔다.
+    """
+    need = str(out.get("need") or "").strip().lower()
+    if need in ("ask", "impossible"):
+        return need == "ask"
+    e = str(out.get("error") or "").strip()
     return bool(_ASKING.search(e)) and not _REFUSING.search(e)
 
 
@@ -441,7 +448,7 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
     if not llm_ok:
         msg = out.get("error") or "LLM이 거부함"
-        if _is_question(msg):
+        if _is_question(out):
             # 거부가 아니라 되묻기 — 복지사가 한 줄 더 쓰면 되는 상황이다
             steps[-1]["status"] = "warn"
             return _stop(steps, flow, [], questions=[msg], reason="되물어야 해서 멈춤")

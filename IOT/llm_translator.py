@@ -96,6 +96,9 @@ RESPONSE_SCHEMA = {
     "properties": {
         "ok": {"type": "boolean"},
         "error": {"type": "string"},   # ok=false 일 때 한국어 이유
+        # ok=false 일 때 '왜 못 만들었나' — ask(빠진 정보를 물어야 함) | impossible(장치가 없어 불가)
+        # 이유 문장을 코드가 읽어 맞히던 것을 모델이 직접 말하게 한 것이다 (7차에서 라이브 문구가 달라 빗나갔다)
+        "need": {"type": "string"},
         "intent": {"type": "string"},  # create_rule | set_override
         "rule": {
             "type": "object",
@@ -135,7 +138,7 @@ RESPONSE_SCHEMA = {
             "required": ["home", "type", "value"],
         },
     },
-    "required": ["ok", "error", "intent", "rule", "override"],
+    "required": ["ok", "error", "need", "intent", "rule", "override"],
 }
 
 
@@ -211,6 +214,11 @@ def _build_prompt(sentence, devices):
 4. 안 쓰는 필드는 반드시 빈 문자열 "" 로 채운다. (path/type/severity/home 등)
 5. ok=false(거부)일 때도 형식상 채워야 하니 rule 과 override 의 값은 전부 "" / [] 로 두고,
    거부 이유는 error 에만 적는다. intent 는 "create_rule" 로 둔다.
+6. ok=false 이면 need 에 둘 중 하나를 적는다. ok=true 이면 need 는 "" 로 둔다.
+   - "ask"        : 담당자가 한 줄 더 말해주면 만들 수 있는 경우
+                    (어느 센서인지, 몇 분인지, 주의인지 긴급인지 등 빠진 정보를 물어야 할 때)
+   - "impossible" : 등록된 세대·장치로는 만들 수 없어 담당자가 다른 방법을 찾아야 하는 경우
+                    (예: 가스 센서가 없다, 한 규칙에 기준을 둘 넣을 수 없다)
 
 [사용자 문장]
 {sentence}
