@@ -476,7 +476,10 @@ def _invented_thresholds(sentence, rule, devices=None):
 # ponytail: 표현이 열려 있어("119 부를 정도로") 표로 다 담을 수 없다. 표에 없으면 되묻는 쪽으로 틀린다 —
 # 거부가 아니라 "주의인가요 긴급인가요"를 묻는 것이라 한 번 더 누르면 된다.
 SEVERITY_WORDS = ("긴급", "응급", "위급", "심각", "즉시", "바로", "당장", "119",
-                  "주의", "살펴", "확인", "체크", "관찰", "한번", "한 번")
+                  "주의", "살펴", "확인", "체크", "관찰", "한번", "한 번",
+                  # 17차(z03): "점검 필요로 표시해줘"의 위험도를 비워버려서, '무활동에는 점검 필요를
+                  # 쓸 수 없다'는 검사가 돌지 못하고 되묻기로 끝났다. 말한 위험도는 비우지 않는다.
+                  "점검", "고장", "기기")
 
 
 def _invented_severity(sentence, rule):
@@ -521,6 +524,42 @@ def _delete_request(sentence):
 _REPEATING = re.compile(r"(매일|매주|매시간|매번|아침마다|저녁마다|밤마다|낮마다|날마다|정기적으로|주기적으로)")
 
 
+# 돌봄 규칙은 '센서 종류 + 경과 시간'만 본다. "밤 10시 이후에만" 같은 시간대 조건을 넣을 자리가 없다.
+# 17차(z01)에서 AI가 시간대를 조용히 버리고 무활동 규칙만 만들었다 — 복지사는 밤에만 본다고 믿는데
+# 실제로는 하루 종일 발동한다. 말한 것보다 넓게 적용되는 규칙이라 그냥 두면 안 된다.
+# ponytail: 단어 표다. "8시간 동안"처럼 길이를 말하는 표현은 걸리지 않게 '시각 + 이후/부터/까지'로 좁혔다.
+_TIME_WINDOW = re.compile(r"(밤|새벽|아침|저녁|낮|오전|오후|한밤|심야)\s*(에|에만|이후|부터|까지|동안)"
+                          r"|\d+\s*시\s*(이후|부터|까지|에|넘어)")
+
+
+# 생활 상태로 범위를 좁히는 말 — "자고 있을 때 빼고", "식사 중일 때만".
+# 우리는 움직임 신호만 본다. 자는지 먹는지 알 방법이 없다.
+# 19차(v02)에서 AI가 이 조건을 조용히 버리고 규칙을 만들었다 — 복지사는 밤에는 안 울린다고 믿게 된다.
+# ponytail: 단어 표라 열려 있다. 표에 없는 표현은 그냥 지나가므로 '막는 근거'가 아니라 '아는 것만 잡기'다.
+_LIFE_STATE = re.compile(r"(자고|잘 때|주무|수면|식사|밥 먹|외출|샤워|목욕|티비|TV|산책|낮잠)"
+                         r".{0,6}(빼고|제외|아닐 때|아닌 때|때만|중에는|중엔)")
+
+
+def _life_state_condition(sentence):
+    """생활 상태로 조건을 좁히려는 문장인가. 맞으면 왜 못 만드는지 알려줄 문장."""
+    if not _LIFE_STATE.search(sentence):
+        return None
+    return ("'자고 있을 때', '식사 중' 같은 생활 상태는 판단할 수 없습니다. "
+            "이 시스템이 아는 것은 움직임이 있었는지와 마지막 활동 이후 얼마가 지났는지뿐입니다. "
+            "그 조건을 빼고 말씀해 주세요.")
+
+
+def _time_window_care(sentence, rule):
+    """돌봄 규칙에 시간대 조건이 붙었는가. 붙었으면 왜 못 만드는지 알려줄 문장."""
+    if (rule.get("when") or {}).get("op") != scope.IDLE_OP:
+        return None                      # 제어 규칙은 system/hour 로 시간 조건을 쓸 수 있다
+    if not _TIME_WINDOW.search(sentence):
+        return None
+    return ("돌봄 규칙에는 시간대 조건(밤·오전처럼)을 넣을 수 없습니다. "
+            "지금 구조에서는 '센서 종류 + 몇 시간 동안 움직임 없음'만 판단합니다 — "
+            "시간대를 빼고 말씀해 주시거나, 시간대가 꼭 필요하면 담당자에게 알려 주세요.")
+
+
 def _repeating_request(sentence):
     """반복 일정 요청인가. 맞으면 왜 못 만드는지 알려줄 문장."""
     if not _REPEATING.search(sentence):
@@ -548,6 +587,11 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     repeating = _repeating_request(sentence)
     if repeating:
         return _stop(steps, CREATE_STEPS, [repeating], reason="반복 일정은 지원하지 않음")
+
+    # 0-c) 생활 상태로 조건을 좁히는 것도 만들 수 없다
+    life = _life_state_condition(sentence)
+    if life:
+        return _stop(steps, CREATE_STEPS, [life], reason="생활 상태 조건은 판단할 수 없음")
 
     # 1) LLM 번역
     out = tr.translate(sentence, devices)
@@ -630,6 +674,12 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
     # 2-c) 문장에 없는 기준값은 AI가 지어낸 것 — 비워서 되묻기로 돌린다.
     #      비우지 않으면 복지사가 승인만 눌러도 AI가 지어낸 28도가 그대로 실행된다.
+    # 2-b') 돌봄 규칙에 시간대 조건을 붙였는가 — AI가 조용히 버린 조건이 있으면 저장하지 않는다
+    narrower = _time_window_care(sentence, out["rule"])
+    if narrower:
+        steps.append({"id": "scope", "label": STEP_LABELS["scope"], "status": "fail", "detail": narrower})
+        return _stop(steps, CREATE_STEPS, [narrower], reason="시간대 조건은 지원하지 않음")
+
     invented = _invented_thresholds(sentence, out["rule"], devices)
     for c, _ in invented:
         c["value"] = ""

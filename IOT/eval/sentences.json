@@ -1371,6 +1371,329 @@
     "outcome": "clarify"
    },
    "note": "무엇을 얼마나인지 없다."
+  },
+  {
+   "id": "z01",
+   "cat": "구조 밖 조건",
+   "sentence": "밤 10시 이후에 2시간 동안 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "돌봄 규칙은 센서 종류와 경과 시간만 본다. 시간대 조건을 붙일 자리가 없다 — 무시하고 만들면 복지사가 '밤에만 본다'고 믿게 된다."
+  },
+  {
+   "id": "z02",
+   "cat": "규칙 아님",
+   "sentence": "1시간이면 주의, 2시간이면 긴급, 3시간이면 점검 필요로 해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "한 문장에 규칙이 셋이고, 점검 필요는 기기 상태 전용이다."
+  },
+  {
+   "id": "z03",
+   "cat": "위험도 종류",
+   "sentence": "전체 세대에서 3시간 동안 움직임이 없으면 점검 필요로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "점검 필요는 통신·배터리 같은 기기 문제에만 쓴다. 무활동에 붙이면 사람 문제가 기기 문제로 보인다."
+  },
+  {
+   "id": "z04",
+   "cat": "센서 없음",
+   "sentence": "202호 온도가 30도 넘으면 202호 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "202호에는 온도 센서도 조명도 없다."
+  },
+  {
+   "id": "z05",
+   "cat": "이중 단위",
+   "sentence": "전체 세대에서 8시간 30분 동안 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 510,
+     "severity": "URGENT"
+    }
+   }
+  },
+  {
+   "id": "z06",
+   "cat": "돌봄·기기",
+   "sentence": "201호 배터리가 15 아래로 떨어지면 주의로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "배터리 위험도는 판정 엔진이 고정값으로 본다 (c12·p09 와 같은 이유)."
+  },
+  {
+   "id": "z07",
+   "cat": "액추에이터를 조건으로",
+   "sentence": "101호 조명이 켜져 있으면 창문을 90도로 열어줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "조명은 명령을 받는 장치지 값을 보고하는 센서가 아니다."
+  },
+  {
+   "id": "z08",
+   "cat": "동작 값 모호",
+   "sentence": "101호 온도가 30도 넘으면 창문 반만 열어줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "'반'이 몇 도인지는 사람이 정해야 한다 (90도인지 다른 값인지)."
+  },
+  {
+   "id": "z09",
+   "cat": "종류 불일치",
+   "sentence": "101호 온도가 8시간 넘으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "온도에 시간을 비교하고 있다."
+  },
+  {
+   "id": "z10",
+   "cat": "예외 열거",
+   "sentence": "101호와 102호만 무활동 기준을 6시간으로 바꿔줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "예외는 세대 하나에 붙는다 (p14 와 같은 이유). 둘을 한 번에 바꿀 수 없다."
+  },
+  {
+   "id": "z11",
+   "cat": "과한 값",
+   "sentence": "전체 세대에서 1000시간 동안 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 60000,
+     "severity": "URGENT"
+    }
+   },
+   "note": "41일이라 실무적으로 무의미하지만 시스템이 막을 근거는 없다. 결과를 보고 상한 검사를 넣을지 정한다."
+  },
+  {
+   "id": "z12",
+   "cat": "짧은 값",
+   "sentence": "전체 세대에서 0.5분 동안 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 0.5,
+     "severity": "URGENT"
+    }
+   },
+   "note": "전시에서는 짧은 기준을 쓴다. 0보다 크면 받는다."
+  },
+  {
+   "id": "z13",
+   "cat": "모순 조건",
+   "sentence": "101호 온도가 30도 넘고 20도 아래면 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "동시에 참일 수 없는 조건이다. 저장되면 영원히 발동하지 않는 규칙이 생긴다."
+  },
+  {
+   "id": "z14",
+   "cat": "제어 불가",
+   "sentence": "101호 습도를 50%로 맞춰줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "습도 센서는 읽기만 한다. 습도를 바꾸는 장치가 없다."
+  },
+  {
+   "id": "v01",
+   "cat": "조건 축소",
+   "sentence": "평일에만 8시간 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "요일 조건도 돌봄 규칙에 넣을 자리가 없다. 조용히 버리면 주말에도 발동한다 (z01 과 같은 종류)."
+  },
+  {
+   "id": "v02",
+   "cat": "조건 축소",
+   "sentence": "101호는 자고 있을 때 빼고 2시간 움직임 없으면 알려줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "'자고 있을 때'를 판단할 방법이 없다. 무시하고 만들면 밤마다 알림이 간다."
+  },
+  {
+   "id": "v03",
+   "cat": "사람 대상",
+   "sentence": "김할머니가 8시간 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "정답을 '거부'에서 '되묻기'로 바꿨다 (19차). 담당자가 호수를 답해주면 만들 수 있다. 시스템이 이름을 모르는 것과 만들 수 없는 것은 다르다. 우리가 정한 정답이 틀린 다섯 번째 경우다."
+  },
+  {
+   "id": "v04",
+   "cat": "수신자 지정",
+   "sentence": "전체 세대 8시간 무활동이면 보호자에게 문자 보내줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "문자 발송 기능이 없다. 있는 것처럼 저장되면 아무도 연락받지 못한다."
+  },
+  {
+   "id": "v05",
+   "cat": "조건부 동작",
+   "sentence": "101호 온도가 30도 넘으면 창문을 90도로 열고 30분 뒤에 닫아줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "지연 동작(30분 뒤)은 지원하지 않는다. 앞부분만 만들면 창문이 계속 열려 있다."
+  },
+  {
+   "id": "v06",
+   "cat": "센서 이름 직접",
+   "sentence": "h101_temp 가 30 넘으면 h101_led 를 ON 으로",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   },
+   "note": "담당자가 컨테이너 이름을 그대로 쓰는 경우. 트리에 있으므로 받아야 한다."
+  },
+  {
+   "id": "v07",
+   "cat": "상대 변경",
+   "sentence": "102호 기준을 30분 더 길게 해줘",
+   "expect": {
+    "outcome": "override",
+    "override": {
+     "home": "102",
+     "value": 510
+    }
+   },
+   "note": "'더 길게'도 상대 변경이다. 8시간 + 30분."
+  },
+  {
+   "id": "v08",
+   "cat": "상대 변경",
+   "sentence": "102호 기준을 절반으로 줄여줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "'절반'은 나눗셈이다. 더하기·빼기만 하므로 얼마로 할지 물어야 한다 (y11 과 같은 종류)."
+  },
+  {
+   "id": "v09",
+   "cat": "값 없는 비교",
+   "sentence": "101호가 너무 추우면 불 켜줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "'너무 추우면'에 숫자가 없다."
+  },
+  {
+   "id": "v10",
+   "cat": "세대 범위",
+   "sentence": "2층 빼고 나머지 세대는 6시간 무활동이면 주의로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 360,
+     "severity": "WATCH"
+    }
+   },
+   "note": "빼기로 지정한 범위. 1층 두 세대만 남는다."
+  },
+  {
+   "id": "v11",
+   "cat": "중복 지정",
+   "sentence": "101호 101호 6시간 무활동이면 주의로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 360,
+     "severity": "WATCH"
+    }
+   },
+   "note": "같은 세대를 두 번 말해도 한 번으로 친다."
+  },
+  {
+   "id": "v12",
+   "cat": "단위 혼동",
+   "sentence": "전체 세대에서 8시간 동안 움직임이 없으면 30분 뒤에 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "지연 표시도 지원하지 않는다 (v05 와 같은 종류)."
+  },
+  {
+   "id": "v13",
+   "cat": "빈 입력",
+   "sentence": "규칙 만들어줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "무엇을 만들지 되물어야 한다."
+  },
+  {
+   "id": "v14",
+   "cat": "따옴표·특수문자",
+   "sentence": "\"101호\" 온도가 30도 넘으면 불 켜줘!!!",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   }
   }
  ]
 }

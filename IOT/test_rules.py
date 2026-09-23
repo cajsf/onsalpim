@@ -615,3 +615,27 @@ _open = {"when": {"path": "Mobius/byeongari/h101_temp", "op": ">", "value": "30"
 assert engine._invented_thresholds("101호 온도가 30도 넘으면 창문 열어줘", _open), \
     "'열어줘'는 각도가 여러 개다 — 90은 지어낸 값이다"
 print("  ✅ 닫는 동작(0)은 통과, 여는 동작의 각도는 되묻기")
+
+# ── 17차: 돌봄 규칙에 시간대 조건은 붙일 수 없다 ──
+_idle = {"when": {"path": "", "type": "motion", "op": scope.IDLE_OP, "value": "120"}, "and": [],
+         "then": [{"path": "", "value": "", "severity": "URGENT"}], "scope": {"homes": "ALL"}}
+assert engine._time_window_care("밤 10시 이후에 2시간 동안 움직임이 없으면 긴급으로 표시해줘", _idle)
+assert engine._time_window_care("전체 세대에서 8시간 동안 움직임이 없으면 긴급으로 표시해줘", _idle) is None, \
+    "'8시간 동안'은 길이지 시간대가 아니다"
+assert engine._time_window_care("여덟 시간 넘게 움직임이 없으면 바로 알려주세요", _idle) is None
+_ctrl = {"when": {"path": "system/hour", "op": ">=", "value": "22"}, "and": [],
+         "then": [{"path": "M/led", "value": "ON"}]}
+assert engine._time_window_care("밤 10시 넘으면 101호 불 켜줘", _ctrl) is None, \
+    "제어 규칙은 시간 조건을 쓸 수 있다"
+# 위험도를 말했으면 비우지 않는다 — 그래야 '무활동에 점검 필요' 검사가 돈다
+assert engine._invented_severity("3시간 움직임이 없으면 점검 필요로 표시해줘",
+                                 dict(_idle, then=[{"severity": "CHECK_DEVICE"}])) == []
+print("  ✅ 시간대 조건 차단, '점검 필요'는 말한 위험도로 인정")
+
+# ── 19차: 생활 상태로 조건을 좁히는 문장은 만들 수 없다 ──
+assert engine._life_state_condition("101호는 자고 있을 때 빼고 2시간 움직임 없으면 알려줘")
+assert engine._life_state_condition("식사 중일 때만 빼고 알려줘")
+assert engine._life_state_condition("2층 빼고 나머지 세대는 6시간 무활동이면 주의") is None, \
+    "세대를 빼는 것은 범위 지정이지 생활 상태가 아니다"
+assert engine._life_state_condition("전체 세대에서 8시간 움직임이 없으면 긴급") is None
+print("  ✅ 생활 상태 조건(자고 있을 때 빼고)은 만들 수 없다고 알려준다")
