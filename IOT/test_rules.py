@@ -639,3 +639,28 @@ assert engine._life_state_condition("2층 빼고 나머지 세대는 6시간 무
     "세대를 빼는 것은 범위 지정이지 생활 상태가 아니다"
 assert engine._life_state_condition("전체 세대에서 8시간 움직임이 없으면 긴급") is None
 print("  ✅ 생활 상태 조건(자고 있을 때 빼고)은 만들 수 없다고 알려준다")
+
+# ── 21차: 사람이 말한 단위와 센서 단위가 어긋나면 막는다 ──
+import validator as _v2
+_by = {"M/h101_humi": {"type": "humidity", "unit": "%", "home": "101"},
+       "M/h101_temp": {"type": "temperature", "unit": "C", "home": "101"}}
+_humi = {"when": {"path": "M/h101_humi", "op": ">", "value": "30"}, "and": []}
+assert _v2._check_unit_match(_humi, _by, "101호 습도가 30도 넘으면 불 켜줘"), "습도에 '도'는 단위가 다르다"
+_humi80 = {"when": {"path": "M/h101_humi", "op": ">", "value": "80"}, "and": []}
+assert _v2._check_unit_match(_humi80, _by, "101호 습도가 80퍼센트 넘으면 창문을 90도로 열어줘") == [], \
+    "문장 뒤쪽의 '90도'는 창문 각도지 습도 단위가 아니다"
+_temp = {"when": {"path": "M/h101_temp", "op": ">", "value": "30"}, "and": []}
+assert _v2._check_unit_match(_temp, _by, "101호 온도가 30도 넘으면 불 켜줘") == []
+assert _v2._check_unit_match(_temp, _by, "101호 온도가 30 넘으면 불 켜줘") == [], "단위를 안 말했으면 판단하지 않는다"
+print("  ✅ 단위 대조: 습도에 '도', 온도에 '퍼센트'를 막는다")
+
+# ── 23차: '또는' 조건은 and 로 저장하면 뜻이 달라진다 ──
+_two = {"when": {"path": "M/h101_temp", "op": ">", "value": "30"},
+        "and": [{"path": "M/h101_humi", "op": ">", "value": "80"}],
+        "then": [{"path": "M/h101_window", "value": "120"}]}
+assert engine._or_condition("101호 온도가 30도 넘거나 습도가 80% 넘으면 창문을 120도로 열어줘", _two)
+assert engine._or_condition("101호 온도가 30도 넘고 습도도 80% 넘으면 창문을 120도로 열어줘", _two) is None
+_one = dict(_two, **{"and": []})
+assert engine._or_condition("101호나 102호가 더우면 불 켜줘", _one) is None, \
+    "조건이 하나면 '나'는 세대 열거지 조건 연결이 아니다"
+print("  ✅ '또는' 조건은 만들지 않고 규칙을 나누라고 안내")

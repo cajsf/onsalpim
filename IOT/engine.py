@@ -540,6 +540,22 @@ _LIFE_STATE = re.compile(r"(자고|잘 때|주무|수면|식사|밥 먹|외출|�
                          r".{0,6}(빼고|제외|아닐 때|아닌 때|때만|중에는|중엔)")
 
 
+# 규칙은 '모든 조건이 참일 때' 발동한다(and). "또는"은 지원하지 않는다.
+# 23차(t09): "온도가 30도 넘거나 습도가 80% 넘으면"을 and 로 저장했다 — 둘 다 참일 때만 움직이므로
+# 복지사가 기대한 것보다 덜 발동한다. 놓치는 쪽으로 틀리는 것이라 그냥 두면 안 된다.
+_OR_COND = re.compile(r"(거나|또는|혹은|이든|든지)")
+
+
+def _or_condition(sentence, rule):
+    """조건을 '또는'으로 이었는가. 맞으면 왜 못 만드는지 알려줄 문장."""
+    if not (rule.get("and") or []):
+        return None                      # 조건이 하나면 and/or 구분이 의미 없다
+    if not _OR_COND.search(sentence):
+        return None
+    return ("'또는' 으로 이은 조건은 만들 수 없습니다. 규칙은 조건이 모두 맞을 때 발동합니다 — "
+            "조건마다 규칙을 따로 만들어 주세요.")
+
+
 def _life_state_condition(sentence):
     """생활 상태로 조건을 좁히려는 문장인가. 맞으면 왜 못 만드는지 알려줄 문장."""
     if not _LIFE_STATE.search(sentence):
@@ -674,6 +690,12 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
     # 2-c) 문장에 없는 기준값은 AI가 지어낸 것 — 비워서 되묻기로 돌린다.
     #      비우지 않으면 복지사가 승인만 눌러도 AI가 지어낸 28도가 그대로 실행된다.
+    # 2-b'') 조건을 '또는'으로 이었는가 — and 로 저장하면 뜻이 달라진다
+    ored = _or_condition(sentence, out["rule"])
+    if ored:
+        steps.append({"id": "scope", "label": STEP_LABELS["scope"], "status": "fail", "detail": ored})
+        return _stop(steps, CREATE_STEPS, [ored], reason="'또는' 조건은 지원하지 않음")
+
     # 2-b') 돌봄 규칙에 시간대 조건을 붙였는가 — AI가 조용히 버린 조건이 있으면 저장하지 않는다
     narrower = _time_window_care(sentence, out["rule"])
     if narrower:

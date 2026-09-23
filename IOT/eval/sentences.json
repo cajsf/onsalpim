@@ -1694,6 +1694,311 @@
      "then_value": "ON"
     }
    }
+  },
+  {
+   "id": "u01",
+   "cat": "조건 축소",
+   "sentence": "겨울에만 101호 온도가 18도 아래로 떨어지면 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "계절을 알 방법이 없다. 조용히 버리면 여름에도 발동한다 (z01·v02 와 같은 종류)."
+  },
+  {
+   "id": "u02",
+   "cat": "조건 축소",
+   "sentence": "주말 빼고 8시간 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "요일을 볼 수 없다. 버리면 주말에도 울린다."
+  },
+  {
+   "id": "u03",
+   "cat": "단위 오류",
+   "sentence": "101호 온도가 30퍼센트 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "온도에 퍼센트를 쓸 수 없다. 30을 그대로 쓰면 뜻이 달라진다."
+  },
+  {
+   "id": "u04",
+   "cat": "종류 불일치",
+   "sentence": "101호 습도가 30도 넘으면 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "습도 단위는 %다. 종류와 단위가 어긋난다."
+  },
+  {
+   "id": "u05",
+   "cat": "경계값",
+   "sentence": "101호 온도가 30도 넘으면 창문을 180도로 열어줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_window",
+     "then_value": 180
+    }
+   },
+   "note": "창문 허용 범위(0~180)의 끝이다. 받아야 한다."
+  },
+  {
+   "id": "u06",
+   "cat": "범위 밖 값",
+   "sentence": "101호 온도가 30도 넘으면 창문을 -10도로 열어줘",
+   "expect": {
+    "outcome": "reject"
+   }
+  },
+  {
+   "id": "u07",
+   "cat": "돌봄·단위",
+   "sentence": "하루 종일 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 1440,
+     "severity": "URGENT"
+    }
+   }
+  },
+  {
+   "id": "u08",
+   "cat": "다세대 제어",
+   "sentence": "모든 세대에 움직임이 있으면 불 켜줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "조명이 있는 세대는 101호뿐이다."
+  },
+  {
+   "id": "u09",
+   "cat": "동작 값 누락",
+   "sentence": "101호에 움직임이 있으면 창문 열어줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "몇 도로 열지 말하지 않았다 (p06 과 같은 종류, 조건만 바뀜)."
+  },
+  {
+   "id": "u10",
+   "cat": "비교 연산",
+   "sentence": "101호 온도가 정확히 30도면 불 켜줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "같음 비교. 센서값이 딱 맞을 일은 드물지만 형식상 만들 수 있다."
+  },
+  {
+   "id": "u11",
+   "cat": "규칙 아님",
+   "sentence": "101호는 6시간, 102호는 8시간 무활동이면 긴급으로 해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "한 문장에 규칙이 둘이다 (n09·p10 과 같은 종류)."
+  },
+  {
+   "id": "u12",
+   "cat": "사투리",
+   "sentence": "어르신이 통 안 움직이시면 퍼뜩 알려주이소",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "기준값이 없다. 말투가 달라도 되묻기로 가야 한다."
+  },
+  {
+   "id": "u13",
+   "cat": "비교 표현",
+   "sentence": "101호 온도가 30도 이상이면 불 켜줘",
+   "expect": {
+    "outcome": "accept"
+   },
+   "note": "'이상'은 30 포함이다. '초과'와 구분되는지는 값까지 보지 않고 결과만 본다."
+  },
+  {
+   "id": "u14",
+   "cat": "모호",
+   "sentence": "102호 곧 위험해지면 알려줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "'곧'을 숫자로 옮길 수 없다."
+  },
+  {
+   "id": "t01",
+   "cat": "단위 오류",
+   "sentence": "201호 배터리가 20도 아래로 떨어지면 주의로 표시해줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "배터리 단위는 %다. 게다가 배터리 위험도 규칙은 엔진이 쓰지 않는다."
+  },
+  {
+   "id": "t02",
+   "cat": "단위 오류",
+   "sentence": "101호 온도가 30퍼센트 넘으면 창문을 90도로 열어줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "정답을 '거부'에서 '되묻기'로 바꿨다 (23차). AI가 '온도와 습도 중 어느 센서인지 확인이 필요하다'고 되물었다. 담당자가 한 줄 답하면 만들 수 있으므로 되묻기가 맞다. 우리가 정답을 잘못 정한 여섯 번째 경우다."
+  },
+  {
+   "id": "t03",
+   "cat": "시간 단위",
+   "sentence": "전체 세대에서 이틀 동안 움직임이 없으면 긴급으로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 2880,
+     "severity": "URGENT"
+    }
+   },
+   "note": "'이틀'=48시간. 하루·반나절은 이미 봤고 이틀은 처음이다."
+  },
+  {
+   "id": "t04",
+   "cat": "세대 범위",
+   "sentence": "1층과 2층 전부 4시간 무활동이면 주의로 표시해줘",
+   "expect": {
+    "outcome": "accept",
+    "care": {
+     "homes": [
+      "101",
+      "102",
+      "201",
+      "202"
+     ],
+     "type": "motion",
+     "op": "idle_over_m",
+     "value": 240,
+     "severity": "WATCH"
+    }
+   }
+  },
+  {
+   "id": "t05",
+   "cat": "조건 축소",
+   "sentence": "비 오는 날에만 101호 창문을 0도로 닫아줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "날씨를 알 수 없고, 조건이 될 센서도 없다."
+  },
+  {
+   "id": "t06",
+   "cat": "행동 요청",
+   "sentence": "102호에 지금 전화 좀 걸어줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "전화 기능이 없다. 있는 것처럼 저장되면 아무 일도 일어나지 않는다."
+  },
+  {
+   "id": "t07",
+   "cat": "기존 규칙 조회",
+   "sentence": "지금 걸려 있는 규칙이 뭐야?",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "조회는 규칙 관리 화면에서 한다. 규칙 생성이 아니다."
+  },
+  {
+   "id": "t08",
+   "cat": "예외 해제",
+   "sentence": "102호 예외를 원래대로 돌려놔줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "지우는 요청이다 — 화면에서 두 번 눌러야 한다."
+  },
+  {
+   "id": "t09",
+   "cat": "조건 결합",
+   "sentence": "101호 온도가 30도 넘거나 습도가 80% 넘으면 창문을 120도로 열어줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "'또는' 조건은 지원하지 않는다(모든 조건이 참일 때만 발동). 'and'로 바꿔 저장하면 뜻이 달라진다."
+  },
+  {
+   "id": "t10",
+   "cat": "상대 변경",
+   "sentence": "전체 세대 기준을 1시간씩 늘려줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "정답을 '되묻기'에서 '거부'로 바꿨다 (23차). 예외는 세대 하나에 붙는 기능이라 '전체 세대를 한꺼번에'는 되물어도 만들 수 없다. AI 답이 맞았다. 일곱 번째 경우다."
+  },
+  {
+   "id": "t11",
+   "cat": "표현 허용",
+   "sentence": "101호가 30도보다 더워지면 불 켜줘",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   }
+  },
+  {
+   "id": "t12",
+   "cat": "표현 허용",
+   "sentence": "101호 실내온도 30도 초과 시 조명 점등",
+   "expect": {
+    "outcome": "accept",
+    "control": {
+     "when_path": "Mobius/byeongari/h101_temp",
+     "op": ">",
+     "value": 30,
+     "then_path": "Mobius/byeongari/h101_led",
+     "then_value": "ON"
+    }
+   },
+   "note": "공문서 같은 말투."
+  },
+  {
+   "id": "t13",
+   "cat": "모호",
+   "sentence": "102호 상태가 이상하면 바로 알려줘",
+   "expect": {
+    "outcome": "clarify"
+   },
+   "note": "'이상하면'이 무엇인지 없다."
+  },
+  {
+   "id": "t14",
+   "cat": "중복 동작",
+   "sentence": "101호 온도가 30도 넘으면 불 켜고 불 꺼줘",
+   "expect": {
+    "outcome": "reject"
+   },
+   "note": "같은 장치에 반대 명령을 동시에 내릴 수 없다."
   }
  ]
 }

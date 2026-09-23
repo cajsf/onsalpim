@@ -18,6 +18,8 @@ LLM이 없는 장치를 지어내거나(hallucination), 센서에 명령을 내�
     #   -> {"ok": True/False, "errors": [한국어 메시지...]}
 """
 
+import re
+
 from scope import IDLE_OP, SEVERITIES, discover_homes, parse_homes
 
 VALID_OPS = {"==", "!=", ">", "<", ">=", "<="}
@@ -256,6 +258,43 @@ def _check_kind_match(rule, by_path, sentence):
             f"— 맞는 센서가 없으면 거부해야 함"]
 
 
+# 라벨의 단위(unit=)와 사람이 말한 단위. 21차 실험(u04): "습도가 30도 넘으면"이 그대로 통과했다 —
+# 종류(습도)는 맞아서 종류 대조를 통과했고, 단위가 어긋난 것은 아무도 보지 않았다.
+# ponytail: 표에 있는 단위만 본다. 모르는 단위는 판단하지 않는다 (막는 근거가 아니라 아는 것만 잡기).
+UNIT_WORDS = {"C": ("도", "℃", "도씨"), "%": ("퍼센트", "%", "프로")}
+UNIT_KO = {"C": "도(℃)", "%": "퍼센트(%)"}
+
+
+def _check_unit_match(rule, by_path, sentence):
+    """사람이 말한 단위가 그 센서의 단위와 다르면 막는다.
+
+    문장에서 '그 기준값 바로 뒤'에 붙은 단위만 본다 — 문장 어딘가에 다른 단위가 있어도
+    (예: "습도가 80퍼센트 넘으면 창문을 90도로") 엉뚱하게 걸리지 않게.
+    """
+    if not sentence:
+        return []
+    errors = []
+    for c in [rule.get("when") or {}] + list(rule.get("and") or []):
+        path, value = (c.get("path") or "").strip(), str(c.get("value") or "").strip()
+        unit = ((by_path.get(path) or {}).get("unit") or "").strip()
+        if not path or not value or unit not in UNIT_WORDS:
+            continue
+        try:
+            num = float(value)
+        except ValueError:
+            continue
+        shown = f"{num:g}"
+        m = re.search(rf"(?<![\d.]){re.escape(shown)}\s*(도씨|℃|도|퍼센트|프로|%)", sentence)
+        if not m:
+            continue                         # 단위를 말하지 않았으면 판단하지 않는다
+        said = m.group(1)
+        if said in UNIT_WORDS[unit]:
+            continue
+        errors.append(f"단위 불일치: '{path}' 의 단위는 {UNIT_KO.get(unit, unit)} 인데 "
+                      f"문장은 '{shown}{said}' 라고 말했다 — 같은 숫자라도 뜻이 다르다")
+    return errors
+
+
 def validate_rule(rule, devices, sentence=None):
     """규칙(dict) 하나를 트리와 대조 검증. 반환: {'ok':bool, 'errors':[...]}
 
@@ -289,6 +328,9 @@ def validate_rule(rule, devices, sentence=None):
 
     # 5. 문장이 말한 센서 종류와 AI가 고른 센서 종류가 맞는가
     errors += _check_kind_match(rule, by_path, sentence)
+
+    # 6. 사람이 말한 단위와 센서의 단위가 맞는가
+    errors += _check_unit_match(rule, by_path, sentence)
 
     return {"ok": len(errors) == 0, "errors": errors}
 
