@@ -705,14 +705,23 @@ try:
     o = _tr.translate("x", [], models=["openrouter:openai/gpt-5-mini"])
     assert o["ok"] is True and o["_usage"]["schema_forced"] is True, o
     assert _sent[0]["response_format"]["type"] == "json_schema" and _sent[0]["model"] == "openai/gpt-5-mini"
-    # (나) 스키마를 지원하는 공급자가 없는 모델 — 강제 없이 다시 부른다
+    # (나) temperature 를 받지 않는 추론 모델 — temperature 만 빼고 스키마 강제로 다시 부른다
     _calls = []
     def _fake(url, **k):
         _calls.append(k["json"])
-        return _Resp(400, text="no provider") if len(_calls) == 1 else _Resp(200, _content('{"ok": false, "error": "없음"}'))
+        return _Resp(404, text="no endpoints") if len(_calls) == 1 else _Resp(200, _content('{"ok": true, "rule": {}}'))
+    _tr.requests.post = _fake
+    o = _tr.translate("x", [], models=["openrouter:openai/gpt-5-nano"])
+    assert len(_calls) == 2 and "temperature" in _calls[0] and "temperature" not in _calls[1]
+    assert _calls[1]["response_format"]["type"] == "json_schema" and o["_usage"]["schema_forced"] is True
+    # (나') 스키마를 지원하는 공급자가 없는 모델 — 강제 없이 다시 부른다
+    _calls = []
+    def _fake(url, **k):
+        _calls.append(k["json"])
+        return _Resp(400, text="no provider") if len(_calls) <= 2 else _Resp(200, _content('{"ok": false, "error": "없음"}'))
     _tr.requests.post = _fake
     o = _tr.translate("x", [], models=["openrouter:some/model"])
-    assert len(_calls) == 2 and "response_format" not in _calls[1] and o["_usage"]["schema_forced"] is False
+    assert len(_calls) == 3 and "response_format" not in _calls[2] and o["_usage"]["schema_forced"] is False
     # (다) 형식을 깬 답은 '모델이 틀린 것'으로 센다 (호출 실패가 아니다)
     _tr.requests.post = lambda url, **k: _Resp(200, _content("규칙을 만들었습니다! 온도 30도"))
     o = _tr.translate("x", [], models=["openrouter:some/model"])
@@ -731,7 +740,7 @@ finally:
         del _tr.secrets_local.OPENROUTER_API_KEY
     else:
         _tr.secrets_local.OPENROUTER_API_KEY = _real_key
-print("  ✅ OpenRouter: 스키마 강제·대체 호출·형식 깨짐·크레딧 부족·키 없음")
+print("  ✅ OpenRouter: 스키마 강제·temperature 없는 재호출·대체 호출·형식 깨짐·크레딧 부족·키 없음")
 
 # ── 로컬 모델 측정(9/24)에서 찾은 것 — 문장이 말한 것과 AI 규칙을 대조한다 ──
 _P = "Mobius/byeongari/"
@@ -838,3 +847,35 @@ try:
 finally:
     engine.tr.translate = _real6
 print("  ✅ 문장 대조: 시간·세대·숫자·비교·세대 교차·색·반대 명령·지연·예외 (로컬 모델 측정의 구멍)")
+
+# ── 새 모델(Grok 4.3·GPT-5 nano, 9/25)이 드러낸 빈틈 ──
+# 종류로 고른 조건 + 장치 동작 — 세대 교차 검사를 피해 간다
+_mixed = {"scope": {"homes": "101,201"}, "when": {"path": "", "type": "battery", "op": "<", "value": "20"},
+          "and": [], "then": [{"path": _P + "h101_led", "value": "ON"}]}
+assert any("종류" in e for e in _v.validate_rule(_mixed, _DEV)["errors"])
+assert not any("종류" in e for e in _v.validate_rule(_care("480"), _DEV)["errors"]), "돌봄 규칙은 그대로"
+# 같은 센서에 모순된 조건 — 절대 발동하지 않는다
+assert engine._never_true(_ctl(("h101_temp", ">", "30"), [("h101_led", "ON")], [("h101_temp", "<", "20")]), _DEV)
+assert engine._never_true(_ctl(("h101_temp", ">", "30"), [("h101_led", "ON")], [("h101_temp", "==", "30")]), _DEV)
+assert not engine._never_true(_ctl(("h101_temp", ">=", "20"), [("h101_led", "ON")], [("h101_temp", "<=", "25")]), _DEV)
+assert not engine._never_true(_ctl(("h101_temp", ">=", "30"), [("h101_led", "ON")], [("h101_temp", "<=", "30")]), _DEV), \
+    "정확히 30이면 참이다"
+# 문장대로 고친 값도 검증을 다시 거친다 — '0분'으로 고친 무활동 기준은 막는다
+h, _, _ = _fc("전체 세대에서 0분 동안 움직임이 없으면 긴급으로 표시해줘", _care("1", sev="URGENT"))
+assert h and h["status"] == "rejected" and "0보다 커야" in h["errors"][0], h
+# 맞춤법이 틀린 비교 말도 읽는다
+h, r, _ = _fc("101호 온도가 30도 너므면 불켜죠", _ctl(("h101_temp", ">=", "30"), [("h101_led", "ON")]))
+assert h is None and r["when"]["op"] == ">"
+# 예외는 기준 시간만 바꾼다 — 문장의 위험도가 대상 규칙과 다르면 적용하지 않는다
+_real7 = engine.tr.translate
+try:
+    engine.save_rules(copy.deepcopy(_base))
+    engine.tr.translate, _ = _scripted(_ov2("101", "360"))
+    res = engine.add_rule_from_sentence("101호 101호 6시간 무활동이면 주의로 표시해줘", TREE)
+    assert res["status"] == "rejected" and "위험도" in res["errors"][0], res
+    engine.save_rules(copy.deepcopy(_base))
+    engine.tr.translate, _ = _scripted(_ov2("102", "360"))
+    assert engine.add_rule_from_sentence("102호 긴급 기준을 6시간으로 바꿔줘", TREE)["status"] == "needs_choice"
+finally:
+    engine.tr.translate = _real7
+print("  ✅ 새 모델이 드러낸 빈틈: 종류 조건+장치 동작·모순 조건·고친 값 재검증·맞춤법 틀린 비교·예외의 위험도")

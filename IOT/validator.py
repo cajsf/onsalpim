@@ -312,6 +312,13 @@ def validate_rule(rule, devices, sentence=None):
         errors.append("구조: when(발동 조건)이 비어있음")
     if not then:
         errors.append("구조: then(동작)이 비어있음 → 규칙이 아무것도 안 함")
+    # 종류(type)로 고른 조건은 세대마다 따로 판정하는 돌봄 규칙이다 — 위험도 표시만 하고 장치는 움직이지 못한다.
+    # GPT-5 nano(9/25)는 "201호 배터리가 떨어지면 101호 불 켜줘"를 '배터리 종류 + 101호 불'로 만들어
+    # 제어 규칙에만 도는 세대 교차 검사를 피해 갔다.
+    if has_when and not (when.get("path") or "").strip() and \
+            any(isinstance(a, dict) and a.get("path") for a in then or []):
+        errors.append("구조: 조건을 센서 종류(type)로 골랐는데 동작이 장치를 움직임 — 종류 조건은 위험도 표시(돌봄 규칙)에만 "
+                      "쓸 수 있음. 장치를 움직이려면 조건에 한 세대의 센서 경로(path)를 지정해야 함")
 
     # 2. 조건들
     if has_when:

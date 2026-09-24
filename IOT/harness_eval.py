@@ -26,6 +26,7 @@ import os
 import sys
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import engine
@@ -44,6 +45,7 @@ SENTENCES = os.path.join(HERE, "eval", "sentences.json")
 CACHE = os.path.join(HERE, "eval", "cache.json")
 DEFAULT_MODELS = ["gemini-3.1-flash-lite"]
 CALL_GAP_S = 4          # 무료 등급 분당 한도에 걸리지 않게 실제 호출 사이를 띄운다
+PARALLEL = 8            # OpenRouter 유료 모델은 첫 답을 이만큼 동시에 받는다 (_prefetch)
 
 # ── 전시 구성과 같은 장치 트리 (공용 서버 대신 고정) ──
 P = "Mobius/byeongari/"
@@ -419,8 +421,17 @@ def _load_cache():
 
 
 def _save_cache(cache):
-    with open(CACHE, "w", encoding="utf-8", newline="\n") as f:
+    # 임시 파일에 다 쓴 뒤 바꿔 끼운다 — 쓰는 도중에 멈춰도 캐시가 반쪽이 되지 않는다 (돈 주고 받은 답이다)
+    tmp = CACHE + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         json.dump(cache, f, ensure_ascii=False, indent=1, sort_keys=True)
+    for _ in range(20):
+        try:
+            os.replace(tmp, CACHE)
+            return
+        except PermissionError:     # 윈도에서는 다른 프로그램이 캐시를 열고 있으면 잠깐 바꿔 끼울 수 없다
+            time.sleep(0.5)
+    os.replace(tmp, CACHE)
 
 
 def cached_translate(model, cache, stats, offline, real):
@@ -433,8 +444,8 @@ def cached_translate(model, cache, stats, offline, real):
             return copy.deepcopy(cache[key]["out"])
         if offline:
             raise NotCached(sentence)
-        if stats["calls"] and not model.startswith("ollama:"):
-            time.sleep(CALL_GAP_S)          # 로컬 모델은 분당 한도가 없다
+        if stats["calls"] and (not model.startswith(("ollama:", "openrouter:")) or model.endswith(":free")):
+            time.sleep(CALL_GAP_S)          # Gemini 무료 등급·OpenRouter 무료 모델의 분당 한도 — 로컬·유료 호출은 띄울 필요 없다
         t0 = time.time()
         out = real(sentence, devices, feedback=feedback, models=[model])
         dt = round(time.time() - t0, 2)
@@ -539,9 +550,76 @@ def run_harness(sentence, exp, retry):
             "errors": res.get("errors") or [], "questions": res.get("questions") or []}
 
 
+def _prefetch(model, items, cache, stats, real):
+    """OpenRouter 유료 모델은 필요한 AI 답을 미리 PARALLEL 개씩 동시에 받아 캐시에 넣어 둔다.
+    추론 모델은 한 번에 6~25초라 하나씩 부르면 190문장에 1~2시간 걸린다. 받는 답과 비용은 하나씩 부를 때와 같다.
+    1단계는 문장마다의 첫 답, 2단계는 되먹임 답이다. 되먹임은 첫 답을 하네스에 넣어 봐야 무엇을 보낼지 정해지므로,
+    하네스를 한 번 돌리며 필요한 호출을 모은 뒤(부르지 않고 그 문장만 멈춘다) 한꺼번에 부른다."""
+    def key_of(sentence, devices, feedback):
+        prompt = tr.prompt_for(sentence, devices, feedback)
+        return hashlib.sha1(f"{model}\n{prompt}".encode("utf-8")).hexdigest()
+
+    def call_all(todo):
+        if not todo:
+            return                  # 부를 게 없으면 캐시 파일도 건드리지 않는다
+
+        def call(args):
+            sentence, devices, feedback = args
+            t0 = time.time()
+            return real(sentence, devices, feedback=feedback, models=[model]), round(time.time() - t0, 2)
+
+        with ThreadPoolExecutor(PARALLEL) as ex:
+            jobs = {ex.submit(call, a): (k, a) for k, a in todo.items()}
+            try:
+                for n, job in enumerate(as_completed(jobs), 1):
+                    key, (sentence, _, feedback) = jobs[job]
+                    out, dt = job.result()
+                    if str(out.get("error", "")).startswith("LLM 호출 실패"):
+                        continue    # 캐시에 넣지 않는다 — 순서대로 돌 때 다시 부르고, 거기서 실험이 멈춘다
+                    cache[key] = {"model": model, "sentence": sentence, "feedback": feedback, "out": out,
+                                  "latency_s": dt, "at": datetime.now().isoformat(timespec="seconds")}
+                    stats["calls"] += 1
+                    stats["latency"].append(dt)
+                    if n % 10 == 0:
+                        _save_cache(cache)  # 캐시 쓰기는 이 스레드에서만 한다 (여럿이 동시에 쓰면 파일이 깨진다)
+                        print(f"  미리 받기 {n}/{len(todo)}", flush=True)
+            except BaseException:
+                for job in jobs:
+                    job.cancel()    # 멈출 때 아직 안 보낸 호출은 보내지 않는다 (답을 버리면서 돈만 나간다)
+                raise
+        _save_cache(cache)
+
+    # 1단계 — 문장마다의 첫 답
+    first = {key_of(it["sentence"], FIXTURE, None): (it["sentence"], FIXTURE, None) for it in items}
+    call_all({k: a for k, a in first.items() if k not in cache})
+
+    # 2단계 — 되먹임 답. 캐시에 없는 호출을 만나면 적어 두고 그 문장만 멈춘다
+    need = {}
+
+    def collect(sentence, devices, feedback=None, **_):
+        k = key_of(sentence, devices, feedback)
+        if k in cache:
+            return copy.deepcopy(cache[k]["out"])
+        need[k] = (sentence, devices, feedback)
+        raise NotCached(sentence)
+
+    tr.translate = collect
+    try:
+        for it in items:
+            try:
+                run_harness(it["sentence"], it["expect"], 1)
+            except NotCached:
+                pass
+    finally:
+        tr.translate = real
+    call_all(need)
+
+
 def evaluate(model, items, cache, offline):
     stats = {"calls": 0, "latency": []}
     real = tr.translate
+    if not offline and model.startswith("openrouter:") and not model.endswith(":free"):
+        _prefetch(model, items, cache, stats, real)
     tr.translate = cached_translate(model, cache, stats, offline, real)
     rows, stopped = [], None
     try:

@@ -104,6 +104,11 @@ def _call_openrouter(model, prompt):
                                                    "schema": _plain_schema(RESPONSE_SCHEMA)}},
                   provider={"require_parameters": True})
     r = requests.post(OPENROUTER_URL, headers=headers, json=forced, timeout=120)
+    if r.status_code in (400, 404, 422):
+        # 추론 모델(gpt-5 계열 등)은 temperature 를 받지 않아 require_parameters 에 걸려 공급자가 0개가 된다.
+        # temperature 만 빼고 스키마 강제로 한 번 더 부른다 (답은 캐시에 남으니 측정은 그대로 재현된다).
+        forced = {k: v for k, v in forced.items() if k != "temperature"}
+        r = requests.post(OPENROUTER_URL, headers=headers, json=forced, timeout=120)
     schema_forced = True
     if r.status_code in (400, 404, 422):
         # 스키마를 지원하는 공급자가 없는 모델 — 형식 강제 없이 프롬프트만으로 부른다.

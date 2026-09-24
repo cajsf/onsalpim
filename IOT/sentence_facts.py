@@ -127,7 +127,7 @@ def says_all(sentence):
 
 _GE = re.compile(r"이상")
 _LE = re.compile(r"이하")
-_GT = re.compile(r"(넘|초과|웃돌|↑|보다\s*더워|보다\s*높)")
+_GT = re.compile(r"(넘|너므|너머|초과|웃돌|↑|보다\s*더워|보다\s*높)")   # 너므·너머 — '넘으면'을 잘못 쓴 것 (n07)
 _LT = re.compile(r"(미만|아래|떨어지|낮아|내려가|↓)")
 
 
@@ -165,7 +165,7 @@ _COLOR = re.compile(r"(빨간|빨강|파란|파랑|노란|노랑|초록|녹색|�
 # 배수·절반은 더하기·빼기가 아니다
 MULTIPLY = re.compile(r"(\d+|두|세|네)\s*배|절반|반으로|곱")
 # 조건끼리 잇는 비교 말 — '또는'이 조건 둘을 잇는지 보려고 센다
-_COMPARE_WORDS = re.compile(r"(넘|이상|이하|초과|미만|아래|떨어지|낮아|높아|더우|추우)")
+_COMPARE_WORDS = re.compile(r"(넘|너므|너머|이상|이하|초과|미만|아래|떨어지|낮아|높아|더우|추우)")
 
 
 def calendar_condition(sentence):
@@ -211,6 +211,7 @@ if __name__ == "__main__":
     assert durations("8시간 8시간 움직임이") == [480]
     assert durations("8시간 동안 움직임이 없으면 30분 뒤에") == [480, 30]
     assert durations("무활동 기준을 -30분으로") == [-30]
+    assert comparison("101호 온도가 30도 너므면 불켜죠") == ">"
     assert durations("밤 10시 이후에 2시간 동안") == [120]
     assert durations("장시간 무활동이면") == []
     assert numbers("101호 온도가 30도 넘으면 창문을 -10도로 열어줘") == [30, -10]

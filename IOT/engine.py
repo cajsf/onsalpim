@@ -197,6 +197,19 @@ def _apply_override(sentence, out, devices, steps):
         return _stop(steps, OVERRIDE_STEPS,
                      [f"'{ov_type}' 기준을 쓰는 공통 규칙이 없습니다. "
                       f"먼저 전체 세대 규칙을 만들어 주세요."])
+    # Grok 4.3(9/25)은 "101호 101호 6시간 무활동이면 주의로 표시해줘"(새 규칙 요청)를 예외로 읽어
+    # 긴급 규칙의 101호 기준만 6시간으로 바꾸려 했다 — 문장의 '주의'가 사라진다. 예외는 기준 시간만 바꾼다.
+    said_sev = {sev for word, sev in SEVERITY_NAMES if word in sentence}
+    if said_sev:
+        same = [r for r in matches if scope.rule_severity(r["rule"]) in said_sev]
+        if not same:
+            have = sorted({scope.SEV_KO.get(scope.rule_severity(r["rule"]), "?") for r in matches})
+            return _stop(steps, OVERRIDE_STEPS,
+                         [f"AI가 이 문장을 기존 규칙의 예외(기준 시간만 바꾸기)로 읽었는데, 문장이 말한 위험도"
+                          f"({', '.join(sorted(scope.SEV_KO[s] for s in said_sev))})가 그 규칙({', '.join(have)})과 "
+                          f"다릅니다. 예외는 기준 시간만 바꾸므로 적용하지 않았습니다 — 새 규칙을 만들려던 것이라면 "
+                          f"다시 말씀해 주세요."])
+        matches = same
     # 로컬 모델 측정(9/24): 약한 모델은 두 세대 중 하나만 고르고(z10), 말하지 않은 양을 지어내고(q05),
     # 배수를 더하기로 바꾸고(y11), 부호를 버렸다(r12). 문장에서 코드가 직접 읽어 대조한다.
     said_homes = facts.named_homes(sentence)
@@ -516,6 +529,10 @@ SEVERITY_WORDS = ("긴급", "응급", "위급", "심각", "즉시", "바로", "�
                   "점검", "고장", "기기")
 
 
+# 위험도 이름 → 값. 예외(기준 시간만 바꾸기)를 걸 규칙을 고를 때 문장이 말한 위험도와 맞춘다.
+SEVERITY_NAMES = (("주의", "WATCH"), ("긴급", "URGENT"), ("응급", "URGENT"), ("위급", "URGENT"))
+
+
 def _invented_severity(sentence, rule):
     """문장에 위험도를 가리키는 말이 하나도 없으면 AI가 고른 위험도는 지어낸 것이다. 반환: [위험도, ...]"""
     # 무활동 규칙만 본다. 다른 규칙에 붙은 위험도는 scope 가 거부하는데(판정 엔진이 쓰지 않으므로),
@@ -714,8 +731,44 @@ def _fact_checks(sentence, rule, devices, steps):
                 rule.setdefault("scope", {})["homes"] = ",".join(want_homes)
 
     if fixed:
+        # 고친 값도 검증기를 다시 거친다 — GPT-5 nano(9/25)가 "0분 동안"을 1분으로 냈고, 문장대로 0분으로
+        # 고쳤더니 그대로 통과했다(검증기는 고치기 전 값을 봤다).
+        again = validator.validate_rule(rule, devices, sentence)
+        if not again["ok"]:
+            return stop("문장대로 고친 값이 검사를 통과하지 못했습니다 — " + "; ".join(again["errors"]),
+                        "문장대로 고친 값이 검증에 걸림")
         steps[-1]["detail"] += f" · AI가 문장과 다르게 읽은 것을 문장대로 고쳤습니다 ({'; '.join(fixed)})"
         steps[-1]["corrected"] = fixed
+    return None
+
+
+def _never_true(rule, devices):
+    """한 규칙 안에서 같은 센서에 건 조건들이 동시에 참일 수 없는가 (예: 30 초과이면서 20 미만).
+    그런 규칙은 절대 발동하지 않는데 형식은 멀쩡해서 다른 검사를 다 통과한다. 반환: 멈출 이유 또는 None.
+    Grok 4.3(9/25)은 모순된 문장을 그대로 옮겼다 (다른 모델은 조건 하나를 버리거나 스스로 거절해서 드러나지 않았다)."""
+    bounds = {}                                        # path → [하한, 하한 포함?, 상한, 상한 포함?]
+    for c in [rule.get("when") or {}] + list(rule.get("and") or []):
+        path, op = c.get("path"), c.get("op")
+        try:
+            v = float(str(c.get("value")).strip())
+        except (TypeError, ValueError):
+            continue
+        if not path or op not in (">", ">=", "<", "<=", "=="):
+            continue
+        b = bounds.setdefault(path, [float("-inf"), False, float("inf"), False])
+        if op in (">", ">=", "==") and (v > b[0] or (v == b[0] and op == ">")):
+            b[0], b[1] = v, op != ">"
+        if op in ("<", "<=", "==") and (v < b[2] or (v == b[2] and op == "<")):
+            b[2], b[3] = v, op != "<"
+    meta = {d["path"]: d["meta"] for d in devices}
+    for path, (lo, lo_in, hi, hi_in) in bounds.items():
+        if lo > hi or (lo == hi and not (lo_in and hi_in)):
+            m = meta.get(path, {})
+            what = f"{m.get('home')}호 " if m.get("home") else ""
+            what += validator.KIND_WORDS.get(m.get("type"), (m.get("type") or path.rsplit("/", 1)[-1],))[0]
+            return (f"{what} 조건이 서로 맞지 않아 이 규칙은 절대 발동하지 않습니다 "
+                    f"({facts.fmt(lo)} {'이상' if lo_in else '초과'}이면서 {facts.fmt(hi)} {'이하' if hi_in else '미만'}) — "
+                    f"조건을 다시 말씀해 주세요.")
     return None
 
 
@@ -862,6 +915,12 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     halted = _fact_checks(sentence, out["rule"], devices, steps)
     if halted:
         return halted
+
+    # 2-a2) 같은 센서에 건 조건들이 서로 맞지 않는가 — 절대 발동하지 않는 규칙
+    never = _never_true(out["rule"], devices)
+    if never:
+        steps.append({"id": "scope", "label": STEP_LABELS["scope"], "status": "fail", "detail": never})
+        return _stop(steps, CREATE_STEPS, [never], reason="절대 발동하지 않는 규칙")
 
     # 2-b3) 조건을 부정으로 말했는가 — 뒤집혀 저장되면 반대로 동작한다
     negated = _negated_condition(sentence, out["rule"])
