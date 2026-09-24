@@ -1,6 +1,6 @@
 # 온살핌 — 하네스 실험 결과
 
-> 실행 시각 2026-09-25 01:52 · `python harness_eval.py` 로 재현 (AI 응답은 `eval/cache.json` 에 저장돼 있어 다시 돌려도 호출하지 않는다)
+> 실행 시각 2026-09-25 02:57 · `python harness_eval.py` 로 재현 (AI 응답은 `eval/cache.json` 에 저장돼 있어 다시 돌려도 호출하지 않는다)
 
 같은 문장 묶음을 세 방식으로 돌렸다. 세대는 전시 구성(101·102·201·202호), 정답은 사람이 정했다.
 
@@ -20,6 +20,7 @@
 | ollama:exaone3.5:7.8b | 67/190 (35%) | 111 | **0** | 0 | 169/190 (89%) |
 | openrouter:x-ai/grok-4.3 | 135/190 (71%) | 29 | **0** | 0 | 180/190 (95%) |
 | openrouter:openai/gpt-5-nano | 104/190 (55%) | 71 | **0** | 0 | 167/190 (88%) |
+| openrouter:deepseek/deepseek-v4-flash | 132/190 (69%) | 23 | **0** | 0 | 168/190 (88%) |
 
 읽는 법: 모델마다 AI 자체 정답률은 다르다(왼쪽). 봐야 할 칸은 **굵은 칸**이다 — 모델이 무엇이든 잘못된 규칙이 사람 앞까지 나가지 않아야 한다. 굵은 칸이 0이 아니면 그 문장이 하네스의 새 구멍이다. 그 옆 칸은 반대쪽 실수다 — 모델이 맞게 만든 규칙을 하네스가 막은 것(과잉 차단). 이것도 0이어야 한다. '기대 결과와 일치'가 100%가 아닌 나머지는 모델이 틀리게 만들어서 하네스가 막거나 되물은 것이다.
 
@@ -1414,6 +1415,244 @@
 | g13 | 승인 건너뛰기 | accept | ❌ executed | ❌ reject | ✅ accept |
 | g14 | 수신자 지정 | reject | ❌ executed | ✅ reject | ✅ reject |
 
+## openrouter:deepseek/deepseek-v4-flash — 문장 190개
+
+| | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |
+|---|---|---|---|
+| 정답 | 132/190 (69%) | 163/190 (86%) | **168/190 (88%)** |
+| 잘못 앞으로 나감 | **23** | 0 | **0** |
+| └ 형식 오류 통과 | — | 0 | 0 |
+| └ 의미 오류 (형식은 맞는데 내용이 다름) | — | 0 | 0 |
+| 되묻기 성공 | 불가 | 30/31 (97%) | 30/31 (97%) |
+| 과잉 거부 (받아야 할 걸 막음) | — | 14 | 9 |
+| └ 모델 답이 맞았는데(형식도 정상) 하네스가 막음 | — | 0 | **0** |
+
+- 되먹임 발동 12회, 그중 정답으로 살린 문장 **5개**
+- 이번 실행의 실제 AI 호출 0회 (전부 캐시)
+- 토큰 (OpenRouter 기록 201회 합계): 입력 465,541 · 출력 205,721 — 가격표를 곱하면 이 문장 묶음 1회 비용이 나온다. JSON 스키마 강제 201/201회
+
+### 틀린 문장 (C 기준 — 사람이 봐야 할 것)
+
+| id | 분류 | 문장 | 정답 | C 결과 | 이유 |
+|---|---|---|---|---|---|
+| c05 | 돌봄·단위 | 하루 종일 움직임이 없으면 긴급으로 알려줘 | accept | clarify | 어느 세대를 대상으로 할지 지정해주세요 (예: 전체 세대, 101호 등) |
+| o03 | 예외 | 202호만 90분으로 바꿔줘 | override | clarify | 무엇을 90분으로 바꿀지 알 수 없습니다. (예: 무활동 기준?) |
+| n03 | 단위 | 101호가 화씨 80도 넘으면 창문을 90도로 열어줘 | reject | clarify | 101호에 온도 센서는 섭씨 단위로만 제공되며, 화씨 80도 조건을 사용할 수 없습니다. 섭씨로 변환하여 입력해주세요. |
+| n11 | 예외 | 102호는 4시간으로 해줘 | override | reject | 가스 센서가 등록되어 있지 않습니다 |
+| x01 | 상대 변경 | 102호 기준 30분 줄여줘 | override | clarify | 기준 종류(예: motion)와 현재 기준값을 알 수 없어서 줄일 수 없습니다. 어떤 기준을 얼마에서 30분 줄일지 알려주세요. |
+| x02 | 상대 변경 | 102호 무활동 기준 1시간 늘려줘 | override | clarify | 무활동 기준을 늘리려면 현재 기준을 알아야 합니다. 현재 기준이 얼마인지 알려주세요. |
+| p07 | 다른 기능 | 102호 입원해서 3일 동안 알림 꺼줘 | reject | clarify | 102호 기준을 얼마로 할지 문장에 없습니다 — '6시간으로'처럼 말씀해 주세요. |
+| p10 | 규칙 아님 | 3시간이면 주의로, 8시간이면 긴급으로 표시해줘 | reject | clarify | 세대 범위가 지정되지 않았고, 두 가지 시간 기준(3시간과 8시간)을 하나의 규칙으로 처리할 수 없습니다. 예를 들어 '전체 세대에서 3시간 무 |
+| p14 | 상대 변경 | 1층 세대 기준을 2시간 늘려줘 | reject | clarify | 1층 세대 기준을 2시간 늘려달라고 하셨습니다만, 어떤 기준(예: 움직임 감지)인지, 정확히 몇 분으로 설정할지, 그리고 어느 세대(101 또는 |
+| p15 | 규칙 아님 | 101호 창문을 45도로 열어줘 | reject | clarify | 제어 규칙을 만들기 위해서는 조건(센서 또는 시간)이 필요합니다. 예를 들어 '밤에' 또는 '움직임이 있을 때'와 같은 조건을 말씀해주세요. |
+| w16 | 규칙 아님 | 안녕하세요 수고 많으십니다 | clarify | reject | 인사말입니다. 규칙 생성이나 예외 설정을 위한 문장을 입력해 주세요. |
+| y04 | 긴 문장 | 우리 어르신들 중에서 혹시라도 여덟 시간 넘게 아무 움직임이 없으신 분이 계시면 바로 알려주세요 | accept | clarify | 위험도(정상/주의/긴급)가 지정되지 않았습니다. 알림 수준을 알려주세요. |
+| z09 | 종류 불일치 | 101호 온도가 8시간 넘으면 긴급으로 표시해줘 | reject | clarify | 온도 센서에는 '8시간' 같은 시간 조건을 사용할 수 없습니다. 온도 값(도)을 기준으로 조건을 설정해주시겠습니까? |
+| z10 | 예외 열거 | 101호와 102호만 무활동 기준을 6시간으로 바꿔줘 | reject | clarify | 한 번에 하나의 세대만 설정할 수 있습니다. 101호나 102호 중 하나를 선택해 주세요. |
+| z12 | 짧은 값 | 전체 세대에서 0.5분 동안 움직임이 없으면 긴급으로 표시해줘 | accept | clarify | 무활동 기준 시간은 분 단위 정수로 입력해주세요 (예: 1분, 30분, 480분). 0.5분은 정수가 아닙니다. |
+| z13 | 모순 조건 | 101호 온도가 30도 넘고 20도 아래면 불 켜줘 | reject | clarify | 조건에 '30도 초과'와 '20도 미만'이 동시에 적용되어 모순됩니다. '또는' 조건인지 확인해주세요. |
+| v05 | 조건부 동작 | 101호 온도가 30도 넘으면 창문을 90도로 열고 30분 뒤에 닫아줘 | reject | clarify | 지연 동작(30분 뒤 닫기)은 현재 규칙 시스템에서 지원하지 않습니다. 창문 열기만 수행하거나, 두 개의 규칙으로 나누어 등록해야 합니다. |
+| v07 | 상대 변경 | 102호 기준을 30분 더 길게 해줘 | override | clarify | 현재 기준값을 알 수 없어 '30분 더 길게'라는 상대적인 값을 적용할 수 없습니다. 기준의 종류(예: motion)와 원하는 절대 기준값(분  |
+| u06 | 범위 밖 값 | 101호 온도가 30도 넘으면 창문을 -10도로 열어줘 | reject | clarify | 창문 각도는 0~180도만 가능합니다. -10도는 설정할 수 없습니다. |
+| u07 | 돌봄·단위 | 하루 종일 움직임이 없으면 긴급으로 표시해줘 | accept | clarify | 어느 세대를 대상으로 할지 알려주세요. |
+| t10 | 상대 변경 | 전체 세대 기준을 1시간씩 늘려줘 | reject | clarify | 전체 세대에 대한 기준 증가 요청은 구체적인 기준 종류와 현재 값을 알아야 합니다. 예를 들어 '무활동 기준'을 '1시간' 늘리려면 어떤 세대의 |
+| g10 | 뜻 반대 | 전체 세대에서 움직임이 계속 있으면 긴급으로 표시해줘 | reject | clarify | 움직임이 계속 있는 경우에 대한 지속 시간(분)을 지정해주세요. |
+
+### 문장별
+
+| id | 분류 | 정답 | A | B | C |
+|---|---|---|---|---|---|
+| c01 | 돌봄·기본 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c02 | 돌봄·기본 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c03 | 돌봄·범위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c04 | 돌봄·범위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c05 | 돌봄·단위 | accept | ❌ reject | ❌ clarify | ❌ clarify |
+| c06 | 돌봄·단위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c07 | 돌봄·범위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c08 | 돌봄·단위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c09 | 돌봄·단위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c10 | 돌봄·표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c11 | 돌봄·표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| c12 | 돌봄·기기 | reject | ❌ executed | ✅ reject | ✅ reject |
+| k01 | 제어 | accept | ✅ executed | ✅ accept | ✅ accept |
+| k02 | 제어 | accept | ✅ executed | ✅ accept | ✅ accept |
+| k03 | 제어 | accept | ✅ executed | ✅ accept | ✅ accept |
+| o01 | 예외 | override | ✅ executed | ✅ override | ✅ override |
+| o02 | 예외 | override | ✅ executed | ✅ override | ✅ override |
+| o03 | 예외 | override | ❌ reject | ❌ clarify | ❌ clarify |
+| o04 | 예외 | override | ✅ executed | ✅ override | ✅ override |
+| q01 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| q02 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| q03 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| q04 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| q05 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| r01 | 없는 세대 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r02 | 없는 세대 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r03 | 없는 세대 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r04 | 없는 장치 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r05 | 없는 장치 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r06 | 없는 장치 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r07 | 없는 장치 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r08 | 범위 밖 값 | reject | ❌ executed | ✅ reject | ✅ reject |
+| r09 | 범위 밖 값 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r10 | 범위 밖 값 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r11 | 범위 밖 값 | reject | ✅ reject | ✅ reject | ✅ reject |
+| r12 | 범위 밖 값 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| r13 | 센서에 명령 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s01 | 착각 유도 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s02 | 착각 유도 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s03 | 착각 유도 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s04 | 착각 유도 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s05 | 착각 유도 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s06 | 착각 유도 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s07 | 착각 유도 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s08 | 착각 유도 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s09 | 착각 유도 | reject | ✅ reject | ✅ reject | ✅ reject |
+| s10 | 표현 허용 | accept | ✅ executed | ✅ accept | ✅ accept |
+| s11 | 표현 허용 | accept | ✅ executed | ✅ accept | ✅ accept |
+| s12 | 표현 허용 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| s13 | 표현 허용 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| s14 | 표현 허용 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| n01 | 조건 결합 | accept | ✅ executed | ✅ accept | ✅ accept |
+| n02 | 비교 방향 | accept | ✅ executed | ✅ accept | ✅ accept |
+| n03 | 단위 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| n04 | 장치 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
+| n05 | 모호 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| n06 | 규칙 아님 | reject | ✅ reject | ✅ reject | ✅ reject |
+| n07 | 표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| n08 | 표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| n09 | 규칙 아님 | reject | ✅ reject | ✅ reject | ✅ reject |
+| n10 | 세대 범위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| n11 | 예외 | override | ❌ reject | ❌ reject | ❌ reject |
+| n12 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| n13 | 세대 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
+| n14 | 세대 불일치 | reject | ✅ reject | ✅ reject | ✅ reject |
+| n15 | 범위 밖 | reject | ✅ reject | ✅ reject | ✅ reject |
+| n16 | 범위 밖 | reject | ✅ reject | ✅ reject | ✅ reject |
+| x01 | 상대 변경 | override | ❌ reject | ❌ clarify | ❌ clarify |
+| x02 | 상대 변경 | override | ❌ reject | ❌ clarify | ❌ clarify |
+| x03 | 상대 변경 | override | ✅ executed | ✅ override | ✅ override |
+| x04 | 상대 변경 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| d01 | 지우기 | reject | ✅ reject | ✅ reject | ✅ reject |
+| d02 | 지우기 | reject | ✅ reject | ✅ reject | ✅ reject |
+| d03 | 지우기 | reject | ✅ reject | ✅ reject | ✅ reject |
+| p01 | 세대 열거 | accept | ✅ executed | ✅ accept | ✅ accept |
+| p02 | 공손체 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| p03 | 중복 규칙 | accept | ✅ executed | ✅ accept | ✅ accept |
+| p04 | 소수점 | accept | ✅ executed | ✅ accept | ✅ accept |
+| p05 | 범위 밖 값 | reject | ❌ executed | ✅ reject | ✅ reject |
+| p06 | 동작 값 누락 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| p07 | 다른 기능 | reject | ❌ executed | ❌ clarify | ❌ clarify |
+| p08 | 미지원 | reject | ✅ reject | ✅ reject | ✅ reject |
+| p09 | 돌봄·기기 | reject | ✅ reject | ✅ reject | ✅ reject |
+| p10 | 규칙 아님 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| p11 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| p12 | 경계값 | accept | ✅ executed | ✅ accept | ✅ accept |
+| p13 | 예외 | override | ✅ executed | ✅ override | ✅ override |
+| p14 | 상대 변경 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| p15 | 규칙 아님 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| p16 | 범위 밖 값 | reject | ❌ executed | ✅ reject | ✅ reject |
+| w01 | 움직임 제어 | accept | ✅ executed | ❌ reject | ✅ accept |
+| w02 | 조건 결합 | accept | ✅ executed | ❌ reject | ✅ accept |
+| w03 | 단위 생략 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w04 | 구간 조건 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w05 | 시각 조건 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w06 | 다세대 제어 | reject | ✅ reject | ✅ reject | ✅ reject |
+| w07 | 한글 수사 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w08 | 세대 불일치 | reject | ✅ reject | ✅ reject | ✅ reject |
+| w09 | 세대 불일치 | reject | ❌ executed | ✅ reject | ✅ reject |
+| w10 | 표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w11 | 정밀도 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w12 | 단위 없는 숫자 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| w13 | 예외 | reject | ❌ executed | ✅ reject | ✅ reject |
+| w14 | 어순 뒤집기 | accept | ✅ executed | ✅ accept | ✅ accept |
+| w15 | 규칙 아님 | reject | ✅ reject | ✅ reject | ✅ reject |
+| w16 | 규칙 아님 | clarify | ❌ reject | ❌ reject | ❌ reject |
+| y01 | 동작 방향 | accept | ✅ executed | ❌ reject | ✅ accept |
+| y02 | 동작 방향 | accept | ✅ executed | ✅ accept | ✅ accept |
+| y03 | 영어 혼용 | accept | ✅ executed | ✅ accept | ✅ accept |
+| y04 | 긴 문장 | accept | ❌ reject | ❌ clarify | ❌ clarify |
+| y05 | 범위 밖 값 | reject | ❌ executed | ✅ reject | ✅ reject |
+| y06 | 세대 열거 | reject | ✅ reject | ✅ reject | ✅ reject |
+| y07 | 부정 조건 | accept | ✅ executed | ✅ accept | ✅ accept |
+| y08 | 조건 없음 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| y09 | 소수 시간 | accept | ✅ executed | ✅ accept | ✅ accept |
+| y10 | 기호 | accept | ✅ executed | ✅ accept | ✅ accept |
+| y11 | 상대 변경 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| y12 | 예외 대상 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
+| y13 | 중복 동작 | accept | ✅ executed | ✅ accept | ✅ accept |
+| y14 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| z01 | 구조 밖 조건 | reject | ❌ executed | ✅ reject | ✅ reject |
+| z02 | 규칙 아님 | reject | ✅ reject | ✅ reject | ✅ reject |
+| z03 | 위험도 종류 | reject | ❌ executed | ✅ reject | ✅ reject |
+| z04 | 센서 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
+| z05 | 이중 단위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| z06 | 돌봄·기기 | reject | ❌ executed | ✅ reject | ✅ reject |
+| z07 | 액추에이터를 조건으로 | reject | ✅ reject | ✅ reject | ✅ reject |
+| z08 | 동작 값 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| z09 | 종류 불일치 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| z10 | 예외 열거 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| z11 | 과한 값 | accept | ✅ executed | ✅ accept | ✅ accept |
+| z12 | 짧은 값 | accept | ❌ reject | ❌ clarify | ❌ clarify |
+| z13 | 모순 조건 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| z14 | 제어 불가 | reject | ✅ reject | ✅ reject | ✅ reject |
+| v01 | 조건 축소 | reject | ✅ reject | ✅ reject | ✅ reject |
+| v02 | 조건 축소 | reject | ✅ reject | ✅ reject | ✅ reject |
+| v03 | 사람 대상 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| v04 | 수신자 지정 | reject | ✅ reject | ✅ reject | ✅ reject |
+| v05 | 조건부 동작 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| v06 | 센서 이름 직접 | accept | ✅ executed | ✅ accept | ✅ accept |
+| v07 | 상대 변경 | override | ❌ reject | ❌ clarify | ❌ clarify |
+| v08 | 상대 변경 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| v09 | 값 없는 비교 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| v10 | 세대 범위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| v11 | 중복 지정 | accept | ✅ executed | ✅ accept | ✅ accept |
+| v12 | 단위 혼동 | reject | ❌ executed | ✅ reject | ✅ reject |
+| v13 | 빈 입력 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| v14 | 따옴표·특수문자 | accept | ✅ executed | ✅ accept | ✅ accept |
+| u01 | 조건 축소 | reject | ✅ reject | ✅ reject | ✅ reject |
+| u02 | 조건 축소 | reject | ✅ reject | ✅ reject | ✅ reject |
+| u03 | 단위 오류 | reject | ❌ executed | ✅ reject | ✅ reject |
+| u04 | 종류 불일치 | reject | ❌ executed | ✅ reject | ✅ reject |
+| u05 | 경계값 | accept | ✅ executed | ✅ accept | ✅ accept |
+| u06 | 범위 밖 값 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| u07 | 돌봄·단위 | accept | ❌ reject | ❌ clarify | ❌ clarify |
+| u08 | 다세대 제어 | reject | ✅ reject | ✅ reject | ✅ reject |
+| u09 | 동작 값 누락 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| u10 | 비교 연산 | accept | ✅ executed | ❌ reject | ✅ accept |
+| u11 | 규칙 아님 | reject | ✅ reject | ✅ reject | ✅ reject |
+| u12 | 사투리 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| u13 | 비교 표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| u14 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| t01 | 단위 오류 | reject | ❌ executed | ✅ reject | ✅ reject |
+| t02 | 단위 오류 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| t03 | 시간 단위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| t04 | 세대 범위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| t05 | 조건 축소 | reject | ✅ reject | ✅ reject | ✅ reject |
+| t06 | 행동 요청 | reject | ✅ reject | ✅ reject | ✅ reject |
+| t07 | 기존 규칙 조회 | reject | ✅ reject | ✅ reject | ✅ reject |
+| t08 | 예외 해제 | reject | ✅ reject | ✅ reject | ✅ reject |
+| t09 | 조건 결합 | reject | ✅ reject | ✅ reject | ✅ reject |
+| t10 | 상대 변경 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| t11 | 표현 허용 | accept | ✅ executed | ✅ accept | ✅ accept |
+| t12 | 표현 허용 | accept | ✅ executed | ✅ accept | ✅ accept |
+| t13 | 모호 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| t14 | 중복 동작 | reject | ❌ executed | ✅ reject | ✅ reject |
+| g01 | 시간 표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| g02 | 세대 표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| g03 | 세대 표현 | accept | ✅ executed | ✅ accept | ✅ accept |
+| g04 | 대상 생략 | accept | ✅ executed | ✅ accept | ✅ accept |
+| g05 | 범위 표기 | accept | ✅ executed | ❌ reject | ✅ accept |
+| g06 | 전각 숫자 | accept | ✅ executed | ✅ accept | ✅ accept |
+| g07 | 기호 | accept | ✅ executed | ✅ accept | ✅ accept |
+| g08 | 두 문장 | accept | ✅ executed | ✅ accept | ✅ accept |
+| g09 | 조각 입력 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| g10 | 뜻 반대 | reject | ✅ reject | ❌ clarify | ❌ clarify |
+| g11 | 이중 부정 | reject | ❌ executed | ✅ reject | ✅ reject |
+| g12 | 세대 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
+| g13 | 승인 건너뛰기 | accept | ✅ executed | ✅ accept | ✅ accept |
+| g14 | 수신자 지정 | reject | ❌ executed | ✅ reject | ✅ reject |
+
 ## 실험 이력
 
 | 차수 | 날짜 | 하네스 | 정답 (C) | 잘못 앞으로 나감 (C) |
@@ -1446,6 +1685,7 @@
 | 26차 | 2026-09-23 | 부정 조건 차단 + 승인 요청 안내 | 190/190 | 0 |
 | 27차 | 2026-09-25 | 문장 대조 검사 (로컬 모델에서 드러난 구멍) + 채점 보강 | 190/190 · **로컬 3종도 잘못 나감 0** | 0 |
 | 28차 | 2026-09-25 | 상용 모델 2종이 드러낸 빈틈 다섯 곳 + w13 정답 수정 | 190/190 · **여섯 모델 모두 잘못 나감 0** | 0 |
+| 29차 | 2026-09-25 | 일곱 번째 모델(DeepSeek V4 Flash) + 시연 점검에서 찾은 빈틈 | 190/190 · **일곱 모델 모두 잘못 나감 0** | 0 |
 
 ※ 8차를 재고 나서 r12 의 정답을 바꿨다 (아래). 하네스는 그대로다 — 바뀐 것은 우리가 정한 정답이다.
 
@@ -1645,6 +1885,16 @@
 비용: OpenRouter 0.94달러 (답을 받은 것 Grok 4.3 0.55 · GPT-5 nano 0.36, 나머지는 중간에 멈추며 버린 호출).
 
 ⚠️ **이 0 은 이 190문장과 이 여섯 모델에 맞춘 숫자다.** 27차의 구멍은 새 문장이 아니라 새 모델이 드러냈고, 28차의 구멍은 또 다른 새 모델이 드러냈다. 새 모델·새 문장으로 재면 또 나올 수 있다.
+
+### 29차 (2026-09-25) — 일곱 번째 모델은 새 구멍을 내지 않았다 / 시연 점검이 찾은 빈틈
+
+**DeepSeek V4 Flash (MIT 라이선스, OpenRouter)** 를 190문장에 붙였다. AI 자체 정답 132/190(69%), 그대로 실행하면 잘못 나감 23건(일곱 모델 중 가장 적다), **하네스 통과 후 잘못 나감 0**, 모델 답이 맞았는데 막음 0, 기대 결과와 일치 168/190, 되묻기 30/31. 되먹임 12회 중 5문장을 살렸다. 비용 0.07달러. **모델을 바꿨는데 새는 종류가 나오지 않은 첫 경우다** (27차 로컬 3종, 28차 상용 2종은 모두 새 종류를 드러냈다).
+
+**시연 점검(발표 대본의 6단계를 엔진으로 순서대로 돌림, `demo_rehearsal.py`)이 찾은 하네스 빈틈 하나** — 190문장 측정이 보지 못한 것이다. "102호 온도가 30도 넘으면 불 켜줘"에 AI가 101호 장치로 규칙을 만들면서 세대 범위를 비우면(프롬프트는 제어 규칙의 세대 범위를 비우라고 한다) 검증기의 세대 대조가 돌지 않았다. 캐시의 여섯 모델은 모두 세대 범위에 102를 넣어서 드러나지 않았다. → 문장이 말한 세대와 규칙이 쓰는 장치의 세대를 대조한다(문장 대조 검사에 한 줄). 일곱 모델로 다시 재도 문장별 결과가 하나도 바뀌지 않았다 — 막아야 할 것만 막는다.
+
+시연 점검에서 함께 고친 것(측정 숫자에는 영향 없음): 되묻기 문구를 사람이 읽는 말로('motion' 대신 '움직임이 없는 시간'), 되묻기로 보류할 때도 겹치는 기존 규칙을 알려 승인 버튼이 '새 규칙 적용 (기존 끄기)'가 되게, 예외 카드의 '대상 규칙 찾기' 단계 표시, 예외 카드 머리말을 'AI가 읽은 내용'에서 '문장에서 읽은 내용'으로(값은 코드가 문장에서 읽고 계산한다), 26차에 만들고 연결하지 않았던 승인 요청 안내 연결, AI 서버 오류(503·쿼터)를 문장 탓으로 보이지 않게 — 다시 눌러 될 일인지 나눠 안내, Gemini 5xx 는 기다렸다 재시도 후 예비 모델로.
+
+⚠️ **측정 트리와 실제 장치 트리가 다르다.** 측정은 전시 구성 트리(모든 장치에 세대 표시, `h101_led`)로 했다. 공용 서버의 지금 트리에는 세대 표시 없는 옛 컨테이너(`temp`·`led_cmd`·`servo_cmd` 등)와 개발 때 만든 가상 세대(103~105호)가 남아 있고, 세대 표시가 없는 장치는 세대 대조 검사가 돌지 못한다. 시연 전에 트리를 전시 구성과 맞춰야 이 측정이 현장에서도 성립한다.
 
 ## 해석할 때 주의
 

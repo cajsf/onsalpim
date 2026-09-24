@@ -294,13 +294,16 @@ def _apply_override(sentence, out, devices, steps):
         return _stop(steps, OVERRIDE_STEPS, first_fail["errors"], questions=first_fail["questions"],
                      reason="범위 검증에서 멈춤")
 
+    steps.append({"id": "match", "label": STEP_LABELS["match"], "status": "ok",
+                  "detail": f"대상 규칙 {', '.join('#' + str(c['id']) for c in candidates)} — "
+                            f"'{ov_type}' 기준을 쓰는 기존 규칙을 코드가 찾았습니다"})
     steps.append({"id": "scope", "label": STEP_LABELS["scope"], "status": "ok",
                   "detail": f"{home}호 예외 {scope._fmt_minutes(value)} 적용 가능"})
     read_as = (f"{home}호 무활동 기준을 지금 {scope._fmt_minutes(changed[0])}에서 "
                f"{scope._fmt_minutes(changed[1])} {'줄여' if sign < 0 else '늘려'} "
                f"{scope._fmt_minutes(value)}({value}분)으로"
                if changed else f"{home}호 무활동 기준을 {scope._fmt_minutes(value)}({value}분)으로")
-    ask = (f"AI가 읽은 내용: {read_as}. "
+    ask = (f"문장에서 읽은 내용: {read_as}. "
            + ("아래 규칙에 적용할까요?" if len(candidates) == 1
               else f"적용할 규칙이 {len(candidates)}개입니다. 하나를 골라 주세요."))
     result = _stop(steps, OVERRIDE_STEPS, [], questions=[ask], reason="복지사 확인 후 적용")
@@ -670,6 +673,13 @@ def _fact_checks(sentence, rule, devices, steps):
             return stop(f"조건은 {', '.join(sorted(cond_homes))}호 센서인데 동작은 "
                         f"{', '.join(sorted(act_homes))}호 장치입니다 — 한 세대 안에서 조건과 동작을 이어 주세요.",
                         "조건과 동작의 세대가 다름")
+        # 시연 점검(9/25): "102호 온도가 30도 넘으면 불 켜줘"에 AI가 101호 장치로 만들고 세대 범위를
+        # 비우면(프롬프트가 제어 규칙은 비우라고 한다) 검증기의 세대 대조가 돌지 않았다.
+        said = set(facts.named_homes(sentence))
+        if said and (cond_homes | act_homes) and not (cond_homes | act_homes) <= said:
+            return stop(f"문장은 {', '.join(sorted(said))}호를 말했는데 규칙은 "
+                        f"{', '.join(sorted((cond_homes | act_homes) - said))}호 장치를 씁니다 — "
+                        f"그 세대에 없는 장치는 쓸 수 없습니다.", "문장의 세대와 장치의 세대가 다름")
         lights = [t for t in acts if by_path.get(t["path"], {}).get("type") == "light"]
         if lights and facts.color_request(sentence):
             return stop(f"조명은 켜기·끄기만 됩니다 — '{facts.color_request(sentence)}' 같은 색은 바꿀 수 없습니다.",
@@ -863,6 +873,8 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
     if not llm_ok:
         msg = out.get("error") or "LLM이 거부함"
+        if msg.startswith("LLM 호출 실패"):
+            return _ai_down_stop(steps, flow, msg)
         if _is_question(out):
             # 거부가 아니라 되묻기 — 복지사가 한 줄 더 쓰면 되는 상황이다
             steps[-1]["status"] = "warn"
@@ -884,6 +896,8 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     if not result["ok"] and not result.get("refused_by_llm") and budget > 0:
         first_errors = result["errors"]
         out = tr.translate(sentence, devices, feedback=first_errors)
+        if str(out.get("error", "")).startswith("LLM 호출 실패"):
+            return _ai_down_stop(steps, flow, out["error"])     # 되먹임 재호출이 실패한 것 — AI가 거부한 게 아니다
         result = validator.validate_translation(out, devices, sentence)
 
     val_ok = bool(result["ok"])
@@ -964,7 +978,8 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     if sc["errors"]:
         sc_detail = "; ".join(sc["errors"])
     elif sc["questions"]:
-        sc_detail = "; ".join(sc["questions"])
+        # 적용 대상 세대는 지우지 않는다 — 시연에서 '세대 4곳에 걸린다'를 보여 주는 자리다
+        sc_detail = (sc_detail + " · " if sc["homes"] else "") + "; ".join(sc["questions"])
 
     steps.append({
         "id": "scope",
@@ -982,15 +997,18 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     if sc["questions"]:
         # 값이 빠진 규칙 — 버리지 않고 승인 대기함에 올린다.
         # 담당자가 기준값을 채워 넣어야 승인할 수 있다. (전시 계획안 ③)
-        new_id = _save_new(rules, sentence, out["rule"], questions=sc["questions"])
+        # 겹치는 기존 규칙도 지금 알려 준다 — 알리지 않으면 화면의 [승인하기]가 겹침 오류로 거듭 실패한다
+        # (시연 점검 9/25: 켜진 '전체 세대 8시간 긴급'이 있으면 되묻기 카드에서 승인할 길이 없었다)
+        overlaps = scope.idle_overlaps(out["rule"], devices, rules)
+        new_id = _save_new(rules, sentence, out["rule"], questions=sc["questions"], conflicts=overlaps)
         steps.append({
             "id": "save", "label": STEP_LABELS["save"], "status": "ok",
             "detail": f"승인 대기함에 #{new_id} 보류 (기준값 입력 필요)", "id_num": new_id,
         })
         return {
             "ok": False, "status": "needs_clarification", "errors": [],
-            "questions": sc["questions"], "warnings": sc["warnings"],
-            "rule": out["rule"], "id": new_id,
+            "questions": sc["questions"], "warnings": sc["warnings"] + _approval_warning(sentence),
+            "conflicts": overlaps, "rule": out["rule"], "id": new_id,
             "steps": steps + _skips({s["id"] for s in steps}, flow, "기준값 확정 후 진행"),
         }
 
@@ -1029,7 +1047,7 @@ def add_rule_from_sentence(sentence, devices, retry=1):
         "status": "ok",
         "errors": [],
         "questions": [],
-        "warnings": sc["warnings"],
+        "warnings": sc["warnings"] + _approval_warning(sentence),
         "conflicts": overlaps,
         "rule": out["rule"],
         "id": new_id,
@@ -1040,13 +1058,34 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
 # ---------- 승인 대기함 ----------
 
-_ASKED_APPROVE = re.compile(r"(승인까지|바로 적용|즉시 적용|자동 승인|승인해 ?줘|승인도)")
+_ASKED_APPROVE = re.compile(r"(승인까지|바로 적용|즉시 적용|자동 승인|승인해 ?줘|승인도|"
+                            r"승인\s*(없이|생략|건너)|바로 실행|즉시 실행)")
 
 
 def approval_note(sentence):
     """'승인까지 해줘'라는 요청에 붙일 안내. 승인은 사람이 누르는 절차다 (25차 g13)."""
     return ("승인은 담당자가 직접 눌러야 합니다 — 규칙은 승인 대기함에 넣었습니다."
             if _ASKED_APPROVE.search(sentence or "") else None)
+
+
+def _ai_down_stop(steps, flow, msg):
+    """AI 호출 자체가 실패했다 — 문장이나 AI 판단의 문제가 아니다. 다시 눌러서 될 일인지 나눠 안내한다.
+    결과에 ai_down 을 붙인다 — 서버는 이때 '지금 쓸 수 있는 것' 안내를 붙이지 않는다(문장을 고칠 일이 아니다)."""
+    if msg.rstrip().endswith("쿼터 초과"):
+        text = "오늘 쓸 수 있는 AI 호출 한도가 끝났습니다 — 다시 눌러도 같습니다. 담당자가 확인해야 합니다."
+    elif re.search(r"\b(400|401|402|403)\b|API key", msg):
+        text = "AI 호출 설정(키·요금) 문제입니다 — 다시 눌러도 같습니다. 담당자가 확인해야 합니다."
+    else:
+        text = "AI 서버가 응답하지 않았습니다 — 문장 문제가 아닙니다. 같은 문장으로 한 번 더 눌러 주세요."
+    res = _stop(steps, flow, [f"{text} ({msg[:80]})"], reason="AI 호출 실패")
+    res["ai_down"] = True
+    return res
+
+
+def _approval_warning(sentence):
+    """승인 대기함에 넣은 결과에만 붙인다 — 저장하지 않은 결과(예외 확인·거절)에 붙이면 안내가 거짓이 된다."""
+    note = approval_note(sentence)
+    return [note] if note else []
 
 
 def _save_new(rules, sentence, rule, questions=None, conflicts=None):
@@ -1105,7 +1144,7 @@ def approve_rule(rule_id, fill_value=None, by="복지사", replace=False, device
         save_rules(rules)
         ids = ", ".join(f'#{o["id"]}' for o in overlaps)
         return {"ok": False, "conflicts": overlaps,
-                "errors": [f"기존 규칙 {ids}과 같은 세대·같은 위험도로 겹칩니다. '기존 규칙 대체' 또는 '거부'를 골라 주세요."]}
+                "errors": [f"기존 규칙 {ids}과 같은 세대·같은 위험도로 겹칩니다. '새 규칙 적용 (기존 끄기)' 또는 '기존 규칙 유지'를 눌러 주세요."]}
     partial = [o for o in overlaps if not o["covers_all"]]
     if partial:
         o = partial[0]

@@ -25,6 +25,7 @@ llm_translator.py — 사용자 문장을 규칙 JSON으로 번역한다 (Gemini
 
 import json
 import re
+import time
 import requests
 
 import scope
@@ -337,13 +338,32 @@ def translate(sentence, devices, retries=2, feedback=None, models=None):
                     print(f"  (LLM 응답 지연, 재시도 {attempt + 1}/{retries}...)")
                 continue
             if r.status_code == 429:       # 이 모델의 무료 쿼터 소진 → 다음 모델로 폴백
-                print(f"  ({model} 쿼터 초과 → 다음 모델로 폴백)")
+                # 분당 한도인지 하루 한도인지 콘솔에 남긴다 — 시연 날 대책이 다르다 (분당이면 잠깐 기다리면 된다)
+                try:
+                    quota = [v.get("quotaId", "") for d in r.json()["error"].get("details", [])
+                             for v in d.get("violations") or []]
+                except (ValueError, KeyError, AttributeError, TypeError):
+                    quota = []
+                print(f"  ({model} 쿼터 초과{' ' + ','.join(quota) if quota else ''} → 다음 모델로 폴백)")
                 last_err = f"{model} 쿼터 초과"
+                break
+            if r.status_code in (500, 502, 503, 504):
+                # 과부하·일시 오류 — 잠깐 기다렸다 다시, 그래도 안 되면 다음 모델로 (시연 9/25 리허설에서 503이 났다)
+                last_err = f"{model} 서버 오류 {r.status_code}"
+                if attempt < retries:
+                    print(f"  ({model} 서버 오류 {r.status_code}, {2 * (attempt + 1)}초 뒤 재시도 {attempt + 1}/{retries}...)")
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                print(f"  ({model} 서버 오류 {r.status_code} → 다음 모델로 폴백)")
                 break
             if r.status_code != 200:
                 return {"ok": False, "error": f"LLM 호출 실패 {r.status_code}: {r.text[:200]}", "rule": {}}
-            text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(text)
+            try:
+                text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                return json.loads(text)
+            except (ValueError, KeyError, IndexError, TypeError):
+                # 안전 차단(candidates 없음)·잘린 JSON — 호출 실패가 아니라 모델 답이 틀린 것으로 센다 (OpenRouter·Ollama 와 같게)
+                return {"ok": False, "error": f"AI 응답이 규칙 형식이 아님: {r.text[:120]}", "rule": {}}
     return {"ok": False, "error": f"LLM 호출 실패(모든 모델 쿼터 초과 또는 네트워크): {last_err[:150]}", "rule": {}}
 
 

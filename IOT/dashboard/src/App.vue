@@ -415,9 +415,14 @@ async function keepRule(id) {
 
 async function approve(id, value, replace = false) {
   const res = await api.approveRule(id, value, replace)
-  if (!res.ok) { ruleError.value = res.errors?.join(' ') || '승인에 실패했습니다.'; return }
+  if (!res.ok) {
+    ruleError.value = res.errors?.join(' ') || '승인에 실패했습니다.'
+    // 서버가 겹치는 규칙을 알려 주면 요약 카드 버튼도 '새 규칙 적용 (기존 끄기)'로 바꾼다 — 안 바꾸면 같은 실패가 되풀이된다
+    if (res.conflicts && lastResult.value?.id === id) lastResult.value = { ...lastResult.value, conflicts: res.conflicts }
+    return
+  }
   ruleError.value = ''; clarify.value = ''; fillValue.value = ''
-  if (lastResult.value?.id === id) lastResult.value = null
+  if (lastResult.value?.id === id) { lastResult.value = null; ruleWarnings.value = [] }
   await refresh()
 }
 

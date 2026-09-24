@@ -879,3 +879,84 @@ try:
 finally:
     engine.tr.translate = _real7
 print("  ✅ 새 모델이 드러낸 빈틈: 종류 조건+장치 동작·모순 조건·고친 값 재검증·맞춤법 틀린 비교·예외의 위험도")
+
+# ── 시연 점검(9/25)에서 고친 것 ──
+# 문장이 말한 세대와 규칙이 쓰는 장치의 세대가 다르면 멈춘다 (세대 범위를 비운 제어 규칙)
+h, _, _ = _fc("102호 온도가 30도 넘으면 불 켜줘", _ctl(("h101_temp", ">", "30"), [("h101_led", "ON")]))
+assert h and "102호" in h["errors"][0] and "101호" in h["errors"][0], h
+h, _, _ = _fc("101호 온도가 30도 넘으면 불 켜줘", _ctl(("h101_temp", ">", "30"), [("h101_led", "ON")]))
+assert h is None, "문장의 세대와 같으면 통과"
+_real8 = engine.tr.translate
+try:
+    _care_ans = lambda v: {"ok": True, "intent": "create_rule", "error": "", "need": "", "override": {},
+                           "rule": {"scope": {"homes": "ALL"}, "and": [],
+                                    "when": {"path": "", "type": "motion", "op": scope.IDLE_OP, "value": v},
+                                    "then": [{"path": "", "value": "", "severity": "URGENT"}]}}
+    # 되묻기 — 사람이 읽는 문구, 적용 대상 세대가 남고, 겹치는 기존 규칙을 같이 알려 준다
+    engine.save_rules(copy.deepcopy(_base))
+    engine.tr.translate, _ = _scripted(_care_ans(""))
+    res = engine.add_rule_from_sentence("전체 세대에서 오래 움직임이 없으면 긴급으로 표시해줘", TREE)
+    assert res["status"] == "needs_clarification" and "몇 시간" in res["questions"][0], res["questions"]
+    assert "motion" not in res["questions"][0]
+    assert res["conflicts"] and res["conflicts"][0]["id"] == 1, "겹치는 #1 을 되묻기 결과에도 알린다"
+    assert "적용 대상" in next(s for s in res["steps"] if s["id"] == "scope")["detail"]
+    # 승인 요청 안내 — 승인 대기함에 넣은 결과에만 붙는다
+    engine.save_rules([])
+    engine.tr.translate, _ = _scripted(_care_ans("480"))
+    res = engine.add_rule_from_sentence("전체 세대 8시간 무활동이면 긴급으로 만들고 바로 승인까지 해줘", TREE)
+    assert res["status"] == "ok" and any("담당자가 직접" in w for w in res["warnings"]), res["warnings"]
+    engine.save_rules(copy.deepcopy(_base))
+    engine.tr.translate, _ = _scripted(_ov2("102", "360"))
+    res = engine.add_rule_from_sentence("102호만 6시간으로 바꾸고 바로 적용해줘", TREE)
+    assert res["status"] == "needs_choice" and not res["warnings"], "저장하지 않은 예외 확인에는 붙이지 않는다"
+    # 예외 — '대상 규칙 찾기'가 한 단계로 보이고, 읽은 내용은 문장에서 읽은 것이라고 적는다
+    assert next(s for s in res["steps"] if s["id"] == "match")["status"] == "ok"
+    assert res["questions"][0].startswith("문장에서 읽은 내용")
+    # AI 서버 오류는 문장 탓으로 보이지 않게 한다
+    engine.tr.translate, _ = _scripted({"ok": False, "error": "LLM 호출 실패 503: overloaded", "rule": {}})
+    res = engine.add_rule_from_sentence("101호 온도가 30도 넘으면 불 켜줘", TREE)
+    assert res["status"] == "rejected" and "한 번 더" in res["errors"][0]
+finally:
+    engine.tr.translate = _real8
+print("  ✅ 시연 점검: 문장의 세대·되묻기 문구·겹침 안내·승인 요청 안내·대상 규칙 단계·AI 서버 오류")
+
+# ── 검토(9/25)에서 확인된 결함 ──
+_real9 = engine.tr.translate
+try:
+    # 되먹임 재호출이 실패해도 'AI가 거부함'이 아니라 AI 호출 실패로 안내한다
+    _bad = {"ok": True, "intent": "create_rule", "error": "", "need": "", "override": {},
+            "rule": {"scope": {"homes": ""}, "and": [], "when": {"path": "no/such/temp", "type": "", "op": ">", "value": "30"},
+                     "then": [{"path": "no/such/led", "value": "ON", "severity": ""}]}}
+    engine.save_rules([])
+    engine.tr.translate, _c = _scripted(_bad, {"ok": False, "error": "LLM 호출 실패 503: overloaded", "rule": {}})
+    res = engine.add_rule_from_sentence("101호 온도가 30도 넘으면 불 켜줘", TREE)
+    assert len(_c) == 2 and res.get("ai_down") and "한 번 더" in res["errors"][0], res["errors"]
+    # 다시 눌러도 안 되는 실패(하루 한도)는 다시 누르라고 하지 않는다
+    engine.tr.translate, _ = _scripted({"ok": False, "rule": {},
+                                        "error": "LLM 호출 실패(모든 모델 쿼터 초과 또는 네트워크): gemini-3.5-flash 쿼터 초과"})
+    res = engine.add_rule_from_sentence("101호 온도가 30도 넘으면 불 켜줘", TREE)
+    assert res.get("ai_down") and "한도" in res["errors"][0] and "한 번 더" not in res["errors"][0], res["errors"]
+finally:
+    engine.tr.translate = _real9
+
+# Gemini 5xx — 기다렸다 다시, 그래도 안 되면 다음 모델로 / 200 인데 본문이 이상하면 예외 대신 '형식 아님'
+_real_sleep, _real_post2 = _tr.time.sleep, _tr.requests.post
+try:
+    _tr.time.sleep = lambda s: None
+    _ok_body = {"candidates": [{"content": {"parts": [{"text": '{"ok": true, "rule": {}}'}]}}]}
+    _seq = [_Resp(503, text="busy"), _Resp(200, _ok_body)]
+    _tr.requests.post = lambda url, **k: _seq.pop(0)
+    assert _tr.translate("x", [], models=["m1"])["ok"] is True, "503 한 번 뒤 같은 모델로 다시"
+    _urls = []
+    def _post(url, **k):
+        _urls.append(url)
+        return _Resp(503, text="busy") if "m1" in url else _Resp(200, _ok_body)
+    _tr.requests.post = _post
+    assert _tr.translate("x", [], models=["m1", "m2"])["ok"] is True
+    assert sum("m1" in u for u in _urls) == 3 and "m2" in _urls[-1], "m1 을 세 번 시도하고 m2 로 넘어간다"
+    _tr.requests.post = lambda url, **k: _Resp(200, {"promptFeedback": {"blockReason": "SAFETY"}})
+    o = _tr.translate("x", [], models=["m1"])
+    assert o["ok"] is False and o["error"].startswith("AI 응답이 규칙 형식이 아님")
+finally:
+    _tr.time.sleep, _tr.requests.post = _real_sleep, _real_post2
+print("  ✅ 검토에서 찾은 것: 되먹임 재호출 실패 안내·다시 눌러도 안 되는 실패·5xx 재시도와 다음 모델·응답 형식 오류")

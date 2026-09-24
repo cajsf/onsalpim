@@ -47,6 +47,16 @@ SEVERITIES = {"NORMAL", "WATCH", "URGENT", "CHECK_DEVICE"}
 # 무활동 규칙이 쓸 수 있는 위험도 — 단계 경보(예: 3시간 주의 → 8시간 긴급). 점검 필요는 기기 몫이다.
 IDLE_SEVERITIES = ("WATCH", "URGENT")
 SEV_KO = {"NORMAL": "정상", "WATCH": "주의", "URGENT": "긴급", "CHECK_DEVICE": "점검 필요"}
+# 장치 종류의 우리말 — 되묻기 문구에 'motion' 같은 영어 이름이나 Mobius 경로가 그대로 보이지 않게 한다
+TYPE_KO = {"motion": "움직임", "temperature": "온도", "humidity": "습도", "battery": "배터리",
+           "light": "조명", "window": "창문", "card": "카드"}
+
+
+def _dev_name(path, devices):
+    """경로를 '101호 온도'처럼 읽을 수 있는 이름으로. 모르는 장치면 경로 마지막 이름."""
+    meta = next((d["meta"] for d in devices if d["path"] == path), {})
+    kind = TYPE_KO.get(meta.get("type"), meta.get("type") or (path or "?").rsplit("/", 1)[-1])
+    return f"{meta['home']}호 {kind}" if meta.get("home") else kind
 
 
 # ---------- 세대 발견 (하드코딩 없음) ----------
@@ -213,11 +223,12 @@ def validate_scope(rule, devices, existing_rules=None):
         # 제어 규칙도 기준값이 비면 되묻는다 — "더우면 불 켜줘"처럼 숫자가 없는 문장.
         # AI는 지시대로 값을 비웠는데 여기서 통과시켜 빈 기준값이 승인 대기에 올라간 적이 있다 (하네스 실험).
         # 승인 화면에서 채울 수 있는 건 when 의 값뿐이라, and 조건이 비면 되묻지 않고 거부한다.
-        questions = ([f"기준값이 정해지지 않았습니다. '{when.get('path')}' 조건의 값을 지정해주세요."]
+        questions = ([f"기준값이 정해지지 않았습니다. '{_dev_name(when.get('path'), devices)}' 조건을 "
+                      f"몇으로 할지 적어 주세요 (예: 30)."]
                      if (when.get("op") or "").strip() and _needs_threshold(when) else [])
         # 동작 값이 비어도 되묻는다 — "창문 열어줘"에 몇 도로 열지 말하지 않은 경우.
         # 11차 실험(p06): AI가 180도를 지어냈고, 그 값을 비워도 여기서 통과해 빈 명령이 저장됐다.
-        questions += [f"'{t.get('path')}' 을(를) 어떤 값으로 할지 정해주세요."
+        questions += [f"'{_dev_name(t.get('path'), devices)}' 을(를) 어떤 값으로 할지 정해 주세요."
                       for t in rule.get("then") or []
                       if (t or {}).get("path") and not str(t.get("value") or "").strip()]
         errors = [f"추가 조건 '{c.get('path')}'의 기준값이 비어 있음"
@@ -249,8 +260,10 @@ def validate_scope(rule, devices, existing_rules=None):
     # ② 임계값이 비어 있는가 → 거부가 아니라 되묻기
     if _needs_threshold(when):
         questions.append(
-            f"기준값이 정해지지 않았습니다. "
-            f"'{when.get('type', '?')}' 조건의 값을 지정해주세요."
+            "움직임이 없는 시간 기준이 정해지지 않았습니다. 몇 시간으로 할지 적어 주세요 (예: 8시간)."
+            if when.get("op") == IDLE_OP else
+            f"기준값이 정해지지 않았습니다. '{TYPE_KO.get(when.get('type'), when.get('type') or '?')}' 조건을 "
+            f"몇으로 할지 적어 주세요."
         )
 
     # ③ 범위 안에 있지만 필요한 센서가 없는 세대 → 적용 불가 세대를 미리 알린다
@@ -381,7 +394,7 @@ def idle_overlaps(rule, devices, existing_rules):
     """같은 세대에 같은 위험도의 무활동 기준을 정하는 활성 규칙을 찾는다.
 
     같은 위험도끼리 겹치면 어느 쪽이 적용되는지가 규칙에 드러나지 않는다 — 시스템이 몰래
-    고르지 않고 복지사가 '기존 규칙 대체' 또는 '거부'를 고르게 한다.
+    고르지 않고 복지사가 '새 규칙 적용 (기존 끄기)' 또는 '기존 규칙 유지'를 고르게 한다.
     위험도가 다르면 겹침이 아니라 단계 경보다 (3시간 주의 → 8시간 긴급).
 
     반환: [{'id', 'sentence', 'summary', 'homes': 겹치는 세대, 'covers_all': 새 규칙이 기존 규칙의 세대를 모두 덮는가}]
