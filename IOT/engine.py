@@ -28,6 +28,7 @@ import care_monitor
 import iot_platform as iot
 import llm_translator as tr
 import scope
+import sentence_facts as facts
 import validator
 
 # 돌면서 쌓이는 파일은 코드와 섞지 않는다. rules.json 만 저장소에 올라가고 나머지는 .gitignore.
@@ -196,6 +197,39 @@ def _apply_override(sentence, out, devices, steps):
         return _stop(steps, OVERRIDE_STEPS,
                      [f"'{ov_type}' 기준을 쓰는 공통 규칙이 없습니다. "
                       f"먼저 전체 세대 규칙을 만들어 주세요."])
+    # 로컬 모델 측정(9/24): 약한 모델은 두 세대 중 하나만 고르고(z10), 말하지 않은 양을 지어내고(q05),
+    # 배수를 더하기로 바꾸고(y11), 부호를 버렸다(r12). 문장에서 코드가 직접 읽어 대조한다.
+    said_homes = facts.named_homes(sentence)
+    if len(said_homes) > 1:
+        return _stop(steps, OVERRIDE_STEPS,
+                     [f"예외는 세대 하나씩 겁니다 — {', '.join(said_homes)}호를 한 번에 바꿀 수 없습니다. "
+                      f"세대마다 따로 말씀해 주세요."])
+    if said_homes and said_homes[0] != home:
+        home = said_homes[0]                         # 세대는 문장이 말한 대로
+    said = facts.durations(sentence)
+    if _relative_delta(sentence):
+        if facts.MULTIPLY.search(sentence):
+            return _stop(steps, OVERRIDE_STEPS, [],
+                         questions=["배·절반은 계산하지 않습니다 — 몇 시간(분)으로 할지 말씀해 주세요."],
+                         reason="배수 변경")
+        if not said:
+            return _stop(steps, OVERRIDE_STEPS, [],
+                         questions=["얼마나 바꿀지 없습니다 — '30분 줄여줘'처럼 양을 말씀해 주세요."],
+                         reason="바꿀 양을 모름")
+    if len(said) > 1:
+        return _stop(steps, OVERRIDE_STEPS,
+                     [f"한 문장에 시간 기준이 여러 개입니다({', '.join(scope._fmt_minutes(v) for v in said)})."])
+    if said:
+        if said[0] <= 0:
+            return _stop(steps, OVERRIDE_STEPS, [],
+                         questions=[f"기준은 0보다 커야 합니다 ('{scope._fmt_minutes(said[0])}') — 다시 말씀해 주세요."],
+                         reason="0 이하 기준")
+        value = facts.fmt(said[0])                   # 양·값은 문장이 말한 대로 (AI 계산을 쓰지 않는다)
+    elif value:
+        return _stop(steps, OVERRIDE_STEPS, [],
+                     questions=[f"{home}호 기준을 얼마로 할지 문장에 없습니다 — '6시간으로'처럼 말씀해 주세요."],
+                     reason="기준값을 모름")
+
     # "30분 줄여줘" — AI가 준 값은 바꿀 양이다. 지금 값에서 더하거나 뺀다 (계산은 코드가 한다).
     sign, changed = _relative_delta(sentence), None
     if sign and value:
@@ -565,8 +599,9 @@ def _negated_condition(sentence, rule):
 
 def _or_condition(sentence, rule):
     """조건을 '또는'으로 이었는가. 맞으면 왜 못 만드는지 알려줄 문장."""
-    if not (rule.get("and") or []):
-        return None                      # 조건이 하나면 and/or 구분이 의미 없다
+    if not (rule.get("and") or []) and facts.comparison_count(sentence) < 2:
+        return None                      # 조건이 정말 하나면 and/or 구분이 의미 없다
+    # 규칙엔 조건이 하나뿐인데 문장엔 비교가 둘 — 모델이 한쪽을 버린 것이다 (로컬 모델 측정 t09)
     if not _OR_COND.search(sentence):
         return None
     return ("'또는' 으로 이은 조건은 만들 수 없습니다. 규칙은 조건이 모두 맞을 때 발동합니다 — "
@@ -580,6 +615,108 @@ def _life_state_condition(sentence):
     return ("'자고 있을 때', '식사 중' 같은 생활 상태는 판단할 수 없습니다. "
             "이 시스템이 아는 것은 움직임이 있었는지와 마지막 활동 이후 얼마가 지났는지뿐입니다. "
             "그 조건을 빼고 말씀해 주세요.")
+
+
+# ── 문장이 말한 것과 AI 규칙을 대조한다 (로컬 모델 측정, 2026-09-24) ──
+# Gemini 로만 재면 0건이던 '하네스 통과 후 잘못 나감'이 로컬 모델에서는 14~28건이었다. 약한 모델은
+# 못 하는 부분을 거절하지 않고 조용히 빼거나 바꿨다 — 시간 계산이 틀리고(2시간 반→120분, 반나절→12분),
+# 층을 엉뚱한 세대로 읽고(2층→101·102), 숫자를 버렸다(-10도→10도, 50%로 켜줘→ON).
+# 문장에서 확실히 읽히는 값은 코드가 고치고, 표현할 수 없는 요청은 멈춘다. AI를 다시 부르지 않는다 —
+# 약한 모델은 돌려주면 문제 부분을 빼고 다시 내는 경향이 있었다(EXAONE 되먹임 뒤 잘못 나감 9→23).
+
+_RANGE_OF_HOMES = re.compile(r"\d{3,4}\s*호\s*(부터|에서|~)")
+
+
+def _fact_checks(sentence, rule, devices, steps):
+    """문장이 말한 것(sentence_facts)과 AI가 만든 규칙을 대조한다.
+
+    반환: 멈춰야 하면 _stop 결과, 아니면 None. 고친 것은 steps[-1] 에 남긴다.
+    """
+    when = rule.get("when") or {}
+    conds = [when] + list(rule.get("and") or [])
+    acts = [t for t in (rule.get("then") or []) if (t or {}).get("path")]
+    by_path = {d["path"]: d["meta"] for d in devices}
+    fixed = []
+
+    def stop(msg, reason):
+        steps.append({"id": "scope", "label": STEP_LABELS["scope"], "status": "fail", "detail": msg})
+        return _stop(steps, CREATE_STEPS, [msg], reason=reason)
+
+    if when.get("path"):                               # ── 제어 규칙 ──
+        if facts.says_all(sentence):
+            return stop("제어 규칙은 장치 하나를 직접 지목합니다 — '모든 세대'로는 만들 수 없습니다. "
+                        "세대마다 따로 말씀해 주세요.", "다세대 제어는 지원하지 않음")
+        homes_of = lambda items: {by_path.get(c.get("path"), {}).get("home") for c in items
+                                  if c.get("path") and c.get("path") != "system/hour"} - {None, ""}
+        cond_homes, act_homes = homes_of(conds), homes_of(acts)
+        if cond_homes and act_homes and not act_homes <= cond_homes:
+            return stop(f"조건은 {', '.join(sorted(cond_homes))}호 센서인데 동작은 "
+                        f"{', '.join(sorted(act_homes))}호 장치입니다 — 한 세대 안에서 조건과 동작을 이어 주세요.",
+                        "조건과 동작의 세대가 다름")
+        lights = [t for t in acts if by_path.get(t["path"], {}).get("type") == "light"]
+        if lights and facts.color_request(sentence):
+            return stop(f"조명은 켜기·끄기만 됩니다 — '{facts.color_request(sentence)}' 같은 색은 바꿀 수 없습니다.",
+                        "조명 색 요청")
+        if lights and facts.on_and_off(sentence):
+            return stop("같은 조명을 켜고 끄라는 말이 한 문장에 함께 있습니다 — 하나만 말씀해 주세요.", "반대 명령")
+        if facts.durations(sentence):
+            # "30분 뒤에 닫아줘"처럼 시간 길이가 붙은 제어 요청 — 지연 동작은 규칙 구조에 없다
+            return stop(f"제어 규칙에는 시간 길이({', '.join(scope._fmt_minutes(v) for v in facts.durations(sentence))})를 "
+                        f"넣을 수 없습니다 — '몇 분 뒤에' 같은 지연 동작은 지원하지 않습니다.", "지연 동작은 지원하지 않음")
+        want = facts.comparison(sentence)
+        if (want and len(conds) == 1 and when.get("path") != "system/hour"
+                and when.get("op") in (">", "<", ">=", "<=") and when["op"] != want):
+            fixed.append(f"비교 {when['op']} → {want}")
+            when["op"] = want
+        used = []
+        for c in conds + acts:
+            try:
+                used.append(float(str(c.get("value")).strip()))
+            except (TypeError, ValueError):
+                pass
+        missing = [n for n in facts.numbers(sentence) if not any(abs(n - v) < 1e-9 for v in used)]
+        if missing:
+            return stop(f"문장의 {', '.join(facts.fmt(n) for n in missing)} 이(가) 규칙에 들어가지 않았습니다 — "
+                        f"조건이나 값의 일부가 빠졌거나 바뀌었습니다. 이 시스템이 표현할 수 없는 요청일 수 있습니다.",
+                        "문장의 숫자가 규칙에 없음")
+
+    elif when.get("op") == scope.IDLE_OP:              # ── 돌봄 규칙 (무활동) ──
+        if (when.get("type") or "") != "motion":
+            return stop(f"무활동(경과 시간) 기준은 움직임 센서에만 쓸 수 있습니다 — "
+                        f"'{when.get('type')}' 에는 쓸 수 없습니다.", "무활동 기준 종류 오류")
+        said = facts.durations(sentence)
+        if len(said) > 1:
+            return stop(f"한 문장에 시간 기준이 여러 개입니다({', '.join(scope._fmt_minutes(v) for v in said)}) — "
+                        f"규칙마다 따로 말씀해 주세요.", "기준이 여러 개")
+        v = str(when.get("value") or "").strip()
+        if not said and v:
+            when["value"] = ""                         # 문장에 시간이 없다 — AI가 지어낸 값이다
+            steps[-1].setdefault("invented", []).append(f"무활동 {scope._fmt_minutes(v)}")
+            steps[-1]["detail"] += f" · 문장에 시간이 없는데 AI가 넣은 무활동 기준({scope._fmt_minutes(v)})을 비웠습니다"
+        elif said:
+            try:
+                same = abs(float(v) - said[0]) < 1e-9
+            except ValueError:
+                same = False
+            if not same:
+                fixed.append(f"무활동 {scope._fmt_minutes(v) if v else '(빈 값)'} → {scope._fmt_minutes(said[0])}")
+                when["value"] = facts.fmt(said[0])
+        known = scope.discover_homes(devices)
+        want_homes = facts.floor_homes(sentence, known)
+        if want_homes == []:
+            return stop(f"문장이 말한 층에 등록된 세대가 없습니다 (등록된 세대: {', '.join(known)}).", "없는 층")
+        if want_homes is None and not _RANGE_OF_HOMES.search(sentence):
+            want_homes = facts.named_homes(sentence) or (list(known) if facts.says_all(sentence) else None)
+        if want_homes:
+            got, _ = scope.parse_homes((rule.get("scope") or {}).get("homes", ""), known)
+            if set(got) != set(want_homes):
+                fixed.append(f"세대 {','.join(got) or '(없음)'} → {','.join(want_homes)}")
+                rule.setdefault("scope", {})["homes"] = ",".join(want_homes)
+
+    if fixed:
+        steps[-1]["detail"] += f" · AI가 문장과 다르게 읽은 것을 문장대로 고쳤습니다 ({'; '.join(fixed)})"
+        steps[-1]["corrected"] = fixed
+    return None
 
 
 def _time_window_care(sentence, rule):
@@ -620,6 +757,20 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     repeating = _repeating_request(sentence)
     if repeating:
         return _stop(steps, CREATE_STEPS, [repeating], reason="반복 일정은 지원하지 않음")
+
+    # 0-d) 요일·계절·날씨도 판단할 수 없다 — 버리고 만들면 주말·여름에도 발동한다 (로컬 모델 측정 v01·u01·u02)
+    cal = facts.calendar_condition(sentence)
+    if cal:
+        return _stop(steps, CREATE_STEPS,
+                     [f"요일·계절·날씨('{cal}')는 판단할 수 없습니다. 이 시스템이 아는 것은 센서 값과 "
+                      f"시각뿐입니다 — 그 조건을 빼고 말씀해 주세요."], reason="요일·계절 조건은 지원하지 않음")
+
+    # 0-e) 사람 이름으로 가리키면 어느 세대인지 모른다 — 약한 모델은 101호나 전체로 추측했다 (v03)
+    person = facts.person_reference(sentence)
+    if person:
+        return _stop(steps, CREATE_STEPS, [],
+                     questions=[f"'{person}' 이(가) 어느 세대인지 알 수 없습니다 — 호수로 말씀해 주세요. "
+                                f"(시스템은 이름을 저장하지 않습니다)"], reason="세대를 모름")
 
     # 0-c) 생활 상태로 조건을 좁히는 것도 만들 수 없다
     life = _life_state_condition(sentence)
@@ -707,6 +858,11 @@ def add_rule_from_sentence(sentence, devices, retry=1):
 
     # 2-c) 문장에 없는 기준값은 AI가 지어낸 것 — 비워서 되묻기로 돌린다.
     #      비우지 않으면 복지사가 승인만 눌러도 AI가 지어낸 28도가 그대로 실행된다.
+    # 2-a) 문장이 말한 시간·숫자·세대와 AI 규칙을 대조한다 — 고칠 수 있으면 고치고, 아니면 멈춘다
+    halted = _fact_checks(sentence, out["rule"], devices, steps)
+    if halted:
+        return halted
+
     # 2-b3) 조건을 부정으로 말했는가 — 뒤집혀 저장되면 반대로 동작한다
     negated = _negated_condition(sentence, out["rule"])
     if negated:

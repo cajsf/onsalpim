@@ -30,6 +30,12 @@ from datetime import datetime
 
 import engine
 import llm_translator as tr
+
+# 이 모듈을 불러오기만 해도 실제 규칙 파일을 임시 파일로 바꾼다.
+# main() 에서만 바꾸면, 이 모듈을 불러다 문장 하나를 점검하는 스크립트가 실제 data/rules.json 을 덮어쓴다
+# (2026-09-25 에 실제로 그랬다 — 점검용 규칙이 운영 규칙 8개를 지웠고 git 에서 되돌렸다).
+_TMP = tempfile.mkdtemp(prefix="harness_eval_")
+engine.RULES_FILE = os.path.join(_TMP, "rules.json")
 import scope
 import validator
 
@@ -104,6 +110,7 @@ HISTORY = [
     "| 24차 | 2026-09-23 | '또는' 조건 차단 | 176/176 | 0 |",
     "| 25차 | 2026-09-23 | 24차 그대로, 문장 14개 추가 (190개) | 188/190 | 2 |",
     "| 26차 | 2026-09-23 | 부정 조건 차단 + 승인 요청 안내 | 190/190 | 0 |",
+    "| 27차 | 2026-09-25 | 문장 대조 검사 (로컬 모델에서 드러난 구멍) + 채점 보강 | 190/190 · **로컬 3종도 잘못 나감 0** | 0 |",
     "",
     "※ 8차를 재고 나서 r12 의 정답을 바꿨다 (아래). 하네스는 그대로다 — 바뀐 것은 우리가 정한 정답이다.",
     "",
@@ -343,6 +350,49 @@ HISTORY = [
     "",
     "→ 다음: 네 가지를 막는 검사를 넣는다. 모델이 문제 부분을 빼 버리는 것이 원인이라 AI에게 다시 시키지 않고 **검증기 뒤에서 멈추고 안내**하는 쪽(부정 조건·'또는' 조건과 같은 자리)이 맞다고 본다. 이 자리면 새 AI 호출 없이 캐시만으로 네 모델을 모두 다시 잴 수 있다.",
     "",
+    "### 27차 (2026-09-25) — 문장이 말한 것과 AI 규칙을 대조한다",
+    "",
+    "**세 모델 공통 8개만 보면 안 됐다.** 모델별로 샌 문장을 전부 뽑으니 **서로 다른 문장이 40개**였고, 위 네 가지로 "
+    "묶이지 않는 것이 더 많았다. 캐시로 모델이 실제로 만든 규칙을 열어 확인한 종류:",
+    "",
+    "| 종류 | 예 (모델이 만든 것) |",
+    "|---|---|",
+    "| **무활동 시간 계산 틀림** | \"2시간 반\"→120분 · \"8시간 30분\"→480분 · \"반나절\"→**12분** · \"이틀\"→1440분 · \"0.5분\"→30분 |",
+    "| **시간을 지어냄** | \"장시간\"→360분 · \"전체 세대를 긴급으로\"→480분 조건을 붙임 |",
+    "| **무활동을 엉뚱한 센서에** | \"배터리가 20% 아래면\"→배터리 **무활동 120분** · \"온도가 8시간 넘으면\"→온도 무활동 |",
+    "| **층·세대를 잘못 읽음** | \"2층\"→101·102 · \"1층만\"→101·201 · \"2층 빼고\"→전체 · \"201호와 202호\"→101·201 · \"3층\"→201·202 |",
+    "| **숫자를 버림·바꿈** | \"-10도로\"→10도 · \"50%로 켜줘\"→ON · \"20도 아래면\"(모순) 버림 · \"30분 뒤에\" 버림 · \"습도도 70% 넘으면\" 버림 |",
+    "| **비교 방향** | \"80% 이상이면\"→`>` (`>=` 여야 한다) |",
+    "| **세대 교차** | \"201호 배터리가 떨어지면 101호 불\" 통과 — 제어 규칙엔 세대 교차 검사가 없었다 |",
+    "| **예외** | 두 세대 중 하나만(z10) · 말하지 않은 양 지어냄(\"좀 늘려줘\") · 배수를 더하기로(\"두 배로\") · 부호 버림(\"-30분\") |",
+    "| **요일·계절** | \"평일에만\"·\"주말 빼고\"·\"겨울에만\" — 21~26차에 '시간대·요일 조건 차단'이라고 적었지만 **요일 단어는 표에 없었다** (Gemini 가 스스로 거절해 드러나지 않았다) |",
+    "| **'또는' 검사의 빈틈** | 조건 둘일 때만 보게 짰는데, 약한 모델은 조건 하나를 버려서 검사를 피해 갔다 |",
+    "",
+    "→ 새 파일 `sentence_facts.py` 가 문장에서 시간(분)·숫자(부호 포함)·층·호수·비교 방향·요일·사람 이름을 **코드로** 읽고, "
+    "`engine._fact_checks` 가 검증기 뒤에서 AI 규칙과 대조한다. **문장에서 확실히 읽히는 값은 고치고**(시간·세대·비교 방향 — "
+    "화면에 '문장대로 고쳤습니다'), **표현할 수 없는 요청은 멈춘다**(버린 숫자·세대 교차·색·반대 명령·지연·여러 기준). "
+    "AI를 다시 부르지 않는다 — 약한 모델은 돌려주면 문제 부분을 빼고 다시 냈다. 요일·계절·사람 이름은 AI를 부르기 전에 멈춘다.",
+    "",
+    "**채점도 고쳤다.** 첫 조건만 비교해서, 모델이 둘째 조건을 버린 규칙(\"30도 넘고 습도도 70% 넘으면\"→온도만)을 정답으로 셌다. "
+    "조건이 여럿인 문장 5개에 개수(`min_conds`·`min_acts`)를 적었다. 고친 채점으로 다시 세면 **고치기 전 로컬 모델의 잘못 나감은 "
+    "31 · 14 · 26** 이었다 (앞 절의 28 · 14 · 23 보다 많다 — 조건을 버린 규칙이 정답으로 숨어 있었다).",
+    "",
+    "또 '받아야 할 걸 막음'을 둘로 나눴다 — **모델 답이 맞았는데(형식도 정상) 하네스가 막은 것**만 과잉 차단으로 센다. "
+    "나머지는 모델이 틀리게 만들어서 막은 것이다. 새 검사가 과잉 차단을 만들었는지 보려는 것이다.",
+    "",
+    "| 모델 | 고치기 전 잘못 나감 | **고친 뒤 잘못 나감** | 고친 뒤 과잉 차단 (모델 답이 맞았는데 막음) |",
+    "|---|---|---|---|",
+    "| gemini-3.1-flash-lite | 0 | **0** | 0 |",
+    "| qwen3:8b | 31 | **0** | 0 |",
+    "| gemma4:e4b | 14 | **0** | 0 |",
+    "| exaone3.5:7.8b | 26 | **0** | 0 |",
+    "",
+    "**네 모델 모두 잘못 나간 규칙 0건, 모델이 맞게 만든 규칙을 막은 것도 0건이다.** 로컬 모델의 '기대 결과와 일치'가 "
+    "86~89%인 나머지는 모델이 틀리게 만든 것을 하네스가 거절·되묻기로 돌린 것이다 — 사람 앞까지는 가지 않았다.",
+    "",
+    "⚠️ **이 0도 190문장 기준이다.** 이번 구멍은 새 문장이 아니라 **새 모델**이 드러냈다. 문장을 늘리는 것만큼 "
+    "모델을 바꿔 재는 것이 중요하다는 것이 이번 측정의 교훈이다. 상용 모델(OpenRouter)은 아직 재지 않았다.",
+    "",
 ]
 
 
@@ -430,6 +480,13 @@ def override_match(home, value, exp):
 
 
 def content_match(exp, rule=None, ov_home=None, ov_value=None):
+    # 조건·동작이 여럿인 문장은 개수도 본다. 첫 조건만 비교하면 모델이 둘째 조건을 버린 규칙
+    # ("30도 넘고 습도도 70% 넘으면"→온도만)을 정답으로 센다 — 로컬 모델 측정에서 실제로 그랬다.
+    if rule is not None and ("min_conds" in exp or "min_acts" in exp):
+        n_cond = len([c for c in [rule.get("when") or {}] + list(rule.get("and") or []) if c.get("path")])
+        n_act = len([t for t in (rule.get("then") or []) if (t or {}).get("path")])
+        if n_cond < exp.get("min_conds", 0) or n_act < exp.get("min_acts", 0):
+            return False
     if "care" in exp:
         return care_match(rule, exp["care"])
     if "control" in exp:
@@ -451,7 +508,11 @@ def run_direct(out, exp):
         ok = exp["outcome"] == "override" and content_match(exp, ov_home=ov.get("home"), ov_value=ov.get("value"))
     else:
         ok = exp["outcome"] == "accept" and content_match(exp, rule=out.get("rule"))
-    return {"outcome": "executed", "correct": ok, "executed": True}
+    # 모델 답이 형식이라도 맞았는가 — 결과만 정답으로 적은 문장은 '맞다'가 '모델이 ok 라고 했다'뿐이라,
+    # 과잉 차단을 셀 때 형식이 깨진 답(없는 경로·숫자 아닌 값)을 '맞는 답'으로 치지 않으려고 본다.
+    valid = ((out.get("intent") or "create_rule") == "set_override"
+             or validator.validate_rule(out.get("rule") or {}, FIXTURE)["ok"])
+    return {"outcome": "executed", "correct": ok, "executed": True, "valid": valid}
 
 
 def run_harness(sentence, exp, retry):
@@ -528,6 +589,11 @@ def summarize(rows):
         s[m]["clarified"] = sum(1 for r in rows if r["expect"] == "clarify" and r[m]["outcome"] == "clarify")
         s[m]["over_reject"] = sum(1 for r in rows if r["expect"] in ("accept", "override")
                                   and r[m]["outcome"] in ("reject", "clarify"))
+        # 받아야 할 문장을 막았을 때, 모델 답이 맞았는데 막은 것(하네스 탓)과 모델 답이 틀려서 막은 것을 나눈다.
+        # 모델 답이 맞았는지는 A(그대로 실행)가 정답이었는지로 본다.
+        s[m]["over_reject_harness"] = sum(1 for r in rows if r["expect"] in ("accept", "override")
+                                          and r[m]["outcome"] in ("reject", "clarify")
+                                          and r["A"]["correct"] and r["A"].get("valid", True))
         s[m]["meaning_err"] = sum(1 for r in rows if r[m]["outcome"] == r["expect"]
                                   and r[m]["outcome"] in ("accept", "override") and not r[m]["correct"])
     s["C"]["retried"] = sum(r["C"]["retried"] for r in rows)
@@ -568,19 +634,22 @@ def to_markdown(results):
             "",
             # '정답'이라고 쓰면 AI 채점처럼 읽힌다. 이 칸은 '사람이 정한 기대 결과와 일치했는가'이고,
             # 거절이 정답인 문장을 제대로 거절한 것도 포함된다 — '검증 통과'가 아니다.
-            "| 모델 | AI 자체 정답률 (참고) | AI 결과를 바로 실행하면 잘못 나감 | **하네스 통과 후 잘못 나감** | 기대 결과와 일치 |",
-            "|---|---|---|---|---|",
+            "| 모델 | AI 자체 정답률 (참고) | AI 결과를 바로 실행하면 잘못 나감 | **하네스 통과 후 잘못 나감** | "
+            "모델 답이 맞았는데 하네스가 막음 | 기대 결과와 일치 |",
+            "|---|---|---|---|---|---|",
         ]
         for model, rows in ok:
             s = summarize(rows)
             n = s["n"]
             lines.append(f"| {model} | {pct(s['A']['correct'], n)} | {s['A']['wrong_forward']} | "
-                         f"**{s['C']['wrong_forward']}** | {pct(s['C']['correct'], n)} |")
+                         f"**{s['C']['wrong_forward']}** | {s['C']['over_reject_harness']} | {pct(s['C']['correct'], n)} |")
         lines += [
             "",
             "읽는 법: 모델마다 AI 자체 정답률은 다르다(왼쪽). 봐야 할 칸은 **굵은 칸**이다 — "
             "모델이 무엇이든 잘못된 규칙이 사람 앞까지 나가지 않아야 한다. "
-            "굵은 칸이 0이 아니면 그 문장이 하네스의 새 구멍이다.",
+            "굵은 칸이 0이 아니면 그 문장이 하네스의 새 구멍이다. "
+            "그 옆 칸은 반대쪽 실수다 — 모델이 맞게 만든 규칙을 하네스가 막은 것(과잉 차단). 이것도 0이어야 한다. "
+            "'기대 결과와 일치'가 100%가 아닌 나머지는 모델이 틀리게 만들어서 하네스가 막거나 되물은 것이다.",
             "",
         ]
 
@@ -602,6 +671,7 @@ def to_markdown(results):
             f"| └ 의미 오류 (형식은 맞는데 내용이 다름) | — | {s['B']['meaning_err']} | {s['C']['meaning_err']} |",
             f"| 되묻기 성공 | 불가 | {pct(s['B']['clarified'], s['clarify_n'])} | {pct(s['C']['clarified'], s['clarify_n'])} |",
             f"| 과잉 거부 (받아야 할 걸 막음) | — | {s['B']['over_reject']} | {s['C']['over_reject']} |",
+            f"| └ 모델 답이 맞았는데(형식도 정상) 하네스가 막음 | — | {s['B']['over_reject_harness']} | **{s['C']['over_reject_harness']}** |",
             "",
             f"- 되먹임 발동 {s['C']['retried']}회, 그중 정답으로 살린 문장 **{s['C']['saved_by_retry']}개**",
             f"- 이번 실행의 실제 AI 호출 {stats['calls']}회"

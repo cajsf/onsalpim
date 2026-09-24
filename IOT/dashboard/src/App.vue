@@ -193,6 +193,10 @@ const harnessNote = computed(() => {
       ? { kind: 'fixed', text: 'AI의 처음 답이 검사에 걸려, 이유를 돌려주고 다시 받았습니다.' }
       : { kind: 'blocked', text: 'AI의 처음 답이 검사에 걸려 되돌려 보냈고, 다시 받은 답도 통과하지 못해 저장하지 않았습니다.' }
   }
+  if (steps.some((s) => s.corrected && s.corrected.length)) {
+    const c = steps.find((s) => s.corrected && s.corrected.length).corrected
+    return { kind: 'fixed', text: `AI가 문장과 다르게 읽은 것을 문장대로 고쳤습니다 (${c.join(' · ')}).` }
+  }
   if (steps.some((s) => s.invented && s.invented.length)) {
     return { kind: 'fixed', text: 'AI가 문장에 없는 값(기준값·위험도)을 지어내서 비웠습니다. 이 값은 복지사가 정합니다.' }
   }

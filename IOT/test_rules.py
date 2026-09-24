@@ -732,3 +732,109 @@ finally:
     else:
         _tr.secrets_local.OPENROUTER_API_KEY = _real_key
 print("  ✅ OpenRouter: 스키마 강제·대체 호출·형식 깨짐·크레딧 부족·키 없음")
+
+# ── 로컬 모델 측정(9/24)에서 찾은 것 — 문장이 말한 것과 AI 규칙을 대조한다 ──
+_P = "Mobius/byeongari/"
+_DEV = [{"path": f"{_P}h{h}_pir", "ct": "", "meta": {"kind": "sensor", "type": "motion", "home": h,
+                                                      "values": "0|1", "report_s": "5"}} for h in ("101", "102", "201", "202")]
+_DEV += [{"path": _P + "h101_temp", "ct": "", "meta": {"kind": "sensor", "type": "temperature", "home": "101", "unit": "C", "values": "0~50"}},
+         {"path": _P + "h101_humi", "ct": "", "meta": {"kind": "sensor", "type": "humidity", "home": "101", "unit": "%", "values": "20~90"}},
+         {"path": _P + "h101_led", "ct": "", "meta": {"kind": "actuator", "type": "light", "home": "101", "accepts": "ON|OFF"}},
+         {"path": _P + "h101_window", "ct": "", "meta": {"kind": "actuator", "type": "window", "home": "101", "accepts": "range=0~180"}},
+         {"path": _P + "h201_batt", "ct": "", "meta": {"kind": "sensor", "type": "battery", "home": "201", "unit": "%", "values": "0~100"}}]
+
+
+def _care(value, homes="ALL", type_="motion", sev="WATCH"):
+    return {"scope": {"homes": homes}, "when": {"path": "", "type": type_, "op": scope.IDLE_OP, "value": value},
+            "and": [], "then": [{"path": "", "value": "", "severity": sev}], "overrides": {}}
+
+
+def _ctl(cond, acts, extra=()):
+    return {"scope": {"homes": ""}, "when": {"path": _P + cond[0], "op": cond[1], "value": cond[2]},
+            "and": [{"path": _P + c[0], "op": c[1], "value": c[2]} for c in extra],
+            "then": [{"path": _P + a[0], "value": a[1]} for a in acts]}
+
+
+def _fc(sentence, rule):
+    steps = [{"id": "validate", "detail": "통과"}]
+    return engine._fact_checks(sentence, rule, _DEV, steps), rule, steps[-1] if steps else {}
+
+
+# 무활동 시간 — 문장대로 고친다 / 지어낸 값은 비운다 / 여러 개면 멈춘다 / 움직임 센서만
+h, r, st = _fc("2시간 반 동안 움직임이 없으면 주의로 표시해줘", _care("120"))
+assert h is None and r["when"]["value"] == "150" and st.get("corrected"), "2시간 반은 150분"
+h, r, _ = _fc("반나절 동안 움직임이 없으면 긴급", _care("12", sev="URGENT"))
+assert r["when"]["value"] == "720"
+h, r, _ = _fc("전체 세대 장시간 무활동이면 주의로 표시해줘", _care("360"))
+assert h is None and r["when"]["value"] == "", "문장에 시간이 없으면 AI 값은 지어낸 것"
+h, _, _ = _fc("3시간이면 주의로, 8시간이면 긴급으로 표시해줘", _care("180"))
+assert h and h["status"] == "rejected", "기준이 둘이면 하나만 남기지 않는다"
+h, _, _ = _fc("모든 세대 배터리가 20% 아래면 주의로 표시해줘", _care("120", type_="battery"))
+assert h and "움직임 센서에만" in h["errors"][0]
+# 세대 — 층·호수·전체는 문장대로
+h, r, _ = _fc("2층 세대는 3시간 동안 움직임이 없으면 주의로 표시해줘", _care("180", homes="101,102"))
+assert h is None and r["scope"]["homes"] == "201,202"
+h, _, _ = _fc("3층 세대는 4시간 무활동이면 주의", _care("240", homes="201,202"))
+assert h and "층에 등록된 세대가 없습니다" in h["errors"][0]
+h, r, _ = _fc("2층 빼고 나머지 세대는 6시간 무활동이면 주의로 표시해줘", _care("360"))
+assert r["scope"]["homes"] == "101,102"
+h, r, _ = _fc("201호와 202호는 6시간 움직임이 없으면 주의로 표시해줘", _care("360", homes="101,201"))
+assert r["scope"]["homes"] == "201,202"
+h, r, _ = _fc("101호부터 202호까지 6시간 움직임이 없으면 주의로 표시해줘", _care("360"))
+assert r["scope"]["homes"] == "ALL", "'부터~까지'는 범위다 — 두 세대로 읽지 않는다"
+
+# 제어 규칙 — 비교 방향은 문장대로 / 버려진 숫자·세대 교차·색·반대 명령·다세대·지연은 멈춘다
+h, r, _ = _fc("101호 습도가 80% 이상이면 창문을 90도로 열어줘", _ctl(("h101_humi", ">", "80"), [("h101_window", "90")]))
+assert h is None and r["when"]["op"] == ">=", "'이상'은 >="
+h, _, _ = _fc("101호 온도가 30도 넘으면 창문을 -10도로 열어줘", _ctl(("h101_temp", ">", "30"), [("h101_window", "10")]))
+assert h and "-10" in h["errors"][0], "부호를 버린 값"
+h, _, _ = _fc("101호 온도가 30도 넘고 습도도 70% 넘으면 창문을 120도로 열어줘",
+              _ctl(("h101_temp", ">", "30"), [("h101_window", "120")]))
+assert h and "70" in h["errors"][0], "습도 조건을 버렸다"
+h, _, _ = _fc("101호 온도가 30도 넘고 습도도 70% 넘으면 창문을 120도로 열어줘",
+              _ctl(("h101_temp", ">", "30"), [("h101_window", "120")], [("h101_humi", ">", "70")]))
+assert h is None, "두 조건을 다 넣었으면 통과"
+h, _, _ = _fc("201호 배터리가 20% 아래로 떨어지면 101호 불 켜줘", _ctl(("h201_batt", "<", "20"), [("h101_led", "ON")]))
+assert h and "세대" in h["errors"][0]
+h, _, _ = _fc("101호 온도가 30도 넘으면 불을 보라색으로 켜줘", _ctl(("h101_temp", ">", "30"), [("h101_led", "ON")]))
+assert h and "색" in h["errors"][0]
+h, _, _ = _fc("101호 온도가 30도 넘으면 불 켜고 불 꺼줘", _ctl(("h101_temp", ">", "30"), [("h101_led", "ON")]))
+assert h and "켜고 끄" in h["errors"][0]
+h, _, _ = _fc("모든 세대 온도가 30도 넘으면 불 켜줘", _ctl(("h101_temp", ">", "30"), [("h101_led", "ON")]))
+assert h and "모든 세대" in h["errors"][0]
+h, _, _ = _fc("101호 온도가 30도 넘으면 창문을 90도로 열고 30분 뒤에 닫아줘",
+              _ctl(("h101_temp", ">", "30"), [("h101_window", "90"), ("h101_window", "0")]))
+assert h and "지연" in h["errors"][0]
+h, _, _ = _fc("101호 온도가 30도 넘으면 불 켜줘", _ctl(("h101_temp", ">", "30"), [("h101_led", "ON")]))
+assert h is None, "멀쩡한 규칙은 통과"
+h, _, _ = _fc("101호 온도가 20~25도 사이면 불 켜줘",
+              _ctl(("h101_temp", ">=", "20"), [("h101_led", "ON")], [("h101_temp", "<=", "25")]))
+assert h is None, "구간은 두 조건으로 다 넣었으면 통과"
+
+# 예외·AI 호출 전 — 세대 둘·지어낸 양·배수·음수는 멈추고, 값은 문장대로
+_real6 = engine.tr.translate
+try:
+    _ov2 = lambda home, v: {"ok": True, "intent": "set_override", "error": "", "need": "",
+                            "override": {"home": home, "type": "motion", "value": v}, "rule": {}}
+    for sent, ans, want in [
+        ("101호와 102호만 무활동 기준을 6시간으로 바꿔줘", _ov2("101", "360"), "rejected"),
+        ("102호 기준 좀 늘려줘", _ov2("102", "360"), "needs_clarification"),
+        ("102호 기준을 두 배로 늘려줘", _ov2("102", "720"), "needs_clarification"),
+        ("102호 무활동 기준을 -30분으로 바꿔줘", _ov2("102", "30"), "needs_clarification"),
+    ]:
+        engine.save_rules(copy.deepcopy(_base))
+        engine.tr.translate, _ = _scripted(ans)
+        res = engine.add_rule_from_sentence(sent, TREE)
+        assert res["status"] == want, (sent, res["status"], res.get("errors"), res.get("questions"))
+    engine.save_rules(copy.deepcopy(_base))
+    engine.tr.translate, _ = _scripted(_ov2("102", "300"))
+    res = engine.add_rule_from_sentence("102호만 무활동 기준을 6시간으로 바꿔줘", TREE)
+    assert res["choice"]["value"] == "360", "예외 값은 문장대로 (AI 가 5시간으로 읽어도)"
+    _calls = []
+    engine.tr.translate = lambda *a, **k: _calls.append(1) or {"ok": False, "error": "x"}
+    assert engine.add_rule_from_sentence("평일에만 8시간 움직임이 없으면 긴급으로 표시해줘", TREE)["status"] == "rejected"
+    assert engine.add_rule_from_sentence("김할머니가 8시간 움직임이 없으면 긴급으로 표시해줘", TREE)["status"] == "needs_clarification"
+    assert not _calls, "요일·사람 이름은 AI를 부르기 전에 멈춘다"
+finally:
+    engine.tr.translate = _real6
+print("  ✅ 문장 대조: 시간·세대·숫자·비교·세대 교차·색·반대 명령·지연·예외 (로컬 모델 측정의 구멍)")
