@@ -679,3 +679,56 @@ assert engine._negated_condition("101호에 움직임이 없으면 불 꺼줘",
 assert engine.approval_note("전체 세대 8시간 무활동이면 긴급으로 만들고 바로 승인까지 해줘")
 assert engine.approval_note("전체 세대 8시간 무활동이면 긴급으로 표시해줘") is None
 print("  ✅ 부정 조건 차단, 승인 요청에는 안내만")
+
+# ── OpenRouter 연결 — 키 없이 가짜 응답으로 흐름만 확인한다 ──
+import llm_translator as _tr
+
+
+class _Resp:
+    def __init__(self, code, payload=None, text=""):
+        self.status_code, self._p, self.text = code, payload, text
+
+    def json(self):
+        return self._p
+
+
+def _content(txt):
+    return {"choices": [{"message": {"content": txt}}], "usage": {"prompt_tokens": 3000, "completion_tokens": 300}}
+
+
+_real_post, _real_key = _tr.requests.post, getattr(_tr.secrets_local, "OPENROUTER_API_KEY", None)
+try:
+    _tr.secrets_local.OPENROUTER_API_KEY = "test"
+    # (가) 스키마 강제가 되는 모델 — 코드 블록으로 감싸 와도 JSON 을 꺼낸다
+    _sent = []
+    _tr.requests.post = lambda url, **k: _sent.append(k["json"]) or _Resp(200, _content('```json\n{"ok": true, "rule": {}}\n```'))
+    o = _tr.translate("x", [], models=["openrouter:openai/gpt-5-mini"])
+    assert o["ok"] is True and o["_usage"]["schema_forced"] is True, o
+    assert _sent[0]["response_format"]["type"] == "json_schema" and _sent[0]["model"] == "openai/gpt-5-mini"
+    # (나) 스키마를 지원하는 공급자가 없는 모델 — 강제 없이 다시 부른다
+    _calls = []
+    def _fake(url, **k):
+        _calls.append(k["json"])
+        return _Resp(400, text="no provider") if len(_calls) == 1 else _Resp(200, _content('{"ok": false, "error": "없음"}'))
+    _tr.requests.post = _fake
+    o = _tr.translate("x", [], models=["openrouter:some/model"])
+    assert len(_calls) == 2 and "response_format" not in _calls[1] and o["_usage"]["schema_forced"] is False
+    # (다) 형식을 깬 답은 '모델이 틀린 것'으로 센다 (호출 실패가 아니다)
+    _tr.requests.post = lambda url, **k: _Resp(200, _content("규칙을 만들었습니다! 온도 30도"))
+    o = _tr.translate("x", [], models=["openrouter:some/model"])
+    assert o["ok"] is False and o["error"].startswith("AI 응답이 규칙 형식이 아님")
+    # (라) 크레딧 부족·한도 초과는 호출 실패 — 실험이 거기서 멈춰야 한다
+    _tr.requests.post = lambda url, **k: _Resp(402, text="insufficient credits")
+    o = _tr.translate("x", [], models=["openrouter:some/model"])
+    assert o["error"].startswith("LLM 호출 실패 openrouter 402")
+    # (마) 키가 없으면 호출하지 않는다
+    _tr.secrets_local.OPENROUTER_API_KEY = ""
+    o = _tr.translate("x", [], models=["openrouter:some/model"])
+    assert "OPENROUTER_API_KEY" in o["error"]
+finally:
+    _tr.requests.post = _real_post
+    if _real_key is None:
+        del _tr.secrets_local.OPENROUTER_API_KEY
+    else:
+        _tr.secrets_local.OPENROUTER_API_KEY = _real_key
+print("  ✅ OpenRouter: 스키마 강제·대체 호출·형식 깨짐·크레딧 부족·키 없음")

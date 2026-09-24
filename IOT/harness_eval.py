@@ -13,6 +13,7 @@ AI 응답은 eval/cache.json 에 모델·프롬프트별로 저장한다 — 다
     python harness_eval.py                         # 기본 모델
     python harness_eval.py gemini-2.5-flash-lite   # 모델 지정 (여러 개 가능)
     python harness_eval.py ollama:qwen3:8b         # 로컬 모델 (Ollama 설치 후, 키 불필요)
+    python harness_eval.py openrouter:openai/gpt-5-mini   # OpenRouter (secrets_local.OPENROUTER_API_KEY 필요)
     python harness_eval.py --offline               # 캐시에 있는 것만 (호출 0)
     python harness_eval.py --save                  # docs/HARNESS_EVAL.md 로 저장
 
@@ -466,6 +467,14 @@ def evaluate(model, items, cache, offline):
                   f"{'O' if c['correct'] else 'X'}  {it['sentence']}")
     finally:
         tr.translate = real
+    # 비용 실측 — 이 모델로 받은 답 중 토큰 수가 남아 있는 것(OpenRouter)을 모두 더한다.
+    # 이번 실행에서 새로 부른 것만이 아니라 캐시에 쌓인 전부다 — 다시 돌려도 같은 숫자가 나온다.
+    used = [v["out"]["_usage"] for v in cache.values()
+            if v.get("model") == model and isinstance(v.get("out"), dict) and v["out"].get("_usage")]
+    stats["usage"] = {"calls": len(used),
+                      "prompt_tokens": sum(u.get("prompt_tokens") or 0 for u in used),
+                      "completion_tokens": sum(u.get("completion_tokens") or 0 for u in used),
+                      "schema_forced": sum(1 for u in used if u.get("schema_forced"))}
     return rows, stats, stopped
 
 
@@ -565,6 +574,11 @@ def to_markdown(results):
             f"- 이번 실행의 실제 AI 호출 {stats['calls']}회"
             + (f", 평균 응답 {sum(lat) / len(lat):.1f}초" if lat else " (전부 캐시)"),
         ]
+        u = stats.get("usage") or {}
+        if u.get("calls"):
+            lines.append(f"- 토큰 (OpenRouter 기록 {u['calls']}회 합계): 입력 {u['prompt_tokens']:,} · "
+                         f"출력 {u['completion_tokens']:,} — 가격표를 곱하면 이 문장 묶음 1회 비용이 나온다. "
+                         f"JSON 스키마 강제 {u['schema_forced']}/{u['calls']}회")
         if stopped:
             lines.append(f"- ⚠️ 중간에 멈춤: {stopped}")
         lines += ["", "### 틀린 문장 (C 기준 — 사람이 봐야 할 것)", ""]

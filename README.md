@@ -119,6 +119,30 @@ python harness_eval.py gemini-3.1-flash-lite ollama:qwen3:8b ollama:gemma4:e4b o
 
 로컬 모델 응답도 `eval/cache.json` 에 쌓이니 결과(`docs/HARNESS_EVAL.md`)와 같이 커밋한다.
 
+### 여러 회사 모델로 하네스 실험 (OpenRouter)
+
+"GPT·Claude·Llama 로 바꿔도 하네스가 같은 자리에서 막는가"를 재는 실험이다. GPU 는 필요 없고 **돈이 든다.**
+로컬 실험은 "기관 안에서 무료로 되는가", 이 실험은 "상용 모델을 바꿔도 되는가"에 답한다 — 둘은 다른 질문이다.
+
+1. [openrouter.ai/keys](https://openrouter.ai/keys) 에서 키를 만들고 크레딧을 넣는다
+2. `IOT/secrets_local.py` 에 한 줄 추가 (저장소에 안 올라간다)
+
+   ```python
+   OPENROUTER_API_KEY = "sk-or-..."
+   ```
+
+3. 모델 이름은 OpenRouter 사이트의 이름 그대로 쓴다 (`openrouter:` 뒤에 붙인다). 사이트에서 이름을 확인한다
+
+```bash
+python harness_eval.py gemini-3.1-flash-lite openrouter:openai/gpt-5-mini openrouter:anthropic/claude-haiku-4.5 openrouter:meta-llama/llama-4-maverick --save
+```
+
+- 보고서 맨 앞에 **모델 대조표**가 생긴다. 봐야 할 칸은 **"하네스 통과 후 잘못 나감"** — 0 이 아니면 그 문장이 새 구멍이다
+- 모델마다 **토큰 합계**가 찍힌다 — 가격표를 곱하면 문장 190개 1회 비용이 나온다 (비용 실측)
+- JSON 스키마 강제를 지원하지 않는 모델은 자동으로 강제 없이 부른다. 형식을 깨면 '모델이 틀린 것'으로 센다 — **형식을 깨는 모델도 하네스가 막는지**가 이 실험의 볼거리다
+- 크레딧 부족(402)·한도 초과(429)면 그 모델은 거기서 멈춘다. 캐시가 남으니 다시 돌리면 이어서 한다
+- 비용 감: 문장 190개 × 모델 1개 ≈ 입력 60만 · 출력 6만 토큰 안팎 (되먹임 포함하면 조금 더)
+
 ## 같이 작업할 때 지킬 것
 
 - **비밀값은 절대 커밋하지 않는다.** `secrets_local.py`, `secrets.h` 는 `.gitignore` 에 있다. 새 비밀값이 생기면 같은 방식으로 분리.

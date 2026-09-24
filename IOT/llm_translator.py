@@ -28,6 +28,7 @@ import re
 import requests
 
 import scope
+import secrets_local
 from secrets_local import GEMINI_API_KEY
 
 # 무료 티어 쿼터는 '모델별로' 따로 계산된다 → 429(쿼터 초과) 나면 다음 모델로 자동 폴백.
@@ -69,6 +70,57 @@ def _call_ollama(model, prompt):
     except json.JSONDecodeError:
         # 작은 모델은 형식을 깨뜨릴 수 있다 — 호출 실패가 아니라 '모델이 틀린 것'으로 센다
         return {"ok": False, "error": f"AI 응답이 규칙 형식이 아님: {text[:120]}", "rule": {}}
+
+
+# OpenRouter — 한 키로 GPT·Claude·Llama·Qwen 등 여러 회사 모델을 부른다. "openrouter:openai/gpt-5-mini" 처럼 준다.
+# 교수님 질문("GPT·제미나이·그록을 붙이면 성능이 달라질 텐데")에 답하려고 붙였다 — 모델만 바꾸고 하네스는 그대로 둔다.
+# 키는 secrets_local.OPENROUTER_API_KEY. 없으면 이 경로만 못 쓰고 나머지는 그대로 돈다.
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+
+def _parse_json_text(text):
+    """모델 답에서 JSON 을 꺼낸다. 코드 블록(```json)·생각 태그를 벗긴다. 못 꺼내면 None."""
+    text = re.sub(r"<think>.*?</think>", "", text or "", flags=re.S).strip()
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+def _call_openrouter(model, prompt):
+    key = getattr(secrets_local, "OPENROUTER_API_KEY", "")
+    if not key:
+        return {"ok": False, "error": "LLM 호출 실패 openrouter: secrets_local.py 에 OPENROUTER_API_KEY 가 없음",
+                "rule": {}}
+    headers = {"Authorization": f"Bearer {key}", "X-Title": "onsalpim harness_eval"}
+    base = {"model": model, "temperature": 0,
+            "messages": [{"role": "user", "content": prompt}]}
+    # 1차: JSON 스키마를 강제한다. 스키마를 지원하는 공급자에게만 보낸다(require_parameters).
+    # strict 는 끈다 — 우리 스키마에 additionalProperties:false 가 없어 엄격 모드가 거부한다.
+    forced = dict(base,
+                  response_format={"type": "json_schema",
+                                   "json_schema": {"name": "rule", "strict": False,
+                                                   "schema": _plain_schema(RESPONSE_SCHEMA)}},
+                  provider={"require_parameters": True})
+    r = requests.post(OPENROUTER_URL, headers=headers, json=forced, timeout=120)
+    schema_forced = True
+    if r.status_code in (400, 404, 422):
+        # 스키마를 지원하는 공급자가 없는 모델 — 형식 강제 없이 프롬프트만으로 부른다.
+        # 이런 모델은 형식을 자주 깬다. 그 자체가 '하네스가 형식 깨짐도 막는가'를 재는 조건이다.
+        r = requests.post(OPENROUTER_URL, headers=headers, json=base, timeout=120)
+        schema_forced = False
+    if r.status_code != 200:
+        # 401(키)·402(크레딧)·429(한도) 는 '모델이 틀린 것'이 아니라 호출 실패 — 실험이 여기서 멈춘다
+        return {"ok": False, "error": f"LLM 호출 실패 openrouter {r.status_code}: {r.text[:200]}", "rule": {}}
+    data = r.json()
+    text = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+    out = _parse_json_text(text)
+    if not isinstance(out, dict):
+        out = {"ok": False, "error": f"AI 응답이 규칙 형식이 아님: {text[:120]}", "rule": {}}
+    # 비용 실측용 — 토큰 수를 같이 남긴다 (harness_eval 캐시에 그대로 저장된다)
+    out["_usage"] = dict(data.get("usage") or {}, schema_forced=schema_forced)
+    return out
 
 
 def _url(model):
@@ -259,6 +311,12 @@ def translate(sentence, devices, retries=2, feedback=None, models=None):
     }
     last_err = ""
     for model in models or MODELS:
+        if model.startswith("openrouter:"):
+            try:
+                return _call_openrouter(model[len("openrouter:"):], body["contents"][0]["parts"][0]["text"])
+            except requests.exceptions.RequestException as e:
+                last_err = f"OpenRouter 에 연결 못 함 ({type(e).__name__})"
+                continue
         if model.startswith("ollama:"):
             try:
                 return _call_ollama(model[len("ollama:"):], body["contents"][0]["parts"][0]["text"])
