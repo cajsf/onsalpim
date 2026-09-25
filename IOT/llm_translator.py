@@ -94,7 +94,8 @@ def _parse_json_text(text):
 def _call_openrouter(model, prompt):
     key = getattr(secrets_local, "OPENROUTER_API_KEY", "")   # 없으면 translate 가 부르기 전에 건너뛴다
     headers = {"Authorization": f"Bearer {key}", "X-Title": "onsalpim harness_eval"}
-    base = {"model": model, "temperature": 0,
+    # data_collection=deny — 입력을 수집·학습하지 않는 공급자로만 보낸다 (OpenRouter 기본값은 allow)
+    base = {"model": model, "temperature": 0, "provider": {"data_collection": "deny"},
             "messages": [{"role": "user", "content": prompt}]}
     # 1차: JSON 스키마를 강제한다. 스키마를 지원하는 공급자에게만 보낸다(require_parameters).
     # strict 는 끈다 — 우리 스키마에 additionalProperties:false 가 없어 엄격 모드가 거부한다.
@@ -102,7 +103,7 @@ def _call_openrouter(model, prompt):
                   response_format={"type": "json_schema",
                                    "json_schema": {"name": "rule", "strict": False,
                                                    "schema": _plain_schema(RESPONSE_SCHEMA)}},
-                  provider={"require_parameters": True})
+                  provider={"require_parameters": True, "data_collection": "deny"})
     r = requests.post(OPENROUTER_URL, headers=headers, json=forced, timeout=120)
     if r.status_code in (400, 404, 422):
         # 추론 모델(gpt-5 계열 등)은 temperature 를 받지 않아 require_parameters 에 걸려 공급자가 0개가 된다.

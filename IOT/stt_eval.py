@@ -8,12 +8,13 @@ Whisper 모델은 처음 돌릴 때 받는다 (large-v3-turbo 약 1.6GB, 사용�
 9/25 이 노트북 CPU(i7-1165G7, int8)로는 5초 녹음 하나에 약 9초 — 시연 PC 가 CPU 뿐이면 쓰기 어렵다.
 
 녹음폴더:
-    sentences.txt    한 줄에 한 문장 — 줄 번호가 문장 번호다 (1부터)
     3_민성.m4a        '문장번호_아무거나.확장자'. 휴대폰 녹음(m4a·mp3·wav·webm 등)을 그대로 둔다
+    sentences.txt    (없어도 된다) 한 줄에 한 문장, 줄 번호 = 문장 번호. 없으면 같은 폴더의 stt_sentences.txt(24문장)
 결과: 녹음폴더/stt_eval.csv (녹음마다 한 줄) + 화면에 요약.
 
-녹음은 팀원 목소리다 — 저장소 안에 두지 말 것. Gemini 는 OpenRouter 유료 경로로 보낸다
-(무료 등급은 입력을 제품 개선에 쓰고 사람이 볼 수 있다). 두 쪽 모두 제품과 같은 16kHz 모노 WAV 를 받는다.
+녹음은 팀원 목소리다 — 저장소 안에 두지 말 것. 두 쪽 모두 제품과 같은 16kHz 모노 WAV 를 받는다.
+Gemini 기본은 OpenRouter(data_collection=deny — 입력을 수집하지 않는 공급자로만). 무료 Gemini 로 재려면
+--gemini gemini-3.1-flash-lite (무료 등급은 입력을 Google 제품 개선에 쓰고 사람이 볼 수 있다).
 
 채점은 AI 없이 코드로 한다:
     글자 오류율(CER) — 띄어쓰기·문장부호를 빼고 비교
@@ -39,7 +40,7 @@ WHISPER_HINT = "305호 무활동 기준을 7시간 40분으로 바꾸고, 25도�
 
 
 def _norm(s):
-    return re.sub(r"[\s.,!?~'\"“”‘’·…]", "", s or "")
+    return re.sub(r"[\s.,!?~'\"“”‘’·…]", "", (s or "").replace("%", "퍼센트"))   # '20%' 와 '20퍼센트' 는 같게
 
 
 def cer(ref, hyp):
@@ -65,6 +66,7 @@ def home_check(ref, hyp):
 
 
 assert cer("102호만 6시간으로", "102호만 6 시간으로.") == 0
+assert cer("20퍼센트 아래로", "20% 아래로") == 0
 assert abs(cer("102호", "배기호") - 3 / 4) < 1e-9
 assert home_check("102호 기준 30분 줄여줘", "배기호 기준 30분 줄여줘") == "빠짐"
 assert home_check("102호 기준 30분 줄여줘", "101호 기준 30분 줄여줘") == "다른 호수"
@@ -85,7 +87,11 @@ def _wav_bytes(pcm):
 
 def load_clips(folder):
     """[(파일, 문장번호, 말한 사람, 정답 문장)]"""
-    with open(os.path.join(folder, "sentences.txt"), encoding="utf-8-sig") as f:
+    path = os.path.join(folder, "sentences.txt")
+    if not os.path.exists(path):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stt_sentences.txt")
+    print(f"문장 목록: {path}")
+    with open(path, encoding="utf-8-sig") as f:
         sentences = [line.strip() for line in f]
     clips = []
     for name in sorted(os.listdir(folder)):

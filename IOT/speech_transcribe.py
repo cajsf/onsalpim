@@ -74,7 +74,9 @@ def _ask_openrouter(model, b64, fmt):
     """반환: (받아쓴 글, 실패 이유). 호출이 실패하면 글이 None."""
     r = requests.post(OPENROUTER_URL, timeout=60,
                       headers={"Authorization": f"Bearer {secrets_local.OPENROUTER_API_KEY}", "X-Title": "onsalpim"},
-                      json={"model": model, "temperature": 0, "messages": [{"role": "user", "content": [
+                      json={"model": model, "temperature": 0,
+                            "provider": {"data_collection": "deny"},   # 입력을 수집·학습하지 않는 공급자로만
+                            "messages": [{"role": "user", "content": [
                           {"type": "input_audio", "input_audio": {"data": b64, "format": fmt}},
                           {"type": "text", "text": PROMPT}]}]})
     if r.status_code != 200:

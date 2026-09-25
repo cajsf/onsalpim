@@ -708,6 +708,7 @@ try:
     o = _tr.translate("x", [], models=["openrouter:openai/gpt-5-mini"])
     assert o["ok"] is True and o["_usage"]["schema_forced"] is True, o
     assert _sent[0]["response_format"]["type"] == "json_schema" and _sent[0]["model"] == "openai/gpt-5-mini"
+    assert _sent[0]["provider"]["data_collection"] == "deny", "입력을 수집하는 공급자로 보내지 않는다"
     # (나) temperature 를 받지 않는 추론 모델 — temperature 만 빼고 스키마 강제로 다시 부른다
     _calls = []
     def _fake(url, **k):
@@ -1004,14 +1005,16 @@ try:
     _st.time.sleep = lambda s: None
     _st.secrets_local.OPENROUTER_API_KEY = "test"
     _gem = lambda t: _Resp(200, {"candidates": [{"content": {"parts": [{"text": t}]}}]})
-    _urls = []
+    _urls, _jsons = [], []
     def _post(url, **k):
         _urls.append(url)
+        _jsons.append(k.get("json"))
         return _or(url) if "openrouter" in url else _gem_seq.pop(0)
     _st.requests.post = _post
     _or, _gem_seq = (lambda url: _Resp(200, _content('"102호만 6시간으로 바꿔줘"'))), []
     o = _st.transcribe(b"x", "s.wav", "audio/wav")
     assert o == {"ok": True, "text": "102호만 6시간으로 바꿔줘", "error": ""} and len(_urls) == 1, o
+    assert _jsons[0]["provider"]["data_collection"] == "deny", "음성도 수집하는 공급자로 보내지 않는다"
     _urls.clear()
     _or, _gem_seq = (lambda url: _Resp(402, text="insufficient credits")), [_gem("무료 답")]
     assert _st.transcribe(b"x", "s.wav", "audio/wav")["text"] == "무료 답" and len(_urls) == 2, "잔액 부족이면 무료로"
