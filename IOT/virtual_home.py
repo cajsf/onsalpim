@@ -17,6 +17,10 @@ virtual_home.py — 개발용 가상 세대. **전시·발표에는 쓰지 않�
     # 세대마다 동작을 다르게 준다: 호수[:모드]
     python virtual_home.py 101:move 102:still 104:batt=11
 
+    # 다 쓴 가상 세대를 공용 서버에서 지운다 — 먼저 지울 목록만 보여 주고, --yes 를 붙여야 실제로 지운다
+    python virtual_home.py --remove 103 104 105
+    python virtual_home.py --remove 103 104 105 --yes
+
 모드 (전시 계획안 ④의 네 상태를 그대로 재현):
     move      움직임이 자주 발생        → 정상
     still     보고는 하지만 안 움직임    → 무활동 → 긴급 확인
@@ -89,9 +93,26 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="개발용 가상 세대 (전시에는 실물 보드를 쓴다)")
     ap.add_argument("homes", nargs="+", help="호수[:모드]  예: 101:move 102:still 104:batt=11")
     ap.add_argument("--setup", action="store_true", help="컨테이너만 만들고 종료")
+    ap.add_argument("--remove", action="store_true", help="이 세대의 가상 컨테이너(h호_*)를 공용 서버에서 지운다")
+    ap.add_argument("--yes", action="store_true", help="--remove 와 함께 — 목록만 보지 않고 실제로 지운다")
     a = ap.parse_args()
 
-    if a.setup:
+    if a.remove:
+        homes = [parse_spec(t)[0] for t in a.homes]
+        # 시연 세대(실물 보드)는 이 옵션으로 지우지 않는다 — 잘못 적어도 시연 장치가 사라지지 않게
+        keep = [h for h in homes if h in ("101", "102", "201", "202")]
+        if keep:
+            raise SystemExit(f"{', '.join(keep)}호는 시연 세대라 지우지 않습니다.")
+        targets = sorted(d["path"].rsplit("/", 1)[-1] for d in iot.read_tree(iot.AE, max_age=0)
+                         if d["meta"].get("home") in homes
+                         and d["path"].rsplit("/", 1)[-1].startswith(tuple(f"h{h}_" for h in homes)))
+        print(f"지울 컨테이너 {len(targets)}개 (안의 기록도 같이 사라진다): {', '.join(targets) or '없음'}")
+        if not a.yes:
+            print("목록만 보여 줬습니다. 지우려면 같은 명령에 --yes 를 붙이세요.")
+        else:
+            for c in targets:
+                iot.delete_cnt(iot.AE, c)
+    elif a.setup:
         for token in a.homes:
             h = parse_spec(token)[0]
             print(f"{h}호 컨테이너 생성:")
