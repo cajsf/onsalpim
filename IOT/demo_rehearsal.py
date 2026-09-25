@@ -18,7 +18,6 @@ import collections
 import copy
 import json
 import os
-import re
 import sys
 import tempfile
 from datetime import datetime, timedelta
@@ -26,10 +25,10 @@ from datetime import datetime, timedelta
 import care_monitor as cm
 import engine
 import scope
-from harness_eval import FIXTURE      # 전시 구성(101·102·201·202호) 트리 — 측정용 한 층 이름(h101_temp)
+from harness_eval import FIXTURE, nested   # 전시 구성(101·102·201·202호) 트리 — 측정용 한 층 이름(h101_temp)
 
 # 보드가 만드는 세대 컨테이너 구조와 같은 경로(h101_temp → h101/temp). 세대는 read_tree 가 부모에서 물려준 것과 같게 둔다
-NESTED = [dict(d, path=re.sub(r"/h(\d+)_", r"/h\1/", d["path"])) for d in FIXTURE]
+NESTED = [dict(d, path=nested(d["path"])) for d in FIXTURE]
 
 engine.RULES_FILE = os.path.join(tempfile.mkdtemp(prefix="demo_rehearsal_"), "rules.json")
 

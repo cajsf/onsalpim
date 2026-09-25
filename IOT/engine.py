@@ -213,10 +213,9 @@ def _apply_override(sentence, out, devices, steps):
     # 로컬 모델 측정(9/24): 약한 모델은 두 세대 중 하나만 고르고(z10), 말하지 않은 양을 지어내고(q05),
     # 배수를 더하기로 바꾸고(y11), 부호를 버렸다(r12). 문장에서 코드가 직접 읽어 대조한다.
     said_homes = facts.named_homes(sentence)
-    if len(said_homes) > 1:
-        return _stop(steps, OVERRIDE_STEPS,
-                     [f"예외는 세대 하나씩 겁니다 — {', '.join(said_homes)}호를 한 번에 바꿀 수 없습니다. "
-                      f"세대마다 따로 말씀해 주세요."])
+    many = _override_many_homes(sentence, devices)     # 두 호수·층·전체 세대
+    if many:
+        return _stop(steps, OVERRIDE_STEPS, [many])
     if said_homes and said_homes[0] != home:
         home = said_homes[0]                         # 세대는 문장이 말한 대로
     said = facts.durations(sentence)
@@ -599,6 +598,54 @@ _LIFE_STATE = re.compile(r"(자고|잘 때|주무|수면|식사|밥 먹|외출|�
 # 복지사가 기대한 것보다 덜 발동한다. 놓치는 쪽으로 틀리는 것이라 그냥 두면 안 된다.
 _OR_COND = re.compile(r"(거나|또는|혹은|이든|든지)")
 
+# 조건을 말했는가('~면', '~때', 비교 말). 세대 구조 트리 측정(9/25, p15): "101호 창문을 45도로 열어줘"에 AI가
+# 문장에 없는 '움직임이 감지되면'을 지어냈다. 문장에 센서 말이 하나도 없어 종류 대조도 돌지 않고 통과했다.
+_CONDITION_SAID = re.compile(r"(면(?![가-힣])|때|경우|거든)")
+
+
+def _override_many_homes(sentence, devices):
+    """예외를 층·전체 세대에 걸려는가 — 예외는 세대 하나에 붙는다(11차 팀 결정 p14·t10). 반환: 멈출 이유 또는 None.
+    AI에 맡기면 되묻기·거절 사이를 오갔다(세대 구조 트리 측정 9/25)."""
+    homes = facts.named_homes(sentence)
+    # 층·전체는 '늘려·줄여'(상대 변경)일 때만 — 그건 예외로만 할 수 있다. '전체 세대 기준을 480으로'(w12)처럼
+    # 얼마로 정하는 말은 새 공통 규칙일 수 있어 AI 판단에 맡긴다
+    if not homes and _relative_delta(sentence):
+        known = scope.discover_homes(devices)
+        homes = facts.floor_homes(sentence, known) or (list(known) if facts.says_all(sentence) else [])
+    if len(homes) > 1:
+        return (f"예외는 세대 하나씩 겁니다 — {', '.join(homes)}호를 한 번에 바꿀 수 없습니다. "
+                f"세대마다 따로 말씀해 주세요.")
+    return None
+
+
+def _severity_on_sensor(sentence):
+    """움직임이 아닌 센서(배터리·온도 등)에 위험도를 붙였는가 — 판정 엔진은 무활동에만 위험도를 쓴다(scope 와 같은 규칙).
+    그 규칙은 AI가 규칙을 만든 뒤에만 돌아서, AI가 되묻거나 단위를 탓하면 결과가 흔들렸다(t01). 반환: 멈출 이유 또는 None."""
+    if not any(w in sentence for w, _ in SEVERITY_NAMES):
+        return None
+    said = {k for k, words in validator.KIND_WORDS.items() if any(w in sentence for w in words)}
+    if not said or "motion" in said:
+        return None
+    return (f"'{', '.join(validator.KIND_KO.get(k, k) for k in sorted(said))}' 기준 위험도(주의·긴급)는 판정에 쓰이지 "
+            f"않습니다 — 위험도는 움직임이 없는 시간으로만 판정합니다.")
+
+
+def _unit_mismatch(sentence, devices):
+    """'온도가 30퍼센트'처럼 센서와 단위를 어긋나게 말했는가 — 단위만 고쳐 말하면 되므로 되묻는다
+    (u03·u04·t02, 팀 결정 9/25). AI에 맡기면 되묻기·거절 사이를 오갔다. 반환: 되물을 문장 또는 None."""
+    for kind, words in validator.KIND_WORDS.items():
+        units = {d["meta"].get("unit") for d in devices if d["meta"].get("type") == kind} - {None, ""}
+        if len(units) != 1 or next(iter(units)) not in validator.UNIT_WORDS:
+            continue
+        unit = next(iter(units))
+        for w in words:
+            # 센서 말과 숫자 사이는 조사 정도만 — "습하면 창문을 90도로"의 90도는 창문 각도다
+            m = re.search(re.escape(w) + r"[^\d]{0,3}?(-?\d+(?:\.\d+)?)\s*(도씨|℃|도|퍼센트|프로|%)", sentence)
+            if m and m.group(2) not in validator.UNIT_WORDS[unit]:
+                return (f"{validator.KIND_KO[kind]} 기준은 {validator.UNIT_KO[unit]}로 말씀해 주세요 — "
+                        f"'{m.group(1)}{m.group(2)}'는 {validator.KIND_KO[kind]} 단위가 아닙니다.")
+    return None
+
 
 # 부정으로 말한 조건은 뜻이 뒤집히기 쉽다.
 # 25차(g11): "30도 아래로 안 떨어지면 불 켜줘"에 AI가 '< 30'(30도 아래면)을 만들었다 — 정반대다.
@@ -666,6 +713,10 @@ def _fact_checks(sentence, rule, devices, steps):
         if facts.says_all(sentence):
             return stop("제어 규칙은 장치 하나를 직접 지목합니다 — '모든 세대'로는 만들 수 없습니다. "
                         "세대마다 따로 말씀해 주세요.", "다세대 제어는 지원하지 않음")
+        if not (_CONDITION_SAID.search(sentence) or facts.comparison_count(sentence)):
+            return stop("문장에 조건('~하면', '~일 때')이 없습니다 — 지금 바로 장치를 움직이는 명령은 규칙으로 만들지 "
+                        "않습니다. '온도가 30도 넘으면 창문을 45도로 열어줘'처럼 조건과 함께 말씀해 주세요.",
+                        "조건 없는 제어")
         homes_of = lambda items: {by_path.get(c.get("path"), {}).get("home") for c in items
                                   if c.get("path") and c.get("path") != "system/hour"} - {None, ""}
         cond_homes, act_homes = homes_of(conds), homes_of(acts)
@@ -847,6 +898,16 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     if life:
         return _stop(steps, CREATE_STEPS, [life], reason="생활 상태 조건은 판단할 수 없음")
 
+    # 0-f) 움직임이 아닌 센서에 위험도를 붙이면 못 만든다 — 단위를 고쳐도 마찬가지라 단위보다 먼저 본다 (t01)
+    sev_sensor = _severity_on_sensor(sentence)
+    if sev_sensor:
+        return _stop(steps, CREATE_STEPS, [sev_sensor], reason="움직임 외 센서의 위험도는 판정에 쓰지 않음")
+
+    # 0-g) 센서와 단위가 어긋나면 단위만 고쳐 말하면 된다 — 되묻는다 (u03·u04·t02)
+    unit_q = _unit_mismatch(sentence, devices)
+    if unit_q:
+        return _stop(steps, CREATE_STEPS, [], questions=[unit_q], reason="단위가 센서와 다름")
+
     # 1) LLM 번역
     out = tr.translate(sentence, devices)
     budget = retry                     # 되먹임은 번역·검증 단계를 합쳐 최대 retry 번
@@ -882,6 +943,9 @@ def add_rule_from_sentence(sentence, devices, retry=1):
         msg = out.get("error") or "LLM이 거부함"
         if msg.startswith("LLM 호출 실패"):
             return _ai_down_stop(steps, flow, msg)
+        many = _override_many_homes(sentence, devices) if intent == "set_override" else None
+        if many:                                       # AI가 되물어도 예외는 세대 하나씩 — 답이 정해진 일이다
+            return _stop(steps, flow, [many], reason="여러 세대 예외")
         if _is_question(out):
             # 거부가 아니라 되묻기 — 복지사가 한 줄 더 쓰면 되는 상황이다
             steps[-1]["status"] = "warn"

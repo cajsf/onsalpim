@@ -1085,3 +1085,27 @@ _st = [{"id": "validate", "detail": "통과"}]
 h = engine._fact_checks("101호 온도가 30도 넘으면 불 켜줘", _ctl(("h101_temp", ">", "30"), [("led_cmd", "ON")]), _DEV_OLD, _st)
 assert h and "어느 세대에도" in h["errors"][0], h
 print("  ✅ 세대 컨테이너 구조: 세대 물려받기·옛 구조 호환·지울 목록·세대 밖 장치")
+
+# ── 세대 구조 트리 측정(9/25, 30차)이 드러낸 것 — AI 답에 따라 흔들리던 결과를 문장만 보고 정한다 ──
+# 조건 없이 장치만 움직이라는 말에 AI가 조건을 지어냈다 (p15: '움직임이 감지되면')
+h, _, _ = _fc("101호 창문을 45도로 열어줘", _ctl(("h101_pir", "==", "1"), [("h101_window", "45")]))
+assert h and "조건" in h["errors"][0], h
+
+# 층·전체 세대 예외는 세대 하나씩 — AI가 되물어도 거절 (p14·t10). 호수 하나와 '전체'가 함께면 그 세대 하나다
+assert engine._override_many_homes("1층 세대 기준을 2시간 늘려줘", _DEV)
+assert engine._override_many_homes("전체 세대 기준을 1시간씩 늘려줘", _DEV)
+assert engine._override_many_homes("101호와 102호만 무활동 기준을 6시간으로 바꿔줘", _DEV)
+assert engine._override_many_homes("102호 기준 30분 줄여줘", _DEV) is None
+assert engine._override_many_homes("102호만 전체 기준보다 1시간 늘려줘", _DEV) is None
+assert engine._override_many_homes("전체 세대 무활동 기준을 480으로 해줘", _DEV) is None, "얼마로 정하는 말은 새 공통 규칙일 수 있다 (w12)"
+# 움직임이 아닌 센서에 위험도는 못 만든다 — 단위보다 먼저 (t01)
+assert engine._severity_on_sensor("201호 배터리가 20도 아래로 떨어지면 주의로 표시해줘")
+assert engine._severity_on_sensor("전체 세대에서 8시간 동안 움직임이 없으면 긴급으로 표시해줘") is None
+# 센서와 단위가 어긋나면 되묻기 (u03·u04·t02, 팀 결정). 다른 장치의 각도는 단위로 읽지 않는다
+assert engine._unit_mismatch("101호 온도가 30퍼센트 넘으면 불 켜줘", _DEV)
+assert engine._unit_mismatch("101호 습도가 30도 넘으면 불 켜줘", _DEV)
+assert engine._unit_mismatch("101호가 습하면 창문을 90도로 열어줘", _DEV) is None
+assert engine._unit_mismatch("101호 습도가 80% 넘으면 창문을 90도로 열어줘", _DEV) is None
+r = engine.add_rule_from_sentence("101호 온도가 30퍼센트 넘으면 불 켜줘", _DEV)   # AI 를 부르기 전에 멈춘다
+assert r["status"] == "needs_clarification" and "퍼센트" in r["questions"][0], r
+print("  ✅ 30차: 조건 없는 제어·층 예외·센서 위험도·단위 불일치를 AI 답과 상관없이 정한다")
