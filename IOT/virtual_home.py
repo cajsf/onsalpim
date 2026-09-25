@@ -21,6 +21,7 @@ virtual_home.py — 개발용 가상 세대. **전시·발표에는 쓰지 않�
     #   103~105 처럼 가상 세대는 통째로, 101·102·201·202(시연 세대)는 옛 한 층 컨테이너(h101_pir 등)만
     python virtual_home.py --remove 101 102 103 104 105
     python virtual_home.py --remove 101 102 103 104 105 --legacy --yes   # 세대 표시 없는 옛 장치(led_cmd 등)까지
+    python virtual_home.py --remove 202 --demo --yes   # 시연 세대도 통째로 — 202호 입주 장면을 다시 하기 전에
 
 모드 (전시 계획안 ④의 네 상태를 그대로 재현):
     move      움직임이 자주 발생        → 정상
@@ -61,12 +62,14 @@ def setup(home, batt=True):
 DEMO_HOMES = ("101", "102", "201", "202")
 
 
-def removal_targets(devices, homes, legacy=False):
+def removal_targets(devices, homes, legacy=False, demo=False):
     """지울 AE 바로 아래 컨테이너 이름. 세대 컨테이너를 지우면 그 아래 장치도 같이 사라진다.
       - 옛 한 층 구조(h101_pir 등): 새 구조에서는 쓰지 않으니 시연 세대 것도 고른다 — 남으면 새 장치와 같은 세대에
         움직임 센서가 둘이 되고, 보고가 끊긴 옛 것 때문에 '점검 필요'가 뜬다
       - 새 구조의 세대 컨테이너(h103): 가상 세대만 — 시연 세대(실물 보드)의 것은 고르지 않는다
       - legacy: 세대 표시가 없던 시절의 장치(pir·temp·led_cmd 처럼 kind 는 있고 home 이 없는 AE 직속 컨테이너)
+      - demo: 적은 시연 세대의 세대 컨테이너도 고른다 — 202호는 처음에 꽂지 않는 보드라, 입주 장면을 다시 하려면
+        공용 서버에 남은 h202 를 지워야 한다(남아 있으면 시작부터 202호가 떠 있고 보고가 없어 '점검 필요'로 보인다)
     devices 는 read_tree(only_ours=False) 결과 — 세대 컨테이너까지 들어 있어야 한다."""
     out = set()
     for d in devices:
@@ -76,7 +79,7 @@ def removal_targets(devices, homes, legacy=False):
         name, meta = parts[2], d["meta"]
         if any(name.startswith(f"h{h}_") for h in homes):
             out.add(name)
-        elif name in {f"h{h}" for h in homes if h not in DEMO_HOMES}:
+        elif name in {f"h{h}" for h in homes if demo or h not in DEMO_HOMES}:
             out.add(name)
         elif legacy and "kind" in meta and "home" not in meta:
             out.add(name)
@@ -127,16 +130,18 @@ if __name__ == "__main__":
                     help="옛 한 층 컨테이너(h호_*)와 가상 세대의 세대 컨테이너(h호)를 공용 서버에서 지운다")
     ap.add_argument("--legacy", action="store_true", help="--remove 와 함께 — 세대 표시 없는 옛 장치(led_cmd 등)도 고른다")
     ap.add_argument("--yes", action="store_true", help="--remove 와 함께 — 목록만 보지 않고 실제로 지운다")
+    ap.add_argument("--demo", action="store_true",
+                    help="--remove 와 함께 — 적은 시연 세대(101·102·201·202)의 세대 컨테이너도 지운다 (202호 입주 장면 초기화)")
     a = ap.parse_args()
-    if (a.yes or a.legacy) and not a.remove:
-        ap.error("--yes·--legacy 는 --remove 와 함께만 씁니다 (빠뜨리면 지우는 대신 가상 세대가 켜진다)")
+    if (a.yes or a.legacy or a.demo) and not a.remove:
+        ap.error("--yes·--legacy·--demo 는 --remove 와 함께만 씁니다 (빠뜨리면 지우는 대신 가상 세대가 켜진다)")
 
     if a.remove:
         homes = [parse_spec(t)[0] for t in a.homes]
         kept = [h for h in homes if h in DEMO_HOMES]
-        if kept:   # 시연 세대(실물 보드)의 새 구조 컨테이너는 지우지 않는다 — 잘못 적어도 시연 장치가 사라지지 않게
-            print(f"{', '.join(kept)}호는 시연 세대라 옛 한 층 컨테이너(h호_*)만 고릅니다.")
-        targets = removal_targets(iot.read_tree(iot.AE, only_ours=False, max_age=0), homes, a.legacy)
+        if kept and not a.demo:   # 시연 세대(실물 보드)의 새 구조 컨테이너는 지우지 않는다 — 잘못 적어도 시연 장치가 사라지지 않게
+            print(f"{', '.join(kept)}호는 시연 세대라 옛 한 층 컨테이너(h호_*)만 고릅니다. 통째로 지우려면 --demo")
+        targets = removal_targets(iot.read_tree(iot.AE, only_ours=False, max_age=0), homes, a.legacy, a.demo)
         print(f"지울 컨테이너 {len(targets)}개 (안의 기록·아래 장치도 같이 사라진다): {', '.join(targets) or '없음'}")
         if not a.yes:
             print("목록만 보여 줬습니다. 지우려면 같은 명령에 --yes 를 붙이세요.")

@@ -1078,6 +1078,7 @@ _tree = [{"path": f"Mobius/byeongari/{p}", "meta": _iot.parse_labels(l)} for p, 
     "led_cmd": ["kind=actuator", "type=light"], "env_data": []}.items()]
 assert _vh.removal_targets(_tree, ["101", "103"]) == ["h101_pir", "h103", "h103_batt"]
 assert _vh.removal_targets(_tree, ["103"], legacy=True) == ["h103", "h103_batt", "led_cmd"]
+assert _vh.removal_targets(_tree, ["101"], demo=True) == ["h101", "h101_pir"], "--demo 면 시연 세대도 통째로 (202호 입주 초기화)"
 # 문장이 세대를 말했는데 세대 밖 장치를 쓰면 멈춘다
 _DEV_OLD = _DEV + [{"path": _P + "led_cmd", "ct": "", "meta": {"kind": "actuator", "type": "light", "accepts": "ON|OFF"}}]
 _st = [{"id": "validate", "detail": "통과"}]
