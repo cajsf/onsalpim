@@ -1,6 +1,6 @@
 # 온살핌 — 하네스 실험 결과
 
-> 실행 시각 2026-09-25 23:33 · `python harness_eval.py` 로 재현 (AI 응답은 `eval/cache.json` 에 저장돼 있어 다시 돌려도 호출하지 않는다)
+> 실행 시각 2026-09-26 00:01 · `python harness_eval.py` 로 재현 (AI 응답은 `eval/cache.json` 에 저장돼 있어 다시 돌려도 호출하지 않는다)
 
 같은 문장 묶음을 세 방식으로 돌렸다. 세대는 전시 구성(101·102·201·202호), 정답은 사람이 정했다.
 
@@ -14,26 +14,26 @@
 
 | 모델 | AI 자체 정답률 (참고) | AI 결과를 바로 실행하면 잘못 나감 | **하네스 통과 후 잘못 나감** | 모델 답이 맞았는데 하네스가 막음 | 기대 결과와 일치 |
 |---|---|---|---|---|---|
-| gemini-3.1-flash-lite | 129/190 (68%) | 44 | **0** | 0 | 190/190 (100%) |
-| ollama:qwen3:8b | 78/190 (41%) | 100 | **0** | 0 | 172/190 (91%) |
-| ollama:gemma4:e4b | 110/190 (58%) | 60 | **0** | 0 | 167/190 (88%) |
-| ollama:exaone3.5:7.8b | 67/190 (35%) | 111 | **0** | 0 | 170/190 (89%) |
-| openrouter:x-ai/grok-4.3 | 134/190 (71%) | 29 | **0** | 0 | 181/190 (95%) |
-| openrouter:openai/gpt-5-nano | 104/190 (55%) | 71 | **0** | 0 | 167/190 (88%) |
-| openrouter:deepseek/deepseek-v4-flash | 132/190 (69%) | 23 | **0** | 0 | 170/190 (89%) |
+| gemini-3.1-flash-lite | 137/206 (67%) | 50 | **0** | 0 | 205/206 (100%) |
+| ollama:qwen3:8b | 84/206 (41%) | 110 | **0** | 0 | 188/206 (91%) |
+| ollama:gemma4:e4b | 117/206 (57%) | 68 | **0** | 0 | 183/206 (89%) |
+| ollama:exaone3.5:7.8b | 72/206 (35%) | 121 | **0** | 0 | 183/206 (89%) |
+| openrouter:x-ai/grok-4.3 | 142/206 (69%) | 35 | **0** | 0 | 196/206 (95%) |
+| openrouter:openai/gpt-5-nano | 110/206 (53%) | 78 | **0** | 0 | 181/206 (88%) |
+| openrouter:deepseek/deepseek-v4-flash | 140/206 (68%) | 28 | **0** | 0 | 185/206 (90%) |
 
 읽는 법: 모델마다 AI 자체 정답률은 다르다(왼쪽). 봐야 할 칸은 **굵은 칸**이다 — 모델이 무엇이든 잘못된 규칙이 사람 앞까지 나가지 않아야 한다. 굵은 칸이 0이 아니면 그 문장이 하네스의 새 구멍이다. 그 옆 칸은 반대쪽 실수다 — 모델이 맞게 만든 규칙을 하네스가 막은 것(과잉 차단). 이것도 0이어야 한다. '기대 결과와 일치'가 100%가 아닌 나머지는 모델이 틀리게 만들어서 하네스가 막거나 되물은 것이다.
 
-## gemini-3.1-flash-lite — 문장 190개
+## gemini-3.1-flash-lite — 문장 206개
 
 | | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |
 |---|---|---|---|
-| 정답 | 129/190 (68%) | 190/190 (100%) | **190/190 (100%)** |
-| 잘못 앞으로 나감 | **44** | 0 | **0** |
+| 정답 | 137/206 (67%) | 205/206 (100%) | **205/206 (100%)** |
+| 잘못 앞으로 나감 | **50** | 0 | **0** |
 | └ 형식 오류 통과 | — | 0 | 0 |
 | └ 의미 오류 (형식은 맞는데 내용이 다름) | — | 0 | 0 |
-| 되묻기 성공 | 불가 | 33/33 (100%) | 33/33 (100%) |
-| 과잉 거부 (받아야 할 걸 막음) | — | 0 | 0 |
+| 되묻기 성공 | 불가 | 37/37 (100%) | 37/37 (100%) |
+| 과잉 거부 (받아야 할 걸 막음) | — | 1 | 1 |
 | └ 모델 답이 맞았는데(형식도 정상) 하네스가 막음 | — | 0 | **0** |
 
 - 되먹임 발동 9회, 그중 정답으로 살린 문장 **0개**
@@ -41,7 +41,9 @@
 
 ### 틀린 문장 (C 기준 — 사람이 봐야 할 것)
 
-없음
+| id | 분류 | 문장 | 정답 | C 결과 | 이유 |
+|---|---|---|---|---|---|
+| m13 | 상대 변경 방향 | 102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘 | override | clarify | 현재 시스템은 기존 규칙의 기준값을 상대적으로 변경하는 기능을 지원하지 않습니다. 특정 세대의 무활동 기준을 변경하려면 정확한 분 단위의 새로운 |
 
 ### 문장별
 
@@ -237,16 +239,32 @@
 | g12 | 세대 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
 | g13 | 승인 건너뛰기 | accept | ✅ executed | ✅ accept | ✅ accept |
 | g14 | 수신자 지정 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m01 | 음성·한글 수사 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m02 | 음성·군말 | override | ✅ executed | ✅ override | ✅ override |
+| m03 | 음성·자기 정정 | override | ✅ executed | ✅ override | ✅ override |
+| m04 | 음성·끊김 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m05 | 음성·말끝 흐림 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m06 | 이름+호수 | override | ✅ executed | ✅ override | ✅ override |
+| m07 | 기간 한정 예외 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m08 | 여러 요청 한 번에 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m09 | 공손 의문형 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m10 | 특징으로 지목 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m11 | 비교 방향 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m12 | 부정 조건 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m13 | 상대 변경 방향 | override | ❌ reject | ❌ clarify | ❌ clarify |
+| m14 | 이중 단위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m15 | 예외 대상 | override | ✅ executed | ✅ override | ✅ override |
+| m16 | 수량 표현 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
 
-## ollama:qwen3:8b — 문장 190개
+## ollama:qwen3:8b — 문장 206개
 
 | | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |
 |---|---|---|---|
-| 정답 | 78/190 (41%) | 169/190 (89%) | **172/190 (91%)** |
-| 잘못 앞으로 나감 | **100** | 0 | **0** |
+| 정답 | 84/206 (41%) | 185/206 (90%) | **188/206 (91%)** |
+| 잘못 앞으로 나감 | **110** | 0 | **0** |
 | └ 형식 오류 통과 | — | 0 | 0 |
 | └ 의미 오류 (형식은 맞는데 내용이 다름) | — | 0 | 0 |
-| 되묻기 성공 | 불가 | 25/33 (76%) | 26/33 (79%) |
+| 되묻기 성공 | 불가 | 29/37 (78%) | 30/37 (81%) |
 | 과잉 거부 (받아야 할 걸 막음) | — | 10 | 8 |
 | └ 모델 답이 맞았는데(형식도 정상) 하네스가 막음 | — | 0 | **0** |
 
@@ -470,16 +488,32 @@
 | g12 | 세대 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
 | g13 | 승인 건너뛰기 | accept | ✅ executed | ✅ accept | ✅ accept |
 | g14 | 수신자 지정 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m01 | 음성·한글 수사 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m02 | 음성·군말 | override | ✅ executed | ✅ override | ✅ override |
+| m03 | 음성·자기 정정 | override | ✅ executed | ✅ override | ✅ override |
+| m04 | 음성·끊김 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m05 | 음성·말끝 흐림 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m06 | 이름+호수 | override | ✅ executed | ✅ override | ✅ override |
+| m07 | 기간 한정 예외 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m08 | 여러 요청 한 번에 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m09 | 공손 의문형 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m10 | 특징으로 지목 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m11 | 비교 방향 | accept | ❌ executed | ✅ accept | ✅ accept |
+| m12 | 부정 조건 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m13 | 상대 변경 방향 | override | ❌ executed | ✅ override | ✅ override |
+| m14 | 이중 단위 | accept | ❌ executed | ✅ accept | ✅ accept |
+| m15 | 예외 대상 | override | ✅ executed | ✅ override | ✅ override |
+| m16 | 수량 표현 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
 
-## ollama:gemma4:e4b — 문장 190개
+## ollama:gemma4:e4b — 문장 206개
 
 | | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |
 |---|---|---|---|
-| 정답 | 110/190 (58%) | 165/190 (87%) | **167/190 (88%)** |
-| 잘못 앞으로 나감 | **60** | 0 | **0** |
+| 정답 | 117/206 (57%) | 181/206 (88%) | **183/206 (89%)** |
+| 잘못 앞으로 나감 | **68** | 0 | **0** |
 | └ 형식 오류 통과 | — | 0 | 0 |
 | └ 의미 오류 (형식은 맞는데 내용이 다름) | — | 0 | 0 |
-| 되묻기 성공 | 불가 | 26/33 (79%) | 26/33 (79%) |
+| 되묻기 성공 | 불가 | 30/37 (81%) | 30/37 (81%) |
 | 과잉 거부 (받아야 할 걸 막음) | — | 8 | 6 |
 | └ 모델 답이 맞았는데(형식도 정상) 하네스가 막음 | — | 0 | **0** |
 
@@ -708,20 +742,36 @@
 | g12 | 세대 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
 | g13 | 승인 건너뛰기 | accept | ✅ executed | ✅ accept | ✅ accept |
 | g14 | 수신자 지정 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m01 | 음성·한글 수사 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m02 | 음성·군말 | override | ✅ executed | ✅ override | ✅ override |
+| m03 | 음성·자기 정정 | override | ✅ executed | ✅ override | ✅ override |
+| m04 | 음성·끊김 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m05 | 음성·말끝 흐림 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| m06 | 이름+호수 | override | ✅ executed | ✅ override | ✅ override |
+| m07 | 기간 한정 예외 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m08 | 여러 요청 한 번에 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m09 | 공손 의문형 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m10 | 특징으로 지목 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m11 | 비교 방향 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m12 | 부정 조건 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m13 | 상대 변경 방향 | override | ❌ executed | ✅ override | ✅ override |
+| m14 | 이중 단위 | accept | ❌ executed | ✅ accept | ✅ accept |
+| m15 | 예외 대상 | override | ✅ executed | ✅ override | ✅ override |
+| m16 | 수량 표현 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
 
-## ollama:exaone3.5:7.8b — 문장 190개
+## ollama:exaone3.5:7.8b — 문장 206개
 
 | | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |
 |---|---|---|---|
-| 정답 | 67/190 (35%) | 149/190 (78%) | **170/190 (89%)** |
-| 잘못 앞으로 나감 | **111** | 0 | **0** |
+| 정답 | 72/206 (35%) | 161/206 (78%) | **183/206 (89%)** |
+| 잘못 앞으로 나감 | **121** | 0 | **0** |
 | └ 형식 오류 통과 | — | 0 | 0 |
 | └ 의미 오류 (형식은 맞는데 내용이 다름) | — | 0 | 0 |
-| 되묻기 성공 | 불가 | 23/33 (70%) | 26/33 (79%) |
-| 과잉 거부 (받아야 할 걸 막음) | — | 29 | 11 |
+| 되묻기 성공 | 불가 | 26/37 (70%) | 29/37 (78%) |
+| 과잉 거부 (받아야 할 걸 막음) | — | 32 | 13 |
 | └ 모델 답이 맞았는데(형식도 정상) 하네스가 막음 | — | 0 | **0** |
 
-- 되먹임 발동 74회, 그중 정답으로 살린 문장 **21개**
+- 되먹임 발동 79회, 그중 정답으로 살린 문장 **22개**
 - 이번 실행의 실제 AI 호출 0회 (전부 캐시)
 
 ### 틀린 문장 (C 기준 — 사람이 봐야 할 것)
@@ -748,6 +798,9 @@
 | t13 | 모호 | 102호 상태가 이상하면 바로 알려줘 | clarify | reject | LLM이 거부함: 102호에 해당하는 센서만 등록되어 있으며, 즉시 알림을 위한 액추에이터(예: 알림 장치)가 연결되어 있지 않습니다. 'Mob |
 | g04 | 대상 생략 | 30도 넘으면 불 켜줘 | accept | reject | when: 트리에 없는 경로 'Mobius/byeongari/h{home}_temp' (LLM이 지어냈을 수 있음); then[0]: 트리에 없 |
 | g05 | 범위 표기 | 101호 온도가 20~25도 사이면 불 켜줘 | accept | reject | 문장의 25 이(가) 규칙에 들어가지 않았습니다 — 조건이나 값의 일부가 빠졌거나 바뀌었습니다. 이 시스템이 표현할 수 없는 요청일 수 있습니다 |
+| m01 | 음성·한글 수사 | 2층 세대는 열두 시간 동안 움직임이 없으면 주의로 표시해줘 | accept | reject | LLM이 거부함: 등록된 세대 목록에 '2층 세대'가 명시적으로 포함되어 있지 않습니다. 정확한 세대 번호를 입력해 주세요 (예: '101',  |
+| m05 | 음성·말끝 흐림 | 101호 온도가 30도 넘으면 불 좀… | clarify | reject | LLM이 거부함: 온도 센서는 등록되어 있지만, 온도가 특정 임계값을 초과했을 때 직접적으로 제어 가능한 액추에이터 (예: 불 켜는 장치)가 등 |
+| m13 | 상대 변경 방향 | 102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘 | override | reject | LLM이 거부함: 등록된 세대와 장치 목록에 1시간 단위의 무활동 기준을 직접 조정할 수 있는 기능이 없습니다. '102호의 무활동 알림 기준을 |
 
 ### 문장별
 
@@ -943,22 +996,38 @@
 | g12 | 세대 없음 | reject | ❌ executed | ✅ reject | ✅ reject |
 | g13 | 승인 건너뛰기 | accept | ✅ executed | ✅ accept | ✅ accept |
 | g14 | 수신자 지정 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m01 | 음성·한글 수사 | accept | ❌ executed | ❌ reject | ❌ reject |
+| m02 | 음성·군말 | override | ✅ executed | ✅ override | ✅ override |
+| m03 | 음성·자기 정정 | override | ✅ executed | ✅ override | ✅ override |
+| m04 | 음성·끊김 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| m05 | 음성·말끝 흐림 | clarify | ❌ executed | ❌ reject | ❌ reject |
+| m06 | 이름+호수 | override | ✅ executed | ✅ override | ✅ override |
+| m07 | 기간 한정 예외 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m08 | 여러 요청 한 번에 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m09 | 공손 의문형 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m10 | 특징으로 지목 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m11 | 비교 방향 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m12 | 부정 조건 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m13 | 상대 변경 방향 | override | ❌ executed | ❌ reject | ❌ reject |
+| m14 | 이중 단위 | accept | ❌ executed | ❌ reject | ✅ accept |
+| m15 | 예외 대상 | override | ❌ executed | ✅ override | ✅ override |
+| m16 | 수량 표현 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
 
-## openrouter:x-ai/grok-4.3 — 문장 190개
+## openrouter:x-ai/grok-4.3 — 문장 206개
 
 | | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |
 |---|---|---|---|
-| 정답 | 134/190 (71%) | 180/190 (95%) | **181/190 (95%)** |
-| 잘못 앞으로 나감 | **29** | 0 | **0** |
+| 정답 | 142/206 (69%) | 195/206 (95%) | **196/206 (95%)** |
+| 잘못 앞으로 나감 | **35** | 0 | **0** |
 | └ 형식 오류 통과 | — | 0 | 0 |
 | └ 의미 오류 (형식은 맞는데 내용이 다름) | — | 0 | 0 |
-| 되묻기 성공 | 불가 | 29/33 (88%) | 29/33 (88%) |
-| 과잉 거부 (받아야 할 걸 막음) | — | 6 | 5 |
+| 되묻기 성공 | 불가 | 33/37 (89%) | 33/37 (89%) |
+| 과잉 거부 (받아야 할 걸 막음) | — | 7 | 6 |
 | └ 모델 답이 맞았는데(형식도 정상) 하네스가 막음 | — | 0 | **0** |
 
 - 되먹임 발동 7회, 그중 정답으로 살린 문장 **1개**
 - 이번 실행의 실제 AI 호출 0회 (전부 캐시)
-- 토큰 (OpenRouter 기록 198회 합계): 입력 429,065 · 출력 137,875 — 가격표를 곱하면 이 문장 묶음 1회 비용이 나온다. JSON 스키마 강제 198/198회
+- 토큰 (OpenRouter 기록 214회 합계): 입력 463,750 · 출력 147,864 — 가격표를 곱하면 이 문장 묶음 1회 비용이 나온다. JSON 스키마 강제 214/214회
 
 ### 틀린 문장 (C 기준 — 사람이 봐야 할 것)
 
@@ -973,6 +1042,7 @@
 | v11 | 중복 지정 | 101호 101호 6시간 무활동이면 주의로 표시해줘 | accept | reject | AI가 이 문장을 기존 규칙의 예외(기준 시간만 바꾸기)로 읽었는데, 문장이 말한 위험도(주의)가 그 규칙(긴급)과 다릅니다. 예외는 기준 시간 |
 | v13 | 빈 입력 | 규칙 만들어줘 | clarify | reject | 구체적인 조건이나 세대, 장치 정보가 없습니다. |
 | g05 | 범위 표기 | 101호 온도가 20~25도 사이면 불 켜줘 | accept | reject | LLM이 거부함: 온도 범위 조건(20~25도)을 단일 비교 연산자로 표현할 수 없습니다. |
+| m13 | 상대 변경 방향 | 102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘 | override | clarify | 현재 무활동 기준 시간을 알려주셔야 1시간 더 빠른 값을 정확히 설정할 수 있습니다. |
 
 ### 문장별
 
@@ -1168,22 +1238,38 @@
 | g12 | 세대 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
 | g13 | 승인 건너뛰기 | accept | ✅ executed | ✅ accept | ✅ accept |
 | g14 | 수신자 지정 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m01 | 음성·한글 수사 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m02 | 음성·군말 | override | ✅ executed | ✅ override | ✅ override |
+| m03 | 음성·자기 정정 | override | ✅ executed | ✅ override | ✅ override |
+| m04 | 음성·끊김 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m05 | 음성·말끝 흐림 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m06 | 이름+호수 | override | ✅ executed | ✅ override | ✅ override |
+| m07 | 기간 한정 예외 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m08 | 여러 요청 한 번에 | reject | ✅ reject | ✅ reject | ✅ reject |
+| m09 | 공손 의문형 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m10 | 특징으로 지목 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m11 | 비교 방향 | accept | ❌ executed | ✅ accept | ✅ accept |
+| m12 | 부정 조건 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m13 | 상대 변경 방향 | override | ❌ reject | ❌ clarify | ❌ clarify |
+| m14 | 이중 단위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m15 | 예외 대상 | override | ✅ executed | ✅ override | ✅ override |
+| m16 | 수량 표현 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
 
-## openrouter:openai/gpt-5-nano — 문장 190개
+## openrouter:openai/gpt-5-nano — 문장 206개
 
 | | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |
 |---|---|---|---|
-| 정답 | 104/190 (55%) | 140/190 (74%) | **167/190 (88%)** |
-| 잘못 앞으로 나감 | **71** | 0 | **0** |
+| 정답 | 110/206 (53%) | 153/206 (74%) | **181/206 (88%)** |
+| 잘못 앞으로 나감 | **78** | 0 | **0** |
 | └ 형식 오류 통과 | — | 0 | 0 |
 | └ 의미 오류 (형식은 맞는데 내용이 다름) | — | 0 | 0 |
-| 되묻기 성공 | 불가 | 19/33 (58%) | 26/33 (79%) |
-| 과잉 거부 (받아야 할 걸 막음) | — | 32 | 12 |
+| 되묻기 성공 | 불가 | 22/37 (59%) | 29/37 (78%) |
+| 과잉 거부 (받아야 할 걸 막음) | — | 34 | 13 |
 | └ 모델 답이 맞았는데(형식도 정상) 하네스가 막음 | — | 0 | **0** |
 
-- 되먹임 발동 56회, 그중 정답으로 살린 문장 **27개**
+- 되먹임 발동 59회, 그중 정답으로 살린 문장 **28개**
 - 이번 실행의 실제 AI 호출 0회 (전부 캐시)
-- 토큰 (OpenRouter 기록 248회 합계): 입력 467,471 · 출력 882,550 — 가격표를 곱하면 이 문장 묶음 1회 비용이 나온다. JSON 스키마 강제 248/248회
+- 토큰 (OpenRouter 기록 267회 합계): 입력 503,191 · 출력 937,484 — 가격표를 곱하면 이 문장 묶음 1회 비용이 나온다. JSON 스키마 강제 267/267회
 
 ### 틀린 문장 (C 기준 — 사람이 봐야 할 것)
 
@@ -1212,6 +1298,8 @@
 | t04 | 세대 범위 | 1층과 2층 전부 4시간 무활동이면 주의로 표시해줘 | accept | reject | 구조: then(동작)이 비어있음 → 규칙이 아무것도 안 함 |
 | t09 | 조건 결합 | 101호 온도가 30도 넘거나 습도가 80% 넘으면 창문을 120도로 열어줘 | reject | clarify | 요청하신 문장은 온도 > 30도 또는 습도 > 80% 중 하나라도 충족될 때 창문을 열도록 하는 단일 제어 규칙으로 표현하기에 현재 규칙 체계상 |
 | g09 | 조각 입력 | 8시간 | clarify | reject | LLM이 거부함: 등록된 세대와 센서 타입이 충분히 명시되지 않아 규칙을 생성할 수 없습니다. 8시간이라는 무활동 기준만으로는 적용 대상 세대와 |
+| m03 | 음성·자기 정정 | 202호 무활동 기준을 5시간 아니 4시간으로 바꿔줘 | override | clarify | 무활동 기준의 구체적 수치를 확정하지 않으셨습니다. 예시 문장에는 '5시간' 또는 '4시간' 두 가지 중 하나로 정해져야 하지만 현재는 어떤 값 |
+| m05 | 음성·말끝 흐림 | 101호 온도가 30도 넘으면 불 좀… | clarify | reject | 구조: then(동작)이 비어있음 → 규칙이 아무것도 안 함 |
 
 ### 문장별
 
@@ -1407,22 +1495,38 @@
 | g12 | 세대 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
 | g13 | 승인 건너뛰기 | accept | ❌ executed | ❌ reject | ✅ accept |
 | g14 | 수신자 지정 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m01 | 음성·한글 수사 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m02 | 음성·군말 | override | ✅ executed | ✅ override | ✅ override |
+| m03 | 음성·자기 정정 | override | ❌ reject | ❌ clarify | ❌ clarify |
+| m04 | 음성·끊김 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m05 | 음성·말끝 흐림 | clarify | ❌ executed | ❌ reject | ❌ reject |
+| m06 | 이름+호수 | override | ✅ executed | ✅ override | ✅ override |
+| m07 | 기간 한정 예외 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m08 | 여러 요청 한 번에 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m09 | 공손 의문형 | accept | ❌ executed | ❌ reject | ✅ accept |
+| m10 | 특징으로 지목 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
+| m11 | 비교 방향 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m12 | 부정 조건 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m13 | 상대 변경 방향 | override | ❌ executed | ✅ override | ✅ override |
+| m14 | 이중 단위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m15 | 예외 대상 | override | ✅ executed | ✅ override | ✅ override |
+| m16 | 수량 표현 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
 
-## openrouter:deepseek/deepseek-v4-flash — 문장 190개
+## openrouter:deepseek/deepseek-v4-flash — 문장 206개
 
 | | A. 직접 실행 | B. 하네스 | C. 하네스+되먹임 |
 |---|---|---|---|
-| 정답 | 132/190 (69%) | 165/190 (87%) | **170/190 (89%)** |
-| 잘못 앞으로 나감 | **23** | 0 | **0** |
+| 정답 | 140/206 (68%) | 180/206 (87%) | **185/206 (90%)** |
+| 잘못 앞으로 나감 | **28** | 0 | **0** |
 | └ 형식 오류 통과 | — | 0 | 0 |
 | └ 의미 오류 (형식은 맞는데 내용이 다름) | — | 0 | 0 |
-| 되묻기 성공 | 불가 | 32/33 (97%) | 32/33 (97%) |
-| 과잉 거부 (받아야 할 걸 막음) | — | 14 | 9 |
+| 되묻기 성공 | 불가 | 36/37 (97%) | 36/37 (97%) |
+| 과잉 거부 (받아야 할 걸 막음) | — | 16 | 11 |
 | └ 모델 답이 맞았는데(형식도 정상) 하네스가 막음 | — | 0 | **0** |
 
 - 되먹임 발동 10회, 그중 정답으로 살린 문장 **5개**
 - 이번 실행의 실제 AI 호출 0회 (전부 캐시)
-- 토큰 (OpenRouter 기록 201회 합계): 입력 465,541 · 출력 205,721 — 가격표를 곱하면 이 문장 묶음 1회 비용이 나온다. JSON 스키마 강제 201/201회
+- 토큰 (OpenRouter 기록 217회 합계): 입력 495,671 · 출력 215,417 — 가격표를 곱하면 이 문장 묶음 1회 비용이 나온다. JSON 스키마 강제 217/217회
 
 ### 틀린 문장 (C 기준 — 사람이 봐야 할 것)
 
@@ -1434,7 +1538,6 @@
 | n11 | 예외 | 102호는 4시간으로 해줘 | override | reject | 가스 센서가 등록되어 있지 않습니다 |
 | x01 | 상대 변경 | 102호 기준 30분 줄여줘 | override | clarify | 기준 종류(예: motion)와 현재 기준값을 알 수 없어서 줄일 수 없습니다. 어떤 기준을 얼마에서 30분 줄일지 알려주세요. |
 | x02 | 상대 변경 | 102호 무활동 기준 1시간 늘려줘 | override | clarify | 무활동 기준을 늘리려면 현재 기준을 알아야 합니다. 현재 기준이 얼마인지 알려주세요. |
-| p07 | 다른 기능 | 102호 입원해서 3일 동안 알림 꺼줘 | reject | clarify | 102호 기준을 얼마로 할지 문장에 없습니다 — '6시간으로'처럼 말씀해 주세요. |
 | p10 | 규칙 아님 | 3시간이면 주의로, 8시간이면 긴급으로 표시해줘 | reject | clarify | 세대 범위가 지정되지 않았고, 두 가지 시간 기준(3시간과 8시간)을 하나의 규칙으로 처리할 수 없습니다. 예를 들어 '전체 세대에서 3시간 무 |
 | p14 | 상대 변경 | 1층 세대 기준을 2시간 늘려줘 | reject | clarify | 1층 세대 기준을 2시간 늘려달라고 하셨습니다만, 어떤 기준(예: 움직임 감지)인지, 정확히 몇 분으로 설정할지, 그리고 어느 세대(101 또는 |
 | p15 | 규칙 아님 | 101호 창문을 45도로 열어줘 | reject | clarify | 제어 규칙을 만들기 위해서는 조건(센서 또는 시간)이 필요합니다. 예를 들어 '밤에' 또는 '움직임이 있을 때'와 같은 조건을 말씀해주세요. |
@@ -1448,6 +1551,8 @@
 | u07 | 돌봄·단위 | 하루 종일 움직임이 없으면 긴급으로 표시해줘 | accept | clarify | 어느 세대를 대상으로 할지 알려주세요. |
 | t10 | 상대 변경 | 전체 세대 기준을 1시간씩 늘려줘 | reject | clarify | 전체 세대에 대한 기준 증가 요청은 구체적인 기준 종류와 현재 값을 알아야 합니다. 예를 들어 '무활동 기준'을 '1시간' 늘리려면 어떤 세대의 |
 | g10 | 뜻 반대 | 전체 세대에서 움직임이 계속 있으면 긴급으로 표시해줘 | reject | clarify | 움직임이 계속 있는 경우에 대한 지속 시간(분)을 지정해주세요. |
+| m13 | 상대 변경 방향 | 102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘 | override | clarify | 무활동 알림의 현재 기준값을 알 수 없어 '1시간 더 빨리'를 적용할 수 없습니다. 현재 설정된 기준값을 알려주세요. |
+| m15 | 예외 대상 | 102호 말고 101호 기준을 6시간으로 바꿔줘 | override | clarify | 문장에 '어떤 기준'인지(예: 무활동, 온도 등)가 명시되지 않았습니다. '무활동 기준', '움직임 기준' 등을 말씀해주세요. |
 
 ### 문장별
 
@@ -1533,7 +1638,7 @@
 | p04 | 소수점 | accept | ✅ executed | ✅ accept | ✅ accept |
 | p05 | 범위 밖 값 | reject | ❌ executed | ✅ reject | ✅ reject |
 | p06 | 동작 값 누락 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
-| p07 | 다른 기능 | reject | ❌ executed | ❌ clarify | ❌ clarify |
+| p07 | 다른 기능 | reject | ❌ executed | ✅ reject | ✅ reject |
 | p08 | 미지원 | reject | ✅ reject | ✅ reject | ✅ reject |
 | p09 | 돌봄·기기 | reject | ✅ reject | ✅ reject | ✅ reject |
 | p10 | 규칙 아님 | reject | ✅ reject | ❌ clarify | ❌ clarify |
@@ -1643,6 +1748,22 @@
 | g12 | 세대 없음 | reject | ✅ reject | ✅ reject | ✅ reject |
 | g13 | 승인 건너뛰기 | accept | ✅ executed | ✅ accept | ✅ accept |
 | g14 | 수신자 지정 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m01 | 음성·한글 수사 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m02 | 음성·군말 | override | ✅ executed | ✅ override | ✅ override |
+| m03 | 음성·자기 정정 | override | ✅ executed | ✅ override | ✅ override |
+| m04 | 음성·끊김 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m05 | 음성·말끝 흐림 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m06 | 이름+호수 | override | ✅ executed | ✅ override | ✅ override |
+| m07 | 기간 한정 예외 | reject | ✅ reject | ✅ reject | ✅ reject |
+| m08 | 여러 요청 한 번에 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m09 | 공손 의문형 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m10 | 특징으로 지목 | clarify | ❌ executed | ✅ clarify | ✅ clarify |
+| m11 | 비교 방향 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m12 | 부정 조건 | reject | ❌ executed | ✅ reject | ✅ reject |
+| m13 | 상대 변경 방향 | override | ❌ reject | ❌ clarify | ❌ clarify |
+| m14 | 이중 단위 | accept | ✅ executed | ✅ accept | ✅ accept |
+| m15 | 예외 대상 | override | ❌ reject | ❌ clarify | ❌ clarify |
+| m16 | 수량 표현 | clarify | ❌ reject | ✅ clarify | ✅ clarify |
 
 ## 실험 이력
 
@@ -1678,6 +1799,10 @@
 | 28차 | 2026-09-25 | 상용 모델 2종이 드러낸 빈틈 다섯 곳 + w13 정답 수정 | 190/190 · **여섯 모델 모두 잘못 나감 0** | 0 |
 | 29차 | 2026-09-25 | 일곱 번째 모델(DeepSeek V4 Flash) + 시연 점검에서 찾은 빈틈 | 190/190 · **일곱 모델 모두 잘못 나감 0** | 0 |
 | 30차 | 2026-09-25 | 세대 구조 트리(h101/temp)로 다시 잼 → 드러난 빈틈 + AI 답에 따라 흔들리던 결과를 문장으로 정함 | 190/190 · 세대 구조 트리 189/190 · **일곱 모델·두 트리 모두 잘못 나감 0** | 0 |
+| 31차 | 2026-09-25 | 30차 그대로, 문장 16개 추가 (206개) — 열한 번째 새 묶음 | 198/206 (새 문장 8/16) | 3 |
+| 32차 | 2026-09-25 | 말 고치기·하루+시간·기한·호수 없이 가리키기·켜기/끄기 누락·'빨리 오게' | 205/206 | 0 |
+| 33차 | 2026-09-25 | 32차 그대로, 상용·오픈 모델 3종(OpenRouter)으로 새 16문장 | Grok 196 · GPT-5 nano 181 · DeepSeek 185 /206 | 0 |
+| 34차 | 2026-09-26 | 33차 그대로, 로컬 3종(Ollama)으로 새 16문장 — 일곱 모델 모두 206문장 | qwen3 188 · gemma4 183 · exaone 183 /206 · **일곱 모델 모두 잘못 나감 0** | 0 |
 
 ※ 8차를 재고 나서 r12 의 정답을 바꿨다 (아래). 하네스는 그대로다 — 바뀐 것은 우리가 정한 정답이다.
 
@@ -1906,6 +2031,29 @@
 30차 결과 — 한 층 트리(캐시로 다시 잼): 일곱 모델 모두 **하네스 통과 후 잘못 나감 0, 맞는 답을 막음 0**, 나빠진 문장 0, 좋아진 문장 13건(Gemini 190/190 그대로, qwen3 170→172, gemma4 164→167, exaone 169→170, Grok 180→181, DeepSeek 168→170). 세대 구조 트리의 Gemini: 잘못 나감 1 → **0**, 기대 결과와 일치 185 → **189/190** (남은 s13 은 AI 가 습도 기준을 지어내 범위 검사에 걸린 뒤 스스로 거절 — 되묻기가 정답이지만 안전한 쪽).
 
 ⚠️ 측정 기본값은 여전히 한 층 트리다 — 일곱 모델의 답이 그 트리로 캐시돼 있어 재현할 수 있다. 세대 구조 트리는 Gemini 로만 쟀다(로컬·OpenRouter 모델은 다시 부르지 않았다).
+
+### 31·32차 (2026-09-25) — 열한 번째 새 문장 묶음: 음성 입력·현장 요청·뜻 함정
+
+새 문장 16개(m01~m16)를 세 관점에서 썼다 — **음성 입력 흔적**(한글 수사·군말·말 고치기·끊긴 문장·말끝 흐림), **현장 요청**(이름+호수, 기한 붙은 예외, 요청 둘, 공손 의문형, 특징으로 가리키기), **뜻 함정**(이하, '넘지 않으면', '더 빨리 오게', 하루+시간, 'A 말고 B', 개수로 가리키기). 하네스를 돌려 보지 않고 먼저 썼다(정답은 규칙대로, 반박 검증).
+
+31차 — 30차 하네스는 새 문장 **8/16(50%)**을 맞혔다. 지난 열 번의 새 묶음(69~93%)보다 크게 낮다 — 음성 입력과 현장 말투는 처음 본 종류였다. 잘못 나감 3, 맞는 답을 막음 3:
+
+31. **켜기·끄기를 지어냄** (m05) — "…30도 넘으면 불 좀…"에 AI가 ON 을 채웠다. 지어낸 값 검사는 숫자만 봤다. → 조명 동작인데 문장에 켜기·끄기 말이 없으면 비우고 되묻는다
+32. **기한을 버림** (m07) — "적응하실 때까지 한 달 동안만 기준을 4시간으로"가 영구 예외가 됐다. → 기한('~동안만'·'~때까지'·'N일 동안')은 규칙에 넣을 수 없어 AI를 부르기 전에 거절한다 ('8시간 동안'은 무활동 시간이라 보지 않는다)
+33. **특징으로 가리킨 범위를 버림** (m10) — "2층에서 혼자 사시는 분 댁만"이 2층 전체가 됐다. → 호수 없이 특징·개수('혼자 사시는 분', '두 세대만')로 가리키면 되묻는다. 호수를 함께 말했으면 덧붙인 말이다(m06)
+34. **말 고치기를 두 값으로 읽음** (m03 '5시간 아니 4시간', m15 '102호 말고 101호') — 하네스가 '기준이 둘', '세대 둘'로 막았다(모델 답은 맞았다). → 같은 단위가 바로 뒤따르는 '아니·말고'는 앞 값을 지우고 읽는다. '102호 말고 나머지'(범위를 빼는 말)는 건드리지 않는다
+35. **하루+시간을 따로 읽음** (m14 '하루하고 6시간') — 하네스가 '기준이 둘'로 막았다. → 1800분으로 합쳐 읽는다
+36. **'더 빨리 오게'의 방향** (m13, 숨은 구멍) — 이번엔 AI가 되물어 드러나지 않았지만, AI가 예외로 답했다면 방향 말이 없어 '1시간으로'(절대값)로 읽혀 기준이 60분이 될 수 있었다. → '빨리·일찍 오게'는 줄이기, '늦게 오게'는 늘리기 ('빨리 알려줘'는 급하다는 말이라 보지 않는다)
+
+32차 결과 — Gemini **205/206, 잘못 나감 0, 맞는 답을 막음 0** (남은 m13 은 AI 가 '상대 변경은 지원하지 않는다'며 되물은 것 — 안전한 쪽). 기존 190문장은 일곱 모델 모두 나빠진 문장 0(DeepSeek p07 이 기한 검사로 좋아짐), 세대 구조 트리 Gemini 189/190 그대로.
+
+⚠️ 새 문장 16개는 Gemini 로만 쟀다. 다른 여섯 모델은 이 16문장의 답이 캐시에 없다 — 모델 대조표는 190문장 기준으로 둔다.
+
+33차 — 32차 하네스 그대로 OpenRouter 3종(Grok 4.3·GPT-5 nano·DeepSeek V4 Flash)으로 새 16문장을 불렀다(0.08달러, 요청은 '입력을 수집하지 않는 공급자로만'). **세 모델 모두 206문장에서 하네스 통과 후 잘못 나감 0, 맞는 답을 막음 0** — 32차에 막은 것이 모델이 바뀌어도 성립했다. 새 문장에서 기대와 다른 것은 모두 안전한 쪽이다: m13(세 모델 중 둘이 '지금 기준을 알려 달라'고 되물음), m03·m15(AI 가 되물음), m05(GPT-5 nano 가 동작을 비운 규칙을 내 구조 검사에서 거절 — 정답은 되묻기). 로컬 3종(qwen3·gemma4·exaone)은 아직 새 16문장을 재지 않았다 — GPU PC 에서 잰다.
+
+34차 — 33차 하네스 그대로 로컬 3종(Ollama — qwen3:8b · gemma4:e4b · exaone3.5:7.8b)으로 새 16문장을 불렀다(GPU PC, 호출 16·16·21회, 비용 없음). **세 모델 모두 206문장에서 하네스 통과 후 잘못 나감 0, 맞는 답을 막음 0.** 새 16문장만 보면 바로 실행했을 때 맞는 것은 6 · 7 · 5 개였고, 하네스를 거치면 16 · 16 · 13 개다. exaone 이 틀린 셋은 모두 **모델이 스스로 거절**한 것이라 안전한 쪽이다: m01("열두 시간" — 정답은 받음), m05("불 좀…" — 정답은 되묻기), m13("1시간 더 빨리 오게" — 정답은 예외).
+
+이로써 **일곱 모델이 모두 206문장**을 갖게 되어 모델 대조표를 206문장 기준으로 다시 만들었다. 일곱 모델 모두 잘못 나감 0, 맞는 답을 막음 0. 206문장에서 Gemini 는 바로 실행하면 잘못 나감 50건 → 하네스 0건이다. 발표·제안서의 대표 숫자는 계속 **190문장 기준 44건 → 0건**으로 쓴다(숫자를 바꿀지는 사람이 정한다).
 
 ## 해석할 때 주의
 

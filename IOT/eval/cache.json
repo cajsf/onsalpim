@@ -3121,6 +3121,44 @@
   },
   "sentence": "102호만 주의 기준을 3시간으로 해줘"
  },
+ "07b9b36be4ed2addbf8e197e1607d96ad82bb57e": {
+  "at": "2026-09-25T23:58:07",
+  "feedback": null,
+  "latency_s": 8.74,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "2층 세대(201, 202)에서 움직임(motion)이 12시간(720분) 동안 없으면 주의(WATCH)로 표시하는 규칙입니다.",
+    "scope": {
+     "homes": "201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "720"
+    }
+   }
+  },
+  "sentence": "2층 세대는 열두 시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
  "081abf1e8909d726c9777ebba99eae930f19fd40": {
   "at": "2026-09-24T23:24:51",
   "feedback": [
@@ -3353,6 +3391,38 @@
    }
   },
   "sentence": "101호부터 202호까지 6시간 움직임이 없으면 주의로 표시해줘"
+ },
+ "088ceb2e3d5e56db5d403b38b0efddc43c2f6fd7": {
+  "at": "2026-09-25T23:59:25",
+  "feedback": null,
+  "latency_s": 2.19,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "",
+     "value": "600"
+    }
+   }
+  },
+  "sentence": "101호 사시는 박 할아버지는 무활동 기준을 10시간으로 해 주세요"
  },
  "08b798f43acd15594ec123d30a09d5f02b134139": {
   "at": "2026-09-25T01:19:23",
@@ -3775,6 +3845,44 @@
    }
   },
   "sentence": "30분 동안 움직임 없으면 주의로 해줘"
+ },
+ "0989c3ccfab1ec8e3aca2a2482b5c045b88c7939": {
+  "at": "2026-09-25T23:58:31",
+  "feedback": null,
+  "latency_s": 3.24,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "전체 세대 6시간 무활동 시 주의 표시",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "360"
+    }
+   }
+  },
+  "sentence": "전체 세대 6시간 무활동이면 주의로 걸어 주고, 102호는 기준을 10시간으로 바꿔 줘"
  },
  "0994b0edca96117d6e2403994907ba39b2d82d3c": {
   "at": "2026-09-24T23:28:14",
@@ -5840,6 +5948,38 @@
    }
   },
   "sentence": "101호 온도가 30도 넘으면 창문을 270도로 열어줘"
+ },
+ "10b8442e751f52ef0e8f35788931ce1bbed7bd4a": {
+  "at": "2026-09-25T23:59:27",
+  "feedback": null,
+  "latency_s": 2.19,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "202"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "",
+     "value": "240"
+    }
+   }
+  },
+  "sentence": "202호에 새로 입주하신 어르신은 적응하실 때까지 한 달 동안만 무활동 기준을 4시간으로 해줘"
  },
  "10bb47a4590c2fc530a62fb8ab739f35b6a5e787": {
   "at": "2026-09-24T23:21:19",
@@ -9892,6 +10032,40 @@
   },
   "sentence": "101호 온도가 18도 미만이면 불 꺼줘"
  },
+ "1cea20454e6d20b2de98bdc77d495240d54a1296": {
+  "at": "2026-09-25T23:59:33",
+  "feedback": [
+   "when: 'system/hour' 값 360가 범위(0~23) 밖"
+  ],
+  "latency_s": 2.55,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "10시간 기준 변경 요청은 불가능합니다. 현재 시스템에 등록된 세대별 무활동 기준 조정 기능은 분 단위로만 설정 가능하며, 특정 세대만 다른 기준을 적용하는 기능은 지원하지 않습니다.",
+   "intent": "create_rule",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "전체 세대 6시간 무활동이면 주의로 걸어 주고, 102호는 기준을 10시간으로 바꿔 줘"
+ },
  "1cea333ed3aa364e8fe58810241243a1207d0373": {
   "at": "2026-09-24T23:01:30",
   "feedback": null,
@@ -12169,6 +12343,44 @@
   },
   "sentence": "102호는 4시간으로 해줘"
  },
+ "25d741feef31cba7488ad67c4ff0d0d7edfd694a": {
+  "at": "2026-09-25T23:57:28",
+  "feedback": null,
+  "latency_s": 2.99,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "ON"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 좀…"
+ },
  "25deb9990566229296d16567055209eebb75ccb4": {
   "at": "2026-09-24T23:19:21",
   "feedback": [
@@ -13404,6 +13616,38 @@
   },
   "sentence": "전체 세대에서 0분 동안 움직임이 없으면 긴급으로 표시해줘"
  },
+ "2a16308e3c39e26a3e97009ac3295c907942ec06": {
+  "at": "2026-09-25T23:59:17",
+  "feedback": null,
+  "latency_s": 2.83,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "문장에 기준값이 명확하게 주어지지 않았습니다. '긴'이라는 표현 대신 구체적인 심각도 (예: 'URGENT', 'WATCH')와 시간 (예: '5시간' → '300분')을 명시해 주셔야 합니다.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "전체 세대에서 5시간 동안 움직임이 없으면 긴"
+ },
  "2a195eea3292c01f5baa43c576b3ad01e8ef27bc": {
   "at": "2026-09-23T13:32:36",
   "feedback": null,
@@ -14617,6 +14861,38 @@
   },
   "sentence": "101호에 연기가 나면 불 켜줘"
  },
+ "2e214d5ad8454c15c6e332ccd43c3ef391c68d03": {
+  "at": "2026-09-25T23:57:20",
+  "feedback": null,
+  "latency_s": 1.94,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "420"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "어… 102 호 그… 무활동 기준을 음 7 시간으로 바꿔줘"
+ },
  "2e261dbfc5612209abdacceb0666ec6704393524": {
   "at": "2026-09-23T13:19:53",
   "feedback": [
@@ -14650,6 +14926,44 @@
    }
   },
   "sentence": "101호 온도가 8시간 넘으면 긴급으로 표시해줘"
+ },
+ "2e3517f56f910e1623741635138983e28d7fd908": {
+  "at": "2026-09-26T00:00:01",
+  "feedback": null,
+  "latency_s": 2.75,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "두 세대(101, 102)에서 각각 3시간 동안 움직임이 없으면 주의 표시",
+    "scope": {
+     "homes": "101,102"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "Mobius/byeongari/h{home}_pir",
+     "type": "motion",
+     "value": "180"
+    }
+   }
+  },
+  "sentence": "두 세대만 3시간 동안 움직임이 없으면 주의로 표시해줘"
  },
  "2e4e5b7e7d369f07d0052c67e2fa1419ceaadf0b": {
   "at": "2026-09-24T22:59:20",
@@ -15775,6 +16089,44 @@
    }
   },
   "sentence": "105호만 무활동 기준을 6시간으로 바꿔줘"
+ },
+ "31358a16ba2136a49784748ec37476ac3bc6bf7a": {
+  "at": "2026-09-25T23:59:30",
+  "feedback": null,
+  "latency_s": 2.64,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "720"
+   },
+   "rule": {
+    "and": [],
+    "reason": "전체 세대에서 6시간 동안 움직임이 없으면 주의 표시",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "system/hour",
+     "type": "",
+     "value": "360"
+    }
+   }
+  },
+  "sentence": "전체 세대 6시간 무활동이면 주의로 걸어 주고, 102호는 기준을 10시간으로 바꿔 줘"
  },
  "314bebb17bf7bceedaa0b94c51e841daca171658": {
   "at": "2026-09-24T23:09:54",
@@ -18011,6 +18363,41 @@
   },
   "sentence": "전체 세대 8시간 무활동이면 긴급으로 만들고 바로 승인까지 해줘"
  },
+ "3905a8601c3524d54f4a59ad8824725fe283557b": {
+  "at": "2026-09-25T23:59:51",
+  "feedback": [
+   "구조: then(동작)이 비어있음 → 규칙이 아무것도 안 함",
+   "when: 무활동 조건(idle_over_m)은 장치 종류(type)로만 쓸 수 있음 (path 아님)"
+  ],
+  "latency_s": 2.79,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "등록된 세대와 장치 목록에 1시간 단위의 무활동 기준을 직접 조정할 수 있는 기능이 없습니다. '102호의 무활동 알림 기준을 조정하려면, 현재 시스템에서 지원하는 단위(분 단위)로 변경하거나, 시스템 관리자에게 요청해야 합니다.",
+   "intent": "create_rule",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "102"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘"
+ },
  "396d1728d042f83514756e722f0ed3ce8666a7af": {
   "at": "2026-09-24T23:12:12",
   "feedback": null,
@@ -19426,6 +19813,44 @@
   },
   "sentence": "102호 무활동 기준을 -30분으로 바꿔줘"
  },
+ "3d3b078fa5523b6e9262a386352e1816d242deb8": {
+  "at": "2026-09-25T23:58:35",
+  "feedback": null,
+  "latency_s": 3.75,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "습도 센서(h101_humi)가 85%를 초과하면 창문(h101_window)을 30도로 열어주는 제어 규칙입니다.",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "30"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_humi",
+     "type": "humidity",
+     "value": "85"
+    }
+   }
+  },
+  "sentence": "혹시 101호 습도가 85% 넘으면 창문을 30도로 열어 주실 수 있을까요?"
+ },
  "3d7fa960fa03683fe1db19561d2e8a23e8917ab3": {
   "at": "2026-09-24T23:16:44",
   "feedback": null,
@@ -19869,6 +20294,38 @@
    }
   },
   "sentence": "101호 101호 6시간 무활동이면 주의로 표시해줘"
+ },
+ "3eb8bdc83e81bf03fb86e5e6aa0c78b8f9934cf9": {
+  "at": "2026-09-25T23:58:49",
+  "feedback": null,
+  "latency_s": 3.17,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "사용자가 '1시간 더 빨리'라는 표현을 사용했으므로, 현재 설정된 무활동 시간(기본값 또는 기존 설정)을 알 수 없어 정확한 값을 설정할 수 없습니다. 따라서 'ask'를 통해 현재의 무활동 기준 시간을 확인해야 합니다.",
+    "scope": {
+     "homes": "102"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "60"
+    }
+   }
+  },
+  "sentence": "102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘"
  },
  "3ed80b31507e61a02f73f504179378ef47d01ce7": {
   "at": "2026-09-23T13:12:31",
@@ -20332,6 +20789,44 @@
    }
   },
   "sentence": "101호 이산화탄소가 1000 넘으면 창문을 90도로 열어줘"
+ },
+ "410e54b6d771eea39129b98db304f321497275e0": {
+  "at": "2026-09-25T23:59:36",
+  "feedback": null,
+  "latency_s": 2.93,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "30"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_humi",
+     "type": "humidity",
+     "value": "85"
+    }
+   }
+  },
+  "sentence": "혹시 101호 습도가 85% 넘으면 창문을 30도로 열어 주실 수 있을까요?"
  },
  "4146a3c3919bc4be8eef3d7c0bcb488440b6638c": {
   "at": "2026-09-24T23:08:15",
@@ -21673,6 +22168,114 @@
    }
   },
   "sentence": "101호 온도가 30퍼센트 넘으면 불 켜줘"
+ },
+ "4512fe43fe6eeb245be17641540861805e3dc21b": {
+  "at": "2026-09-25T23:57:36",
+  "feedback": null,
+  "latency_s": 3.05,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "impossible",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101,102,201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": "WATCH"
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "360"
+    }
+   }
+  },
+  "sentence": "전체 세대 6시간 무활동이면 주의로 걸어 주고, 102호는 기준을 10시간으로 바꿔 줘"
+ },
+ "4526168dfc299788edf2d4265261c8dec3c0ad72": {
+  "at": "2026-09-25T23:59:06",
+  "feedback": null,
+  "latency_s": 6.26,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101,102"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "Mobius/byeongari/h{home}_pir",
+     "type": "motion",
+     "value": "720"
+    }
+   }
+  },
+  "sentence": "2층 세대는 열두 시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
+ "455e2ab54d7f063f2c5cec39e08ea769eacd95c6": {
+  "at": "2026-09-25T23:58:28",
+  "feedback": null,
+  "latency_s": 3.05,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "사용자 요청에 따라 202호의 움직임(motion) 무활동 기준을 4시간(240분)으로 설정합니다.",
+    "scope": {
+     "homes": "202"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "240"
+    }
+   }
+  },
+  "sentence": "202호에 새로 입주하신 어르신은 적응하실 때까지 한 달 동안만 무활동 기준을 4시간으로 해줘"
  },
  "45648deb428ce6d519f1e888a1777c25eccb2ba7": {
   "at": "2026-09-24T22:59:39",
@@ -24181,6 +24784,44 @@
   },
   "sentence": "겨울에만 101호 온도가 18도 아래로 떨어지면 불 켜줘"
  },
+ "4d9d4ffb2c683f6984ecd90052045d5e269d57de": {
+  "at": "2026-09-25T23:57:58",
+  "feedback": null,
+  "latency_s": 2.6,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101,102"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "180"
+    }
+   }
+  },
+  "sentence": "두 세대만 3시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
  "4d9ef2bf4b24b5ae1ac5f70f3168cec9ada117ce": {
   "at": "2026-09-25T01:11:51",
   "feedback": null,
@@ -24298,6 +24939,44 @@
    }
   },
   "sentence": "101호 온도가 30도 넘으면 불 켜고 불 꺼줘"
+ },
+ "4dc494ea0ad536d5bed12755ec9b8f2ddd1c2d93": {
+  "at": "2026-09-25T23:58:59",
+  "feedback": null,
+  "latency_s": 3.59,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "두 세대(101, 102)에서 3시간(180분) 동안 움직임이 없으면 주의(WATCH)로 표시하는 돌봄 규칙을 생성합니다.",
+    "scope": {
+     "homes": "101,102"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "180"
+    }
+   }
+  },
+  "sentence": "두 세대만 3시간 동안 움직임이 없으면 주의로 표시해줘"
  },
  "4dcc2f6294755e16f70c9935f65f8b854f85e02e": {
   "at": "2026-09-24T23:03:29",
@@ -26518,6 +27197,44 @@
   },
   "sentence": "101호가 시원해지면 창문을 닫아줘"
  },
+ "5301631bb4bf487f721305d55e429e8c0b456454": {
+  "at": "2026-09-25T23:58:53",
+  "feedback": null,
+  "latency_s": 3.42,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "전체 세대에서 624분(하루 1440분 + 6시간 360분) 동안 움직임이 없으면 긴급으로 표시하는 돌봄 규칙입니다.",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "624"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 하루하고 6시간 동안 움직임이 없으면 긴급으로 표시해줘"
+ },
  "530851217abd6a7ef1afccaf871b4c9bc70382cb": {
   "at": "2026-09-25T02:21:39",
   "feedback": null,
@@ -28219,6 +28936,38 @@
    }
   },
   "sentence": "하루 종일 움직임이 없으면 긴급으로 알려줘"
+ },
+ "578cbb0bf56b1102b96fd1a4bf1ad018f48584a2": {
+  "at": "2026-09-25T23:57:31",
+  "feedback": null,
+  "latency_s": 2.44,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "600"
+    }
+   }
+  },
+  "sentence": "101호 사시는 박 할아버지는 무활동 기준을 10시간으로 해 주세요"
  },
  "57905b42c07a09569c15c5a912f56ec9bb9e088a": {
   "at": "2026-09-25T22:46:30",
@@ -35060,6 +35809,38 @@
   },
   "sentence": "101호 온도가 18도 미만이면 불 꺼줘"
  },
+ "6904d782ea8431bcbe598f3c013e747638bdb66e": {
+  "at": "2026-09-25T23:57:23",
+  "feedback": null,
+  "latency_s": 2.23,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호 무활동 기준을 5시간 아니 4시간으로 바꿔줘"
+ },
  "69637ee0116f3502c3e4b14053b2d06e3e9277ca": {
   "at": "2026-09-24T23:15:19",
   "feedback": null,
@@ -35097,6 +35878,44 @@
    }
   },
   "sentence": "1층과 2층 전부 4시간 무활동이면 주의로 표시해줘"
+ },
+ "6985917de590340d3e723775e8a1c01b9942c949": {
+  "at": "2026-09-25T23:58:46",
+  "feedback": null,
+  "latency_s": 3.33,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "온도가 25도를 넘으면(>= 25) 불을 끈다(OFF)",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "OFF"
+     }
+    ],
+    "when": {
+     "op": ">=",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "25"
+    }
+   }
+  },
+  "sentence": "101호 온도가 25도를 넘지 않으면 불 꺼줘"
  },
  "69c2fa7a9bbf62e884b625033d9139ea13e7771a": {
   "at": "2026-09-25T01:19:09",
@@ -36482,6 +37301,44 @@
    }
   },
   "sentence": "전 세대 6시간 무활동이면 주의로 표시해줘"
+ },
+ "6f32fe754b70127d0e60e5f26ac3d60918797bd4": {
+  "at": "2026-09-25T23:57:42",
+  "feedback": null,
+  "latency_s": 2.76,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "240"
+    }
+   }
+  },
+  "sentence": "2층에서 혼자 사시는 분 댁만 4시간 움직임이 없으면 긴급으로 해줘"
  },
  "6f356bcb1621054b85166b498f18ec1a961eb8b1": {
   "at": "2026-09-24T22:58:31",
@@ -38418,6 +39275,44 @@
   },
   "sentence": "101호 창문을 45도로 열어줘"
  },
+ "73ed5cc0d40528f0ee2e916068a474e27df658dd": {
+  "at": "2026-09-25T23:57:48",
+  "feedback": null,
+  "latency_s": 2.97,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "OFF"
+     }
+    ],
+    "when": {
+     "op": "<=",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "25"
+    }
+   }
+  },
+  "sentence": "101호 온도가 25도를 넘지 않으면 불 꺼줘"
+ },
  "7405ecc0701c2426c93702a4a0a244ac2bef6003": {
   "at": "2026-09-23T09:10:52",
   "feedback": [
@@ -38490,6 +39385,38 @@
    }
   },
   "sentence": "전체 세대에서 1000시간 동안 움직임이 없으면 긴급으로 표시해줘"
+ },
+ "748084d4c25cc3e118454f3b211f166252994e45": {
+  "at": "2026-09-25T23:57:51",
+  "feedback": null,
+  "latency_s": 2.34,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "impossible",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "60"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘"
  },
  "74ef6138ee912d0a71cd300afb007e906afdc0f9": {
   "at": "2026-09-23T09:07:33",
@@ -41045,6 +41972,44 @@
   },
   "sentence": "101호 온도 센서를 꺼줘"
  },
+ "7cd20f19825d5c918b412d21d5b684e0f6fd8e90": {
+  "at": "2026-09-25T23:57:53",
+  "feedback": null,
+  "latency_s": 2.59,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "1440"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 하루하고 6시간 동안 움직임이 없으면 긴급으로 표시해줘"
+ },
  "7d2f2e013612dbc1ad0dc389bfa3f5e6ecaa8ca6": {
   "at": "2026-09-24T23:13:44",
   "feedback": [
@@ -41786,6 +42751,38 @@
   },
   "sentence": "101호 온도가 30도 넘거나 습도가 80% 넘으면 창문을 120도로 열어줘"
  },
+ "7f5be6ab83f7088563842720ef1c3e3c01b0f807": {
+  "at": "2026-09-25T23:58:10",
+  "feedback": null,
+  "latency_s": 2.32,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "420"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "102"
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "motion",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "어… 102 호 그… 무활동 기준을 음 7 시간으로 바꿔줘"
+ },
  "7f5fc815e30e0424103bfcef0abeb2d13bbabdfb": {
   "at": "2026-09-25T01:09:37",
   "feedback": null,
@@ -42096,6 +43093,44 @@
    }
   },
   "sentence": "101호와 102호만 무활동 기준을 6시간으로 바꿔줘"
+ },
+ "807c2d0327d402f77efc6809ed5bbe9b2e747e68": {
+  "at": "2026-09-25T23:58:16",
+  "feedback": null,
+  "latency_s": 3.34,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "전체 세대에서 5시간(300분) 동안 움직임이 없으면 긴급으로 표시하는 돌봄 규칙을 생성합니다.",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "300"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 5시간 동안 움직임이 없으면 긴"
  },
  "809844fbec4f5c2dcadbc853cddecfbda10b3403": {
   "at": "2026-09-25T01:05:08",
@@ -44073,6 +45108,44 @@
   },
   "sentence": "101호 온도가 30도 넘으면 창문을 180도로 열어줘"
  },
+ "859502cae7554d0c4513fc38f37db09e9a5eaa35": {
+  "at": "2026-09-25T23:57:39",
+  "feedback": null,
+  "latency_s": 3.03,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "30"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_humi",
+     "type": "humidity",
+     "value": "85"
+    }
+   }
+  },
+  "sentence": "혹시 101호 습도가 85% 넘으면 창문을 30도로 열어 주실 수 있을까요?"
+ },
  "859717ff0baeddd01c230213bdb03b2dcb848ecc": {
   "at": "2026-09-24T23:06:06",
   "feedback": null,
@@ -44525,6 +45598,44 @@
    }
   },
   "sentence": "모든 집에서 6시간 넘게 움직임이 없으면 긴급 확인해줘"
+ },
+ "868b21cecbc273b134acb4b998cf7b8e499f7475": {
+  "at": "2026-09-25T23:59:42",
+  "feedback": null,
+  "latency_s": 3.27,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "0"
+     }
+    ],
+    "when": {
+     "op": "<=",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "15"
+    }
+   }
+  },
+  "sentence": "101호 온도가 15도 이하면 창문을 0도로 닫아줘"
  },
  "86936d79cdc4f334bd7b5577003a289f55109e8e": {
   "at": "2026-09-25T01:20:41",
@@ -46501,6 +47612,38 @@
   },
   "sentence": "101호 조명이 켜져 있으면 창문을 90도로 열어줘"
  },
+ "8c9026bf311144978727cd726b3f9f4a64cd7ccc": {
+  "at": "2026-09-25T23:58:12",
+  "feedback": null,
+  "latency_s": 2.47,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "202"
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "motion",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호 무활동 기준을 5시간 아니 4시간으로 바꿔줘"
+ },
  "8c944730e18d08892cc19421ce75ed2dc090bdbb": {
   "at": "2026-09-24T23:29:36",
   "feedback": null,
@@ -46650,6 +47793,44 @@
    }
   },
   "sentence": "카드를 대면 문 열어줘"
+ },
+ "8cc7b74f11d09534b462f5740f857a366283c7d1": {
+  "at": "2026-09-25T23:59:39",
+  "feedback": null,
+  "latency_s": 3.16,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "102"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "Mobius/byeongari/h102_pir",
+     "type": "motion",
+     "value": "240"
+    }
+   }
+  },
+  "sentence": "2층에서 혼자 사시는 분 댁만 4시간 움직임이 없으면 긴급으로 해줘"
  },
  "8cf432e9b1e1ea3f738ee325aea0435cf42910d1": {
   "at": "2026-09-25T01:24:33",
@@ -51673,6 +52854,40 @@
   },
   "sentence": "101호 온도가 20도에서 25도 사이면 불 켜줘"
  },
+ "98e73088a44709430896f01ef33cebceffec1b98": {
+  "at": "2026-09-25T23:59:23",
+  "feedback": [
+   "then[0]: 위험도 표시와 장치 명령을 한 동작에 같이 쓸 수 없음"
+  ],
+  "latency_s": 3.09,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "온도 센서는 등록되어 있지만, 온도가 특정 임계값을 초과했을 때 직접적으로 제어 가능한 액추에이터 (예: 불 켜는 장치)가 등록되어 있지 않습니다. (예: 'Mobius/byeongari/h101_led'와 같은 액추에이터가 필요합니다.)",
+   "intent": "create_rule",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 좀…"
+ },
  "99287c153072c92bf14d43f60d234cac4e9a08f0": {
   "at": "2026-09-25T01:10:36",
   "feedback": null,
@@ -52208,6 +53423,44 @@
    }
   },
   "sentence": "101호 습도가 80% 이상이면 창문을 90도로 열어줘"
+ },
+ "9a3ea12672431103ff5aebc8f8d19116cecf6f73": {
+  "at": "2026-09-25T23:57:45",
+  "feedback": null,
+  "latency_s": 2.96,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "0"
+     }
+    ],
+    "when": {
+     "op": "<",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "15"
+    }
+   }
+  },
+  "sentence": "101호 온도가 15도 이하면 창문을 0도로 닫아줘"
  },
  "9a428e4507f12f8d552d6bc2ac0f46f6b045af10": {
   "at": "2026-09-23T13:12:03",
@@ -52856,6 +54109,38 @@
    }
   },
   "sentence": "전체 세대에서 2시간 움직임이 없으면 알려줘"
+ },
+ "9babaae60ee66c994cc7e4121d9b538754597574": {
+  "at": "2026-09-25T23:58:56",
+  "feedback": null,
+  "latency_s": 3.01,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "360"
+   },
+   "rule": {
+    "and": [],
+    "reason": "사용자가 102호가 아닌 101호의 무활동 기준을 6시간(360분)으로 변경 요청함.",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "360"
+    }
+   }
+  },
+  "sentence": "102호 말고 101호 기준을 6시간으로 바꿔줘"
  },
  "9be38900c17295bd516be258443368c4a282444c": {
   "at": "2026-09-24T23:18:45",
@@ -54423,6 +55708,46 @@
   },
   "sentence": "301호에서 8시간 동안 움직임이 없으면 긴급"
  },
+ "a0f135d5270f5092d0fc9d790b3ccabe2de4c893": {
+  "at": "2026-09-25T23:59:09",
+  "feedback": [
+   "when: 무활동 조건(idle_over_m)은 장치 종류(type)로만 쓸 수 있음 (path 아님)"
+  ],
+  "latency_s": 3.12,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "등록된 세대 목록에 '2층 세대'가 명시적으로 포함되어 있지 않습니다. 정확한 세대 번호를 입력해 주세요 (예: '101', '201' 등).",
+   "intent": "create_rule",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "2층 세대는 열두 시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
  "a10331e43bb6a244d508eebd764c64e444c566f5": {
   "at": "2026-09-24T23:09:45",
   "feedback": null,
@@ -55922,6 +57247,44 @@
   },
   "sentence": "101호 창문을 45도로 열어줘"
  },
+ "a5e92fd144d8216ca202d6767417bf36cc924ba2": {
+  "at": "2026-09-25T23:58:43",
+  "feedback": null,
+  "latency_s": 3.45,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "온도가 15도 이하일 때 101호 창문을 0도로 닫는 제어 규칙입니다.",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "0"
+     }
+    ],
+    "when": {
+     "op": "<=",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "15"
+    }
+   }
+  },
+  "sentence": "101호 온도가 15도 이하면 창문을 0도로 닫아줘"
+ },
  "a61662c6ece9635504e8880abb99865248ed23b4": {
   "at": "2026-09-25T01:19:13",
   "feedback": null,
@@ -56981,6 +58344,44 @@
    }
   },
   "sentence": "모든 세대 온도가 30도 넘으면 불 켜줘"
+ },
+ "aa77d387d39ea29260531b79be23ee9c002674b1": {
+  "at": "2026-09-25T23:57:25",
+  "feedback": null,
+  "latency_s": 2.5,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "300"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 5시간 동안 움직임이 없으면 긴"
  },
  "aa942bf498c56793eae933aba0a372dfbad76651": {
   "at": "2026-09-25T02:23:16",
@@ -58801,6 +60202,38 @@
   },
   "sentence": "전체 세대에서 이틀 동안 움직임이 없으면 긴급으로 표시해줘"
  },
+ "b0bc012cfe2cf9ec24fefcaf95c46ca806bc44b4": {
+  "at": "2026-09-25T23:58:25",
+  "feedback": null,
+  "latency_s": 2.53,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "600"
+    }
+   }
+  },
+  "sentence": "101호 사시는 박 할아버지는 무활동 기준을 10시간으로 해 주세요"
+ },
  "b0bdd5cc4a93598110dfb4d2aea863ee60410195": {
   "at": "2026-09-25T02:20:08",
   "feedback": null,
@@ -58894,6 +60327,38 @@
    }
   },
   "sentence": "1층 세대는 4시간, 2층 세대는 8시간 움직임이 없으면 긴급으로 해줘"
+ },
+ "b0feb54b1f8116cf8f0c5b7be9c8a11ca3be1e68": {
+  "at": "2026-09-25T23:59:48",
+  "feedback": null,
+  "latency_s": 2.53,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "102"
+    },
+    "then": [],
+    "when": {
+     "op": "idle_over_m",
+     "path": "Mobius/byeongari/h102_pir",
+     "type": "motion",
+     "value": "720"
+    }
+   }
+  },
+  "sentence": "102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘"
  },
  "b19aac708baf1fe539c18e606940e69b95b61c8b": {
   "at": "2026-09-25T02:20:52",
@@ -61491,6 +62956,38 @@
    }
   },
   "sentence": "모든 세대 배터리가 20% 아래면 주의로 표시해줘"
+ },
+ "b837dd26ea9de2532546bcc6210b38ce51814632": {
+  "at": "2026-09-25T23:59:14",
+  "feedback": null,
+  "latency_s": 2.3,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "202"
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호 무활동 기준을 5시간 아니 4시간으로 바꿔줘"
  },
  "b89feecfdc53540ae81d888a06db914bd494f714": {
   "at": "2026-09-25T01:10:22",
@@ -69052,6 +70549,44 @@
   },
   "sentence": "평일에만 8시간 움직임이 없으면 긴급으로 표시해줘"
  },
+ "cdad465a7ff178d197e7566b31ad8c4d482119b9": {
+  "at": "2026-09-25T23:57:18",
+  "feedback": null,
+  "latency_s": 8.31,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "720"
+    }
+   }
+  },
+  "sentence": "2층 세대는 열두 시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
  "cdbb8cad2a8417d751e03d9ba3443936553f2393": {
   "at": "2026-09-24T23:21:30",
   "feedback": null,
@@ -72372,6 +73907,44 @@
   },
   "sentence": "101호 온도가 30도 넘으면 불 켜줘. 부탁드립니다."
  },
+ "d668edd54073b01c992cb7bdec5e8d782e4d1198": {
+  "at": "2026-09-25T23:59:45",
+  "feedback": null,
+  "latency_s": 2.96,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "OFF"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "25"
+    }
+   }
+  },
+  "sentence": "101호 온도가 25도를 넘지 않으면 불 꺼줘"
+ },
  "d67580ffa16f11118caf3e047d425783435165b1": {
   "at": "2026-09-25T01:23:43",
   "feedback": [
@@ -72548,6 +74121,44 @@
    }
   },
   "sentence": "한참 동안 안 움직이면 알려줘"
+ },
+ "d6ffd9361266e937287839b934d15cfded101f7a": {
+  "at": "2026-09-25T23:58:22",
+  "feedback": null,
+  "latency_s": 6.6,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "제어 규칙(B)을 생성하려면, '불'을 켜는 액추에이터(h101_led)가 '온도(temperature)' 센서(h101_temp)의 상태 변화에 반응하는 조건이 필요합니다. 현재는 '온도' 조건만 있고, 이 조건이 '불'을 켜는 동작으로 직접 연결될 수 있는 명확한 논리적 연결(예: '온도가 30도 초과일 때')이 부족합니다. 또한, '불'을 켜는 동작(actuator)을 제어하기 위해서는 '온도' 센서가 트리거가 되어야 하는데, 이 경우 '온도' 센서의 임계값 비교를 규칙에 포함하는 것이 적절한지 확인이 필요합니다.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "사용자가 '온도가 30도 넘으면 불을 켜달라'고 요청했으나, 이 규칙이 '돌봄 규칙(A)'인지 '제어 규칙(B)'인지 명확하지 않으며, '온도' 센서의 임계값 비교를 제어 규칙의 'when' 조건으로 사용하는 것이 적절한지 확인이 필요합니다. (B 타입 규칙으로 가정하고 임시 생성했으나, 'ask' 필요)",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "ON"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "sensor",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 좀…"
  },
  "d741ca8b459b9c91fd239ba5084928dbec910f88": {
   "at": "2026-09-25T01:18:00",
@@ -73786,6 +75397,44 @@
   },
   "sentence": "101호 101호 6시간 무활동이면 주의로 표시해줘"
  },
+ "dad1812f57b76c8341232b5e030f6b53d55de169": {
+  "at": "2026-09-25T23:58:39",
+  "feedback": null,
+  "latency_s": 3.67,
+  "model": "ollama:gemma4:e4b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "2층 세대(201, 202)에서 움직임 감지 센서(motion)가 4시간(240분) 동안 감지되지 않으면 긴급(URGENT)으로 알림을 발생시키는 돌봄 규칙입니다.",
+    "scope": {
+     "homes": "201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "240"
+    }
+   }
+  },
+  "sentence": "2층에서 혼자 사시는 분 댁만 4시간 움직임이 없으면 긴급으로 해줘"
+ },
  "daf32e1af0204c8ed4e988294b61ef52d1ff69fb": {
   "at": "2026-09-24T23:21:51",
   "feedback": null,
@@ -74874,6 +76523,38 @@
   },
   "sentence": "101호 온도가 정확히 30도면 불 켜줘"
  },
+ "de6ec1a0c9ade7d81539e9623aa09f07ec255a2d": {
+  "at": "2026-09-25T23:59:12",
+  "feedback": null,
+  "latency_s": 2.26,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "420"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "102"
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "어… 102 호 그… 무활동 기준을 음 7 시간으로 바꿔줘"
+ },
  "de7209678966940ec5bacb603a5716d56ab2542e": {
   "at": "2026-09-23T09:09:22",
   "feedback": null,
@@ -75321,6 +77002,38 @@
   },
   "sentence": "더우면 불 켜줘"
  },
+ "df4b7671245021d2f2f51995b597a6e414c57d53": {
+  "at": "2026-09-25T23:57:56",
+  "feedback": null,
+  "latency_s": 2.2,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "impossible",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "360"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 말고 101호 기준을 6시간으로 바꿔줘"
+ },
  "df4e91e9b25c752bbba27f2721854ed6975474c3": {
   "at": "2026-09-24T23:21:28",
   "feedback": null,
@@ -75538,6 +77251,38 @@
   },
   "sentence": "101호 온도가 18도 아래로 떨어지면 불 켜줘"
  },
+ "dff81cb81b9338692f85e7ceed0d6ac35341cfd4": {
+  "at": "2026-09-25T23:57:33",
+  "feedback": null,
+  "latency_s": 2.35,
+  "model": "ollama:qwen3:8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "202"
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호에 새로 입주하신 어르신은 적응하실 때까지 한 달 동안만 무활동 기준을 4시간으로 해줘"
+ },
  "e0227bd2f3d0128d12d7a5a52e44b87505daf6ac": {
   "at": "2026-09-24T23:20:25",
   "feedback": [
@@ -75750,6 +77495,44 @@
    }
   },
   "sentence": "101호가 더우면 창문을 90도로 열어줘"
+ },
+ "e16d1dcfc1d45651aa393739f9b13c4c1f74e79e": {
+  "at": "2026-09-25T23:59:53",
+  "feedback": null,
+  "latency_s": 2.6,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "Mobius/byeongari/h101_pir",
+     "type": "motion",
+     "value": "1440"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 하루하고 6시간 동안 움직임이 없으면 긴급으로 표시해줘"
  },
  "e17c8620de2ffd870b03768d211d23c395d54ca6": {
   "at": "2026-09-24T23:19:30",
@@ -78372,6 +80155,38 @@
    }
   },
   "sentence": "102호에 지금 전화 좀 걸어줘"
+ },
+ "e96f495a6bd5b47a238ad8f720d3d19f8478fc79": {
+  "at": "2026-09-25T23:59:58",
+  "feedback": null,
+  "latency_s": 1.99,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "set_override",
+   "need": "ask",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 말고 101호 기준을 6시간으로 바꿔줘"
  },
  "e993b6b20ce169828ce3a6c95f26947cf4be3ece": {
   "at": "2026-09-24T23:09:29",
@@ -84952,6 +86767,84 @@
    }
   },
   "sentence": "101호에 움직임이 있으면 불 켜줘"
+ },
+ "fb89935d3fda77e6d60e07ca5b840311e7e6b22b": {
+  "at": "2026-09-25T23:59:20",
+  "feedback": null,
+  "latency_s": 2.68,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "WATCH",
+      "value": "ON"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "temperature",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 좀…"
+ },
+ "fbcfe9c563c11f8142d23f2f73236d18ecc3c2d9": {
+  "at": "2026-09-25T23:59:56",
+  "feedback": [
+   "when: 무활동 조건(idle_over_m)은 장치 종류(type)로만 쓸 수 있음 (path 아님)"
+  ],
+  "latency_s": 2.46,
+  "model": "ollama:exaone3.5:7.8b",
+  "out": {
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "1440"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 하루하고 6시간 동안 움직임이 없으면 긴급으로 표시해줘"
  },
  "fbea02c88be907bdadbc8d82887e412a31bdfd43": {
   "at": "2026-09-24T23:24:53",
