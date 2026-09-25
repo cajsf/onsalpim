@@ -10,6 +10,12 @@ import { ref, watch } from 'vue'
 export const nowMs = ref(Date.now())
 setInterval(() => { nowMs.value = Date.now() }, 1000)
 
+/**
+ * 장치 경로를 화면 이름으로 — AE 뒤를 그대로 보여 준다 ('Mobius/byeongari/h101/temp' → 'h101/temp').
+ * 세대 컨테이너 구조에서는 끝 이름(temp)만으로 어느 세대 것인지 알 수 없다.
+ */
+export const devName = (path) => (path || '').split('/').slice(2).join('/') || (path || '')
+
 /** 완료 안내처럼 한 번 보여주고 끝나야 하는 문구 — 값이 들어오면 ms 뒤 저절로 비운다 */
 export function autoClear(r, ms = 5000) {
   let t = null

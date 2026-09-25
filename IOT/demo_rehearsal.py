@@ -3,6 +3,7 @@
     python demo_rehearsal.py               # 전시 구성 트리로 한 번 (Gemini 호출 4번 안팎)
     python demo_rehearsal.py --times 5     # 같은 대본을 다섯 번 — AI 답이 매번 같은지 본다
     python demo_rehearsal.py --tree real   # 공용 서버의 지금 장치 트리로 (읽기만 한다) — 시연 전 환경 점검
+    python demo_rehearsal.py --tree fixture   # 190문장 측정과 같은 한 층 이름 트리로 (기본은 보드와 같은 세대 컨테이너 구조)
     python demo_rehearsal.py --model openrouter:google/gemini-3.1-flash-lite   # 모델을 하나로 고정
     python demo_rehearsal.py --rules data/rules.json   # 이 규칙 파일(의 복사본)에서 시작 — 실제 시연 시작 상태 점검
 
@@ -15,6 +16,7 @@ import collections
 import copy
 import json
 import os
+import re
 import sys
 import tempfile
 from datetime import datetime, timedelta
@@ -22,7 +24,10 @@ from datetime import datetime, timedelta
 import care_monitor as cm
 import engine
 import scope
-from harness_eval import FIXTURE      # 전시 구성(101·102·201·202호) 트리
+from harness_eval import FIXTURE      # 전시 구성(101·102·201·202호) 트리 — 측정용 한 층 이름(h101_temp)
+
+# 보드가 만드는 세대 컨테이너 구조와 같은 경로(h101_temp → h101/temp). 세대는 read_tree 가 부모에서 물려준 것과 같게 둔다
+NESTED = [dict(d, path=re.sub(r"/h(\d+)_", r"/h\1/", d["path"])) for d in FIXTURE]
 
 engine.RULES_FILE = os.path.join(tempfile.mkdtemp(prefix="demo_rehearsal_"), "rules.json")
 
@@ -122,7 +127,7 @@ def run_once(devs, start_rules=()):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--times", type=int, default=1)
-    ap.add_argument("--tree", choices=["fixture", "real"], default="fixture")
+    ap.add_argument("--tree", choices=["nested", "fixture", "real"], default="nested")
     ap.add_argument("--model", help="이 모델 하나만 쓴다 (없으면 제품과 같은 순서: llm_translator.MODELS)")
     ap.add_argument("--rules", help="이 규칙 파일을 읽어 시작 상태로 쓴다 (읽기만 한다 — 바뀐 것은 임시 파일에만 남는다)")
     args = ap.parse_args()
@@ -135,7 +140,7 @@ def main():
         devs = iot.read_tree("byeongari", max_age=0)
         print(f"공용 서버 트리: 세대 {', '.join(scope.discover_homes(devs))}호 · 장치 {len(devs)}개")
     else:
-        devs = FIXTURE
+        devs = NESTED if args.tree == "nested" else FIXTURE
     start = []
     if args.rules:
         with open(args.rules, encoding="utf-8") as f:

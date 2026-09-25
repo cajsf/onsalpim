@@ -115,14 +115,21 @@
 
 ## 플랫폼 컨테이너
 
-보드가 스스로 만든다. 서버는 경로를 모르고, 라벨을 읽어 알아낸다.
+보드가 켜질 때 스스로 만든다. **세대 컨테이너를 먼저 만들고 그 아래에 장치를 만든다.**
+장치가 무엇인지는 장치 라벨로, 어느 세대인지는 부모 컨테이너의 `home=` 으로 서버가 알아낸다(`iot_platform.read_tree` 가 물려준다).
+서버 코드에 장치 목록은 없다.
 
-| CNT | 생성 조건 | lbl |
+| CNT (경로) | 생성 조건 | lbl |
 |---|---|---|
-| `h{HOME}_pir` | 항상 | `kind=sensor, type=motion, home={HOME}, report_s={N}` |
-| `h{HOME}_evt` | 항상 | `kind=event, type=motion, home={HOME}, role=activity` |
-| `h{HOME}_temp` · `h{HOME}_humi` | `HAS_DHT` | `kind=sensor, type=temperature` / `humidity` |
-| `h{HOME}_batt` | `HAS_BATT` | `kind=sensor, type=battery, unit=%` |
+| `h{HOME}` | 항상, 가장 먼저 | `home={HOME}` — 세대 표시는 여기에만 |
+| `h{HOME}/pir` | 항상 | `kind=sensor, type=motion, values=0\|1, report_s={N}` |
+| `h{HOME}/evt` | 항상 | `kind=event, type=motion, role=activity` |
+| `h{HOME}/temp` · `h{HOME}/humi` | `HAS_DHT` | `kind=sensor, type=temperature` / `humidity` |
+| `h{HOME}/batt` | `HAS_BATT` | `kind=sensor, type=battery, unit=%` |
+| `h{HOME}/led` · `h{HOME}/window` | `HAS_ACTUATOR` | `kind=actuator, type=light, accepts=ON\|OFF` / `type=window, accepts=range=0~180` |
+
+이미 있는 컨테이너는 다시 만들지 않는다(409). 라벨(예: `report_s`)을 바꿔 다시 구웠으면 서버에서 그 컨테이너를 지우고 다시 꽂아야 새 라벨이 붙는다.
+예전 한 층 구조(`h101_pir`, 고정 이름 `led_cmd`·`servo_cmd`)가 서버에 남아 있으면 `python virtual_home.py --remove 101 102 201 202 --legacy` 로 목록을 보고 정리한다.
 
 `pir` 은 움직임이 있든 없든 `REPORT_S` 마다 올린다 → **장치가 살아있다는 증거.**
 `evt` 는 움직임이 0→1 로 바뀔 때만 올린다 → **사람이 움직였다는 증거.**

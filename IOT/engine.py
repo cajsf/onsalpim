@@ -680,6 +680,13 @@ def _fact_checks(sentence, rule, devices, steps):
             return stop(f"문장은 {', '.join(sorted(said))}호를 말했는데 규칙은 "
                         f"{', '.join(sorted((cond_homes | act_homes) - said))}호 장치를 씁니다 — "
                         f"그 세대에 없는 장치는 쓸 수 없습니다.", "문장의 세대와 장치의 세대가 다름")
+        # 세대 표시가 없는 장치(세대 컨테이너 밖에 남은 옛 led_cmd 등)는 세대 대조가 돌지 않는다 — 세대 규칙에 못 쓴다
+        homeless = sorted({c["path"].rsplit("/", 1)[-1] for c in conds + acts
+                           if c.get("path") and c["path"] != "system/hour"
+                           and not by_path.get(c["path"], {}).get("home")})
+        if said and homeless:
+            return stop(f"'{', '.join(homeless)}'은(는) 어느 세대에도 속하지 않은 장치라 {', '.join(sorted(said))}호 "
+                        f"규칙에 쓸 수 없습니다 — 세대 컨테이너 밖에 남은 옛 장치입니다.", "세대 밖 장치")
         lights = [t for t in acts if by_path.get(t["path"], {}).get("type") == "light"]
         if lights and facts.color_request(sentence):
             return stop(f"조명은 켜기·끄기만 됩니다 — '{facts.color_request(sentence)}' 같은 색은 바꿀 수 없습니다.",

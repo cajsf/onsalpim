@@ -7,7 +7,7 @@ import HomeTimeline from './HomeTimeline.vue'
 import HomeActions from './HomeActions.vue'
 import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
-import { SEV, SEV_ORDER, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear } from './format.js'
+import { SEV, SEV_ORDER, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
 
 // 통계 분석은 세대별 활동 이력이 쌓여야 의미가 있는데 아직 저장소가 없어 '준비 중'으로 둔다.
 const NAV = [
@@ -299,7 +299,7 @@ function condText(rule) {
   const w = rule?.when || {}
   if (w.op === 'idle_over_m')
     return `${typeKo(w.type)}이 ${fmtMinutes(w.value)} 이상 없음 (${w.type || '?'} 센서 기준)`
-  const target = w.type ? typeKo(w.type) : (w.path || '').split('/').pop()
+  const target = w.type ? typeKo(w.type) : devName(w.path)
   return `${target} ${w.op} ${w.value}`
 }
 
@@ -307,7 +307,7 @@ function actText(rule) {
   const acts = rule?.then || []
   return acts.map((a) => (a.severity
     ? `${SEV[a.severity]?.ko || a.severity} 상태로 표시 · 복지사에게 알림`
-    : `${(a.path || '').split('/').pop()} = ${a.value}`)).join(', ')
+    : `${devName(a.path)} = ${a.value}`)).join(', ')
 }
 
 function scopeText(rule) {
@@ -1143,7 +1143,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   <span class="tag" :class="d.meta.kind === 'actuator' ? 'tag-watch' : 'tag-normal'">
                     {{ d.meta.kind === 'sensor' ? '센서' : d.meta.kind === 'event' ? '이벤트' : '액추에이터' }}
                   </span>
-                  <span class="mono devname">{{ d.path.split('/').pop() }}</span>
+                  <span class="mono devname">{{ devName(d.path) }}</span>
                   <span class="muted">{{ typeKo(d.meta.type) }}</span>
                 </div>
                 <div class="lbls mono"><span v-for="l in d.labels" :key="l">{{ l }}</span></div>
@@ -1210,7 +1210,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 <span class="tag" :class="d.meta.kind === 'actuator' ? 'tag-watch' : 'tag-normal'">
                   {{ d.meta.kind === 'sensor' ? '센서' : d.meta.kind === 'event' ? '이벤트' : '액추에이터' }}
                 </span>
-                <span class="mono devname">{{ d.path.split('/').pop() }}</span>
+                <span class="mono devname">{{ devName(d.path) }}</span>
                 <span class="muted">{{ typeKo(d.meta.type) }}</span>
                 <span v-if="d.meta.home" class="tag tag-home">{{ d.meta.home }}호</span>
               </div>

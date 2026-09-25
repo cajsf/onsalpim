@@ -1,12 +1,16 @@
 // home_node — 세대 1채를 담당하는 노드. 보드 4대가 이 스케치 하나를 쓴다.
 // 굽기 전에 바꾸는 건 아래 BOARD 번호 한 줄뿐이다.
 //
-// 이 보드가 플랫폼에 만드는 것 (라벨로 자기 소개를 한다 — 서버는 경로를 모른다):
-//   h{HOME}_pir    kind=sensor  type=motion   home={HOME}  report_s={N}   ← 주기 보고
-//   h{HOME}_evt    kind=event   type=motion   home={HOME}  role=activity  ← 움직임 이벤트
-//   h{HOME}_temp   kind=sensor  type=temperature                          (HAS_DHT)
-//   h{HOME}_humi   kind=sensor  type=humidity                             (HAS_DHT)
-//   h{HOME}_batt   kind=sensor  type=battery  unit=%                      (HAS_BATT)
+// 이 보드가 플랫폼에 만드는 것 — 세대 컨테이너 하나와 그 아래 장치들:
+//   h{HOME}          home={HOME}                               ← 세대 표시는 여기에만. 아래 장치가 물려받는다
+//   h{HOME}/pir      kind=sensor   type=motion  report_s={N}   ← 주기 보고
+//   h{HOME}/evt      kind=event    type=motion  role=activity  ← 움직임 이벤트
+//   h{HOME}/temp     kind=sensor   type=temperature            (HAS_DHT)
+//   h{HOME}/humi     kind=sensor   type=humidity               (HAS_DHT)
+//   h{HOME}/batt     kind=sensor   type=battery  unit=%        (HAS_BATT)
+//   h{HOME}/led      kind=actuator type=light   accepts=ON|OFF (HAS_ACTUATOR)
+//   h{HOME}/window   kind=actuator type=window  accepts=range=0~180 (HAS_ACTUATOR)
+// 장치가 무엇인지는 장치 라벨로, 어느 세대인지는 부모 컨테이너로 서버가 안다 — 서버 코드에 장치 목록은 없다.
 //
 // 컨테이너를 왜 둘로 나누는가 (이게 이 펌웨어의 핵심):
 //   pir 은 움직임이 있든 없든 REPORT_S 마다 무조건 올린다 → "장치가 살아있다"는 증거.
@@ -118,7 +122,8 @@ const char* ORIGIN  = "SOrigin_BAR2";
 // PIR 이 튀는 걸 막는 최소 간격. 이보다 짧은 간격의 재발화는 같은 움직임으로 본다.
 const unsigned long EVENT_MIN_MS = 3000;
 
-String pirCnt, evtCnt, tempCnt, humiCnt, battCnt;
+String base;   // 이 세대의 컨테이너 경로 /Mobius/{AE}/h{HOME} — setup 에서 정한다. 장치는 모두 이 아래에 있다
+const String pirCnt = "pir", evtCnt = "evt", tempCnt = "temp", humiCnt = "humi", battCnt = "batt";
 unsigned long lastReport = 0, lastEvent = 0, lastBatt = 0, lastCmd = 0;
 int lastPir = LOW;
 
@@ -167,15 +172,27 @@ String statusOf(String resp) {
   return resp.length() >= 12 ? resp.substring(9, 12) : "???";
 }
 
-void createCNT(String rn, String lblJson) {
+// 부모 경로 아래에 컨테이너를 만든다. 201(생성)·409(이미 있음)면 true.
+// 이미 있는 컨테이너의 라벨은 바뀌지 않는다 — 라벨(예: report_s)을 바꿨으면 서버에서 지우고 다시 꽂는다.
+bool createCNT(String parent, String rn, String lblJson) {
   String body = "{\"m2m:cnt\":{\"rn\":\"" + rn + "\",\"lbl\":" + lblJson + "}}";
-  String resp = m2mRequest("POST", "/Mobius/" + String(AE), 3, body);
-  Serial.println("CNT " + rn + " : " + statusOf(resp) + " (201=생성, 409=이미있음)");
+  String st = statusOf(m2mRequest("POST", parent, 3, body));
+  Serial.println("CNT " + parent + "/" + rn + " : " + st + " (201=생성, 409=이미있음)");
+  return st == "201" || st == "409";
+}
+
+// 장치 컨테이너 — 세 번까지 다시 시도한다. 한 번 실패로 넘어가면 그 장치 값은 재부팅할 때까지 404 로 버려진다.
+void makeCNT(String parent, String rn, String lblJson) {
+  for (int i = 0; i < 3; i++) {
+    if (createCNT(parent, rn, lblJson)) return;
+    if (WiFi.status() != WL_CONNECTED) connectWiFi();
+    delay(2000);
+  }
 }
 
 void postCIN(String cnt, String value) {
   String body = "{\"m2m:cin\":{\"con\":\"" + value + "\"}}";
-  m2mRequest("POST", "/Mobius/" + String(AE) + "/" + cnt, 4, body);
+  m2mRequest("POST", base + "/" + cnt, 4, body);
 }
 
 #if HAS_ACTUATOR
@@ -191,7 +208,7 @@ String extractCon(String resp) {
 }
 
 String getLatest(String cnt) {
-  return extractCon(m2mRequest("GET", "/Mobius/" + String(AE) + "/" + cnt + "/la", 0, ""));
+  return extractCon(m2mRequest("GET", base + "/" + cnt + "/la", 0, ""));
 }
 
 void setLED(int r, int g, int b) {
@@ -208,11 +225,7 @@ void setup() {
   pinMode(PIR_PIN, INPUT);
 
   String h = String(HOME);
-  pirCnt  = "h" + h + "_pir";
-  evtCnt  = "h" + h + "_evt";
-  tempCnt = "h" + h + "_temp";
-  humiCnt = "h" + h + "_humi";
-  battCnt = "h" + h + "_batt";
+  base = "/Mobius/" + String(AE) + "/h" + h;
 
 #if HAS_DHT
   dht.begin();
@@ -239,26 +252,30 @@ void setup() {
 
   // 라벨에 report_s 를 실어 보낸다. 서버는 이 값으로 두절 임계를 계산한다.
   // → 전시에서 5초, 실제 운영에서 60초로 바꿔도 서버 코드는 그대로다.
-  String common = "\"home=" + h + "\"";
-  createCNT(pirCnt, "[\"kind=sensor\",\"type=motion\"," + common +
+  // 세대 컨테이너를 먼저 만든다 — 없으면 아래 장치 생성과 모든 값 올리기가 실패한다. 될 때까지 다시 시도한다
+  while (!createCNT("/Mobius/" + String(AE), "h" + h, "[\"home=" + h + "\"]")) {
+    if (WiFi.status() != WL_CONNECTED) connectWiFi();
+    delay(2000);
+  }
+  makeCNT(base, pirCnt, String("[\"kind=sensor\",\"type=motion\"") +
                     ",\"values=0|1\",\"report_s=" + String(REPORT_S) +
                     "\",\"desc=" + h + "호 움직임 주기보고\"]");
-  createCNT(evtCnt, "[\"kind=event\",\"type=motion\"," + common +
+  makeCNT(base, evtCnt, String("[\"kind=event\",\"type=motion\"") +
                     ",\"role=activity\",\"desc=" + h + "호 움직임 발생\"]");
 #if HAS_DHT
-  createCNT(tempCnt, "[\"kind=sensor\",\"type=temperature\"," + common +
+  makeCNT(base, tempCnt, String("[\"kind=sensor\",\"type=temperature\"") +
                      ",\"unit=C\",\"values=0~50\",\"report_s=" + String(REPORT_S) + "\"]");
-  createCNT(humiCnt, "[\"kind=sensor\",\"type=humidity\"," + common +
+  makeCNT(base, humiCnt, String("[\"kind=sensor\",\"type=humidity\"") +
                      ",\"unit=%\",\"values=20~90\",\"report_s=" + String(REPORT_S) + "\"]");
 #endif
 #if HAS_BATT
-  createCNT(battCnt, "[\"kind=sensor\",\"type=battery\"," + common +
+  makeCNT(base, battCnt, String("[\"kind=sensor\",\"type=battery\"") +
                      ",\"unit=%\",\"values=0~100\",\"report_s=" + String(REPORT_S * 4) + "\"]");
 #endif
 #if HAS_ACTUATOR
-  createCNT("led_cmd",   "[\"kind=actuator\",\"type=light\",\"accepts=ON|OFF\"," + common +
+  makeCNT(base, "led",   String("[\"kind=actuator\",\"type=light\",\"accepts=ON|OFF\"") +
                          ",\"desc=현관 조명\"]");
-  createCNT("servo_cmd", "[\"kind=actuator\",\"type=window\",\"accepts=range=0~180\"," + common +
+  makeCNT(base, "window", String("[\"kind=actuator\",\"type=window\",\"accepts=range=0~180\"") +
                          ",\"unit=deg\",\"desc=창문 개폐\"]");
 #endif
 
@@ -312,11 +329,11 @@ void loop() {
   // ④ 제어 명령 확인 — 규칙 엔진이 올린 값을 그대로 실행한다 (판단하지 않는다)
   if (nowMs - lastCmd >= 2000UL) {
     lastCmd = nowMs;
-    String led = getLatest("led_cmd");
+    String led = getLatest("led");
     if (led == "ON") setLED(255, 255, 255);
     else if (led == "OFF") setLED(0, 0, 0);
 
-    String sv = getLatest("servo_cmd");
+    String sv = getLatest("window");
     if (sv.length() > 0) {
       int angle = sv.toInt();
       if (angle >= 0 && angle <= 180) servo.write(angle);

@@ -61,12 +61,13 @@ def post_cin_by_path(path, value):
     return r   # r.status_code == 201 이면 성공
 
 
-def create_container(rn, labels):
-    """컨테이너(CNT) 하나 만들기 — ty=3.  rn=이름, labels=라벨 리스트.
+def create_container(rn, labels, parent=None):
+    """컨테이너(CNT) 하나 만들기 — ty=3.  rn=이름, labels=라벨 리스트, parent=AE 아래 부모 컨테이너 이름.
 
-    예) create_container("temp", ["kind=sensor", "type=temperature", "unit=C", "values=0~50"])
+    예) create_container("h101", ["home=101"])                                          # 세대 컨테이너
+        create_container("temp", ["kind=sensor", "type=temperature"], parent="h101")   # 그 세대의 장치
     """
-    url = f"{BASE}/Mobius/{AE}"
+    url = f"{BASE}/Mobius/{AE}" + (f"/{parent}" if parent else "")
     body = {"m2m:cnt": {"rn": rn, "lbl": labels}}
     r = requests.post(url, headers=headers(ty=3), json=body, timeout=TIMEOUT_S)
     return r   # 201=성공, 409=이미있음
@@ -159,7 +160,7 @@ def read_tree(ae, only_ours=True, max_age=TREE_CACHE_S):
         print("트리 읽기 실패:", r.status_code, r.text[:200])
         return []                            # 실패는 캐시하지 않는다
     paths = r.json().get("m2m:uril", [])
-    devices = []
+    devices, home_of = [], {}
     for p in paths:
         rr = requests.get(f"{BASE}/{p}", headers=headers(), timeout=TIMEOUT_S)
         if rr.status_code != 200:
@@ -167,11 +168,23 @@ def read_tree(ae, only_ours=True, max_age=TREE_CACHE_S):
         cnt = rr.json()["m2m:cnt"]
         labels = cnt.get("lbl", [])
         meta = parse_labels(labels)
+        if "home" in meta and "kind" not in meta:
+            home_of[p] = meta["home"]          # 세대 컨테이너 (h101 [home=101]) — 아래 장치가 세대를 물려받는다
         if only_ours and "kind" not in meta:   # 규격 밖(kind 없는) 잔해는 건너뜀
             continue
         # ct = 컨테이너가 만들어진 시각 = 그 장치가 처음 등록된 시각.
         # '활동 기록이 한 번도 없는' 세대의 무활동 기준점으로 쓴다. (care_monitor.read_activity)
         devices.append({"path": p, "labels": labels, "meta": meta, "ct": cnt.get("ct")})
+
+    # 세대 표시는 세대 컨테이너에만 붙인다 — 그 아래 장치는 가장 가까운 부모의 세대를 물려받는다.
+    # 장치 자기 라벨에 home= 이 있으면 그것을 쓴다(옛 한 층 구조 h101_pir 호환). 세대 밖 장치는 세대 없음으로 남는다.
+    # 판정·검사·화면은 모두 meta['home'] 을 읽으므로 여기 한 곳에서 채우면 나머지는 그대로 돈다.
+    for d in devices:
+        parent = d["path"]
+        while "home" not in d["meta"] and "/" in parent:
+            parent = parent.rsplit("/", 1)[0]
+            if parent in home_of:
+                d["meta"]["home"] = home_of[parent]
 
     _tree_cache[key] = (time.monotonic(), devices)
     return devices

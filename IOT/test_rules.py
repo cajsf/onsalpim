@@ -356,7 +356,10 @@ print("  ✅ AI 거절 검사: 있는 세대를 없다고 하면 1회 되돌림,
 
 # ── 종류 대조: 문장이 말한 센서와 AI가 고른 센서 종류 (하네스 실험 s09) ──
 _kt = TREE + [{"path": "M/h101_temp", "ct": "20260917T090000",
-               "meta": {"kind": "sensor", "type": "temperature", "home": "101", "unit": "C", "values": "0~50"}}]
+               "meta": {"kind": "sensor", "type": "temperature", "home": "101", "unit": "C", "values": "0~50"}},
+              # 세대 컨테이너 구조(9/25)에서는 101호 조명도 101호 장치다 — 세대 밖 led_cmd 는 '101호 …' 규칙에 못 쓴다
+              {"path": "M/h101_led", "ct": "20260917T090000",
+               "meta": {"kind": "actuator", "type": "light", "home": "101", "accepts": "ON|OFF"}}]
 _kc = lambda path, value="30": {"scope": {"homes": ""}, "and": [],
                                 "when": {"path": path, "type": "", "op": ">", "value": value},
                                 "then": [{"path": "M/led_cmd", "value": "ON", "severity": ""}]}
@@ -372,7 +375,7 @@ assert _v.validate_rule(_kc("M/h101_temp"), _kt)["ok"], "문장을 안 주면 �
 _hot = lambda v: {"ok": True, "error": "", "intent": "create_rule", "override": {"home": "", "type": "", "value": ""},
                   "rule": {"scope": {"homes": ""}, "and": [], "reason": "",
                            "when": {"path": "M/h101_temp", "type": "", "op": ">", "value": v},
-                           "then": [{"path": "M/led_cmd", "value": "ON", "severity": ""}]}}
+                           "then": [{"path": "M/h101_led", "value": "ON", "severity": ""}]}}
 _real_translate = engine.tr.translate
 try:
     engine.save_rules([])
@@ -960,3 +963,50 @@ try:
 finally:
     _tr.time.sleep, _tr.requests.post = _real_sleep, _real_post2
 print("  ✅ 검토에서 찾은 것: 되먹임 재호출 실패 안내·다시 눌러도 안 되는 실패·5xx 재시도와 다음 모델·응답 형식 오류")
+
+# ── 세대 컨테이너 구조 (9/25): 장치는 부모 세대 컨테이너의 세대 표시를 물려받는다 ──
+import iot_platform as _iot
+import virtual_home as _vh
+
+
+class _Get:
+    def __init__(self, payload):
+        self.status_code, self._p = 200, payload
+
+    def json(self):
+        return self._p
+
+
+_labels = {
+    "Mobius/byeongari/h101": ["home=101"],                                               # 세대 컨테이너
+    "Mobius/byeongari/h101/pir": ["kind=sensor", "type=motion", "report_s=5"],
+    "Mobius/byeongari/h101/led": ["kind=actuator", "type=light", "accepts=ON|OFF"],
+    "Mobius/byeongari/h102_pir": ["kind=sensor", "type=motion", "home=102"],             # 옛 한 층 구조
+    "Mobius/byeongari/led_cmd": ["kind=actuator", "type=light"],                         # 세대 표시 없는 옛 장치
+    "Mobius/byeongari/env_data": [],                                                     # 규격 밖 잔해
+}
+_real_get = _iot.requests.get
+try:
+    _iot.requests.get = lambda url, **k: _Get({"m2m:uril": list(_labels)}) if "fu=1" in url else \
+        _Get({"m2m:cnt": {"lbl": _labels[url[len(_iot.BASE) + 1:]], "ct": "20260925T000000"}})
+    _iot.invalidate_tree_cache()
+    _t = {d["path"].split("byeongari/")[1]: d["meta"].get("home") for d in _iot.read_tree("byeongari", max_age=0)}
+    assert _t == {"h101/pir": "101", "h101/led": "101", "h102_pir": "102", "led_cmd": None}, _t
+    _all = _iot.read_tree("byeongari", only_ours=False, max_age=0)
+    assert _vh.removal_targets(_all, ["102"], legacy=True) == ["h102_pir", "led_cmd"], "잔해·시연 세대 컨테이너는 고르지 않는다"
+finally:
+    _iot.requests.get = _real_get
+    _iot.invalidate_tree_cache()
+# 지울 목록 — 옛 한 층 구조는 시연 세대 것도, 새 구조의 세대 컨테이너는 가상 세대만, 세대 없는 옛 장치는 --legacy 때만
+_tree = [{"path": f"Mobius/byeongari/{p}", "meta": _iot.parse_labels(l)} for p, l in {
+    "h101": ["home=101"], "h101/pir": ["kind=sensor"], "h101_pir": ["kind=sensor", "home=101"],
+    "h103": ["home=103"], "h103/pir": ["kind=sensor"], "h103_batt": ["kind=sensor", "home=103"],
+    "led_cmd": ["kind=actuator", "type=light"], "env_data": []}.items()]
+assert _vh.removal_targets(_tree, ["101", "103"]) == ["h101_pir", "h103", "h103_batt"]
+assert _vh.removal_targets(_tree, ["103"], legacy=True) == ["h103", "h103_batt", "led_cmd"]
+# 문장이 세대를 말했는데 세대 밖 장치를 쓰면 멈춘다
+_DEV_OLD = _DEV + [{"path": _P + "led_cmd", "ct": "", "meta": {"kind": "actuator", "type": "light", "accepts": "ON|OFF"}}]
+_st = [{"id": "validate", "detail": "통과"}]
+h = engine._fact_checks("101호 온도가 30도 넘으면 불 켜줘", _ctl(("h101_temp", ">", "30"), [("led_cmd", "ON")]), _DEV_OLD, _st)
+assert h and "어느 세대에도" in h["errors"][0], h
+print("  ✅ 세대 컨테이너 구조: 세대 물려받기·옛 구조 호환·지울 목록·세대 밖 장치")
