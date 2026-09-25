@@ -60,7 +60,7 @@
    pip install faster-whisper nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"
    python stt_eval.py "녹음폴더"
    ```
-   녹음은 **저장소 밖**에 둔다(팀원 목소리). 결과는 화면 요약과 `녹음폴더/stt_eval.csv`. 'GPU 를 못 찾아 CPU 로 돈다'가 뜨면 GPU 설정 문제다. Gemini 쪽 기본 경로는 OpenRouter 유료(무료 등급은 입력을 제품 개선에 쓴다) — 무료로 재려면 `--gemini gemini-3.1-flash-lite`, **어느 쪽으로 잴지 사용자에게 먼저 묻는다**
+   녹음은 **저장소 밖**에 둔다(팀원 목소리). 결과는 화면 요약과 `녹음폴더/stt_eval.csv`. 'GPU 를 못 찾아 CPU 로 돈다'가 뜨면 GPU 설정 문제다. Gemini 는 **무료 API 로 잰다**(사용자 결정 9/25, 기본값). 무료 등급은 입력을 Google 제품 개선에 쓰니 녹음한 팀원에게 알려 둔다
 
 ### 이 날 정해진 작업 규칙 (9장에 더해)
 - **하네스 측정의 Gemini 는 무료 API**(기본 모델). OpenRouter 는 Gemini 가 아닌 모델에만. 돈이 드는 측정은 시작 전에 어느 경로로 잴지 말한다

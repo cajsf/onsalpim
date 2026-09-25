@@ -13,8 +13,9 @@ Whisper 모델은 처음 돌릴 때 받는다 (large-v3-turbo 약 1.6GB, 사용�
 결과: 녹음폴더/stt_eval.csv (녹음마다 한 줄) + 화면에 요약.
 
 녹음은 팀원 목소리다 — 저장소 안에 두지 말 것. 두 쪽 모두 제품과 같은 16kHz 모노 WAV 를 받는다.
-Gemini 기본은 OpenRouter(data_collection=deny — 입력을 수집하지 않는 공급자로만). 무료 Gemini 로 재려면
---gemini gemini-3.1-flash-lite (무료 등급은 입력을 Google 제품 개선에 쓰고 사람이 볼 수 있다).
+Gemini 기본은 무료 API(하네스 측정과 같다, 사용자 결정 9/25) — 호출 사이를 4초 띄운다(분당 한도). 무료 등급은 입력을
+Google 제품 개선에 쓰고 사람이 볼 수 있으니 녹음한 팀원에게 알려 둔다. 유료로 재려면
+--gemini openrouter:google/gemini-3.1-flash-lite (data_collection=deny — 입력을 수집하지 않는 공급자로만).
 
 채점은 AI 없이 코드로 한다:
     글자 오류율(CER) — 띄어쓰기·문장부호를 빼고 비교
@@ -111,8 +112,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("folder")
     ap.add_argument("--only", choices=["gemini", "whisper"])
-    ap.add_argument("--gemini", default="openrouter:google/gemini-3.1-flash-lite",
-                    help="speech_transcribe 모델 이름 (기본: 제품 1순위와 같은 OpenRouter 유료 경로)")
+    ap.add_argument("--gemini", default="gemini-3.1-flash-lite",
+                    help="speech_transcribe 모델 이름 (기본: 무료 API. 유료는 openrouter:google/gemini-3.1-flash-lite)")
     ap.add_argument("--whisper", default="large-v3-turbo")
     ap.add_argument("--device", help="cuda 또는 cpu (없으면 GPU 가 있으면 cuda)")
     args = ap.parse_args()
@@ -156,9 +157,12 @@ def main():
         systems["whisper"] = whisper
         systems["whisper+힌트"] = lambda pcm: whisper(pcm, WHISPER_HINT)
 
+    free_gemini = not args.gemini.startswith("openrouter:")
     rows = []
     for name, no, who, ref in clips:
         for sys_name, fn in systems.items():
+            if sys_name == "gemini" and free_gemini and rows:
+                time.sleep(4)          # 무료 등급 분당 한도 — 지연 측정에는 넣지 않는다
             t = time.time()
             out = fn(audio[name])
             sec = time.time() - t
