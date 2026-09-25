@@ -97,7 +97,7 @@ export const api = {
   },
   async transcribeSpeech(blob) {
     const form = new FormData()
-    const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'
+    const ext = blob.type.includes('wav') ? 'wav' : blob.type.includes('mp4') ? 'mp4' : 'webm'
     form.append('audio', blob, `speech.${ext}`)
     const res = await fetch(`${BASE}/speech`, { method: 'POST', body: form })
     const data = await res.json().catch(() => ({}))

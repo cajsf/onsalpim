@@ -996,6 +996,45 @@ finally:
         _tr.secrets_local.OPENROUTER_API_KEY = _real_key3
 print("  ✅ 제품 모델 순서: OpenRouter 먼저 → 호출 실패면 무료 Gemini, 키 없으면 건너뜀")
 
+# 음성 받아쓰기 (9/25): 규칙 번역과 같은 순서. OpenRouter 는 webm 을 못 받아 WAV 만 보낸다
+import speech_transcribe as _st
+_real_post4, _real_sleep4 = _st.requests.post, _st.time.sleep
+_real_key4 = getattr(_st.secrets_local, "OPENROUTER_API_KEY", None)
+try:
+    _st.time.sleep = lambda s: None
+    _st.secrets_local.OPENROUTER_API_KEY = "test"
+    _gem = lambda t: _Resp(200, {"candidates": [{"content": {"parts": [{"text": t}]}}]})
+    _urls = []
+    def _post(url, **k):
+        _urls.append(url)
+        return _or(url) if "openrouter" in url else _gem_seq.pop(0)
+    _st.requests.post = _post
+    _or, _gem_seq = (lambda url: _Resp(200, _content('"102호만 6시간으로 바꿔줘"'))), []
+    o = _st.transcribe(b"x", "s.wav", "audio/wav")
+    assert o == {"ok": True, "text": "102호만 6시간으로 바꿔줘", "error": ""} and len(_urls) == 1, o
+    _urls.clear()
+    _or, _gem_seq = (lambda url: _Resp(402, text="insufficient credits")), [_gem("무료 답")]
+    assert _st.transcribe(b"x", "s.wav", "audio/wav")["text"] == "무료 답" and len(_urls) == 2, "잔액 부족이면 무료로"
+    _urls.clear()
+    _gem_seq = [_Resp(503, text="busy"), _gem("다시 해서 된 답")]
+    assert _st.transcribe(b"x", "s.webm", "audio/webm;codecs=opus")["text"] == "다시 해서 된 답"
+    assert not any("openrouter" in u for u in _urls) and len(_urls) == 2, "webm 은 OpenRouter 를 건너뛰고, 503 은 다시"
+    _st.secrets_local.OPENROUTER_API_KEY = ""
+    _urls.clear()
+    _gem_seq = [_gem("  ")]
+    o = _st.transcribe(b"x", "s.wav", "audio/wav")
+    assert not any("openrouter" in u for u in _urls) and not o["ok"] and "인식하지 못했" in o["error"], o
+    _gem_seq = [_Resp(429, text="quota")]
+    o = _st.transcribe(b"x", "s.wav", "audio/wav")
+    assert not o["ok"] and o["error"].startswith("음성 변환 실패") and "429" in o["error"], o
+finally:
+    _st.requests.post, _st.time.sleep = _real_post4, _real_sleep4
+    if _real_key4 is None:
+        del _st.secrets_local.OPENROUTER_API_KEY
+    else:
+        _st.secrets_local.OPENROUTER_API_KEY = _real_key4
+print("  ✅ 음성 받아쓰기: OpenRouter 먼저 → 무료, webm·키 없음은 건너뜀, 503 재시도, 빈 답은 인식 실패")
+
 # ── 세대 컨테이너 구조 (9/25): 장치는 부모 세대 컨테이너의 세대 표시를 물려받는다 ──
 import iot_platform as _iot
 import virtual_home as _vh
