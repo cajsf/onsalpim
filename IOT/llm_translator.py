@@ -32,11 +32,13 @@ import scope
 import secrets_local
 from secrets_local import GEMINI_API_KEY
 
-# 무료 티어 쿼터는 '모델별로' 따로 계산된다 → 429(쿼터 초과) 나면 다음 모델로 자동 폴백.
-# gemini-3.5-flash 는 무료 하루 20회뿐이라 예비로 두고, 한도 넉넉한 lite 를 기본으로 쓴다.
+# 무료 Gemini 는 503(과부하)·429(쿼터) 로 가끔 막히고, 막히면 재시도 대기까지 몇 초가 더 든다 → 시연에서는
+# 같은 모델을 OpenRouter 유료로 먼저 부르고, 그게 안 되면(잔액·오류·키 없는 PC) 무료로 넘어간다.
+# 두 줄이 같은 모델이라 어느 쪽이 답해도 시연 대본·190문장 측정과 같은 답을 낸다.
+# (전의 예비 gemini-3.5-flash 는 뺐다 — 측정하지 않은 모델이고 무료 하루 20회뿐이다)
 MODELS = [
-    "gemini-3.1-flash-lite",   # 기본 (무료 한도 넉넉, 규칙 번역 품질 확인됨)
-    "gemini-3.5-flash",        # 예비 (무료 하루 20회)
+    "openrouter:google/gemini-3.1-flash-lite",   # 기본 (유료, 호출마다 과금)
+    "gemini-3.1-flash-lite",                     # 예비 (같은 모델, 무료)
 ]
 
 
@@ -90,10 +92,7 @@ def _parse_json_text(text):
 
 
 def _call_openrouter(model, prompt):
-    key = getattr(secrets_local, "OPENROUTER_API_KEY", "")
-    if not key:
-        return {"ok": False, "error": "LLM 호출 실패 openrouter: secrets_local.py 에 OPENROUTER_API_KEY 가 없음",
-                "rule": {}}
+    key = getattr(secrets_local, "OPENROUTER_API_KEY", "")   # 없으면 translate 가 부르기 전에 건너뛴다
     headers = {"Authorization": f"Bearer {key}", "X-Title": "onsalpim harness_eval"}
     base = {"model": model, "temperature": 0,
             "messages": [{"role": "user", "content": prompt}]}
@@ -318,11 +317,20 @@ def translate(sentence, devices, retries=2, feedback=None, models=None):
     last_err = ""
     for model in models or MODELS:
         if model.startswith("openrouter:"):
+            if not getattr(secrets_local, "OPENROUTER_API_KEY", ""):
+                # 키 없는 PC — 앞 모델이 실패한 이유(쿼터 초과 등)를 덮어쓰지 않아야 화면 안내가 맞다
+                last_err = last_err or "OpenRouter API key 없음 (secrets_local.py 의 OPENROUTER_API_KEY)"
+                continue
             try:
-                return _call_openrouter(model[len("openrouter:"):], body["contents"][0]["parts"][0]["text"])
+                out = _call_openrouter(model[len("openrouter:"):], body["contents"][0]["parts"][0]["text"])
             except requests.exceptions.RequestException as e:
                 last_err = f"OpenRouter 에 연결 못 함 ({type(e).__name__})"
                 continue
+            if str(out.get("error", "")).startswith("LLM 호출 실패"):   # 잔액·한도·서버 오류 — 다음 모델로
+                last_err = out["error"]
+                print(f"  ({model} 호출 실패 → 다음 모델로 폴백: {last_err[:80]})")
+                continue
+            return out
         if model.startswith("ollama:"):
             try:
                 return _call_ollama(model[len("ollama:"):], body["contents"][0]["parts"][0]["text"])

@@ -732,7 +732,7 @@ try:
     # (라) 크레딧 부족·한도 초과는 호출 실패 — 실험이 거기서 멈춰야 한다
     _tr.requests.post = lambda url, **k: _Resp(402, text="insufficient credits")
     o = _tr.translate("x", [], models=["openrouter:some/model"])
-    assert o["error"].startswith("LLM 호출 실패 openrouter 402")
+    assert o["error"].startswith("LLM 호출 실패") and "openrouter 402" in o["error"], o["error"]
     # (마) 키가 없으면 호출하지 않는다
     _tr.secrets_local.OPENROUTER_API_KEY = ""
     o = _tr.translate("x", [], models=["openrouter:some/model"])
@@ -963,6 +963,38 @@ try:
 finally:
     _tr.time.sleep, _tr.requests.post = _real_sleep, _real_post2
 print("  ✅ 검토에서 찾은 것: 되먹임 재호출 실패 안내·다시 눌러도 안 되는 실패·5xx 재시도와 다음 모델·응답 형식 오류")
+
+# 제품 모델 순서 (9/25): OpenRouter 유료 먼저 → 호출이 실패하면 같은 모델 무료 Gemini 로
+_real_post3, _real_key3 = _tr.requests.post, getattr(_tr.secrets_local, "OPENROUTER_API_KEY", None)
+try:
+    assert _tr.MODELS[0].startswith("openrouter:") and _tr.MODELS[0].endswith("/" + _tr.MODELS[1]), _tr.MODELS
+    _tr.secrets_local.OPENROUTER_API_KEY = "test"
+    _urls = []
+    def _post(url, **k):
+        _urls.append(url)
+        return _or(url) if "openrouter" in url else _Resp(200, _ok_body)
+    _tr.requests.post = _post
+    _or = lambda url: _Resp(200, _content('{"ok": true, "rule": {"from": "or"}}'))
+    assert _tr.translate("x", [])["rule"] == {"from": "or"} and len(_urls) == 1, "OpenRouter 가 답하면 무료는 안 부른다"
+    _urls.clear()
+    _or = lambda url: _Resp(402, text="insufficient credits")
+    assert _tr.translate("x", [])["ok"] is True and "generativelanguage" in _urls[-1], "잔액 부족이면 무료로"
+    _urls.clear()
+    _or = lambda url: _Resp(200, _content("형식 아닌 답"))
+    o = _tr.translate("x", [])
+    assert o["error"].startswith("AI 응답이 규칙 형식이 아님") and len(_urls) == 1, "모델이 틀린 답은 다른 모델로 넘기지 않는다"
+    _tr.secrets_local.OPENROUTER_API_KEY = ""   # 키 없는 PC — OpenRouter 는 부르지도 않고, 무료의 실패 이유가 안내에 남는다
+    _urls.clear()
+    _tr.requests.post = lambda url, **k: _urls.append(url) or _Resp(429, {"error": {}})
+    o = _tr.translate("x", [])
+    assert not any("openrouter" in u for u in _urls) and o["error"].endswith("쿼터 초과"), o["error"]
+finally:
+    _tr.requests.post = _real_post3
+    if _real_key3 is None:
+        del _tr.secrets_local.OPENROUTER_API_KEY
+    else:
+        _tr.secrets_local.OPENROUTER_API_KEY = _real_key3
+print("  ✅ 제품 모델 순서: OpenRouter 먼저 → 호출 실패면 무료 Gemini, 키 없으면 건너뜀")
 
 # ── 세대 컨테이너 구조 (9/25): 장치는 부모 세대 컨테이너의 세대 표시를 물려받는다 ──
 import iot_platform as _iot
