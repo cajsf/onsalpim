@@ -2,7 +2,7 @@
 
 복지사가 쓰는 화면. Vue 3 + Vite.
 
-> 설치·실행은 저장소 루트 `README.md` 와 `start.bat` 을 본다. 여기서는 프론트 쪽만 적는다.
+> 설치·실행은 저장소 루트 `README.md` 와 `start_real.bat`·`start_virtual.bat`(Mac 은 `.command`)을 본다. 여기서는 프론트 쪽만 적는다.
 > 백엔드는 상위 폴더의 `api_server.py` (Flask, :5001). Vite 가 `/api` 를 거기로 넘긴다 (`vite.config.js`).
 
 ## 화면

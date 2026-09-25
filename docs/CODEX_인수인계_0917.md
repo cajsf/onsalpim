@@ -155,7 +155,7 @@ python harness_eval.py gemini-3.1-flash-lite ollama:qwen3:8b ollama:gemma4:e4b o
 
 1. `git pull` (처음이면 `git clone https://github.com/cajsf/onsalpim.git`)
 2. **비밀 파일 zip 풀기** — 팀 카톡의 `onsalpim_secrets.zip`, README 안내대로. 없으면 `llm_translator`·`iot_platform`이 `secrets_local` import 에서 바로 죽는다(Ollama 만 쓸 때도).
-3. 전체 실행은 `start.bat`, 끄기는 `stop.bat`.
+3. 전체 실행은 `start_real.bat`(실물 보드)·`start_virtual.bat`(가상 세대), 끄기는 `stop.bat`. Mac 은 같은 이름의 `.command`.
 4. 점검: `cd IOT` → `python verify_report.py`(17/17) · `python test_rules.py` · `python harness_eval.py --offline`(키·네트워크 없이 4차 결과 재현)
 
 ### GPU PC에서 할 일 — 로컬 모델 하네스 실험 (32GB · RTX 4070)
@@ -177,7 +177,7 @@ python harness_eval.py gemini-3.1-flash-lite ollama:qwen3:8b ollama:gemma4:e4b o
 |---|---|
 | 폴더 정리: 문서 `docs/`, 런타임 json `IOT/data/`, 배선 문서·회로도 `arduino/`, 구버전 보드 `arduino/archive/` | 저장소 전체 |
 | 보드 4대(ESP32, 101·102·201·202)를 `#define BOARD` 하나로. 서보·LED도 ESP32 | `arduino/home_node/home_node.ino`, `ARDUINO_WIRING.md`, `BOARD_WIRING.svg` |
-| `start.bat`/`stop.bat` — 서버 4개 한 번에 | 루트 |
+| `start_real.bat`·`start_virtual.bat`/`stop.bat` (Mac 은 `.command`) — 서버 한 번에 | 루트 |
 | 고장 4종 주입 오탐·미탐 측정 | `measure_faults.py`, `docs/FAULT_INJECTION.md` |
 | 시연 안정성: 엔진 3상태 칩, 플랫폼 끊김 이유 배너, **시연 초기화**(지우지 않고 `data/reset_backup/<시각>/` 로 옮김) | `engine.reset_demo`, `App.vue` |
 | **stale 수정**: 제어 규칙이 `report_s×3` 넘게 오래된 값이면 보류(참/거짓/모름). 보류 중인 규칙은 화면에 배너·카드 표시 | `engine.read_value/eval_rule/run_once`, `held_rules` |

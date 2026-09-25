@@ -63,13 +63,17 @@ npm install --prefix IOT/dashboard
 
 ## 실행
 
-**한 번에 켜고 끄기 (Windows)** — 저장소 맨 위의 파일을 더블클릭하거나 터미널에서 실행한다.
+**한 번에 켜고 끄기** — 저장소 맨 위의 파일을 더블클릭하거나 터미널에서 실행한다.
 
-```bash
-start.bat          # 서버 4개를 각각 창으로 띄우고 브라우저를 연다 (가상 세대 포함)
-start.bat real     # 실물 보드를 쓸 때 — 가상 세대 없이
-stop.bat           # 모두 끈다
-```
+| | Windows | Mac |
+|---|---|---|
+| 실물 보드로 (시연) | `start_real.bat` | `start_real.command` |
+| 보드 없이 가상 세대로 (개발) | `start_virtual.bat` | `start_virtual.command` |
+| 모두 끄기 | `stop.bat` | 켠 창에서 Ctrl+C 또는 `stop.command` |
+
+- Windows 는 서버마다 창이 따로 뜨고, Mac 은 한 창에 `[api]`·`[engine]` 처럼 이름을 붙여 보여 준다
+- Mac 은 처음 켤 때 `IOT/.venv` 에 파이썬 가상환경을 만들고 패키지를 넣는다
+- 가상 세대는 공용 서버에 `h101`·`h102`·`h104`·`h105` 를 실물 보드와 같은 구조로 만든다. 104·105호는 개발용이라 쓰고 나면 `IOT/` 에서 `python virtual_home.py --remove 104 105 --yes` 로 지운다
 
 하나씩 켜려면 아래처럼 한다 (창마다 Ctrl+C 로 끈다).
 
