@@ -858,6 +858,62 @@
   },
   "sentence": "전 세대 6시간 무활동이면 주의로 표시해줘"
  },
+ "02f62acc04c35abbf7d0df13ba291eaed1602480": {
+  "at": "2026-09-25T23:45:56",
+  "feedback": null,
+  "latency_s": 9.1,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 782,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 662
+    },
+    "cost": 0.0005841,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0002346,
+     "upstream_inference_cost": 0.0005841,
+     "upstream_inference_prompt_cost": 0.0003495
+    },
+    "is_byok": false,
+    "prompt_tokens": 2330,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 0,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3112
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "101호 사시는 박 할아버지는 무활동 기준을 10시간으로 해 주세요"
+ },
  "032aa7e52d26c80cf63ae470b1d5f6dd27698b68": {
   "at": "2026-09-24T23:00:37",
   "feedback": null,
@@ -2659,6 +2715,68 @@
   },
   "sentence": "101호 온도가 20도 아래로 떨어지면 창문 닫아줘"
  },
+ "0696d44b22c209e6bb0e20087e1049e208dc397e": {
+  "at": "2026-09-25T23:47:08",
+  "feedback": null,
+  "latency_s": 81.89,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2794,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 2841
+    },
+    "cost": 0.00058002,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.000537845,
+     "upstream_inference_cost": 0.00058002,
+     "upstream_inference_prompt_cost": 4.2175e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1865,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4659
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "360"
+    }
+   }
+  },
+  "sentence": "전체 세대 6시간 무활동이면 주의로 걸어 주고, 102호는 기준을 10시간으로 바꿔 줘"
+ },
  "06aa366b25f61cb5f407b9d603e178bad006ad13": {
   "at": "2026-09-25T01:25:36",
   "feedback": [
@@ -2908,6 +3026,68 @@
    }
   },
   "sentence": "1층만 90분 무활동이면 주의"
+ },
+ "07768d93dd8adedf61483f0c3d399130d8ca8cbc": {
+  "at": "2026-09-25T23:46:06",
+  "feedback": null,
+  "latency_s": 11.16,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 584,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 391
+    },
+    "cost": 0.00042266,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.00016352,
+     "upstream_inference_cost": 0.00042266,
+     "upstream_inference_prompt_cost": 0.00025914
+    },
+    "is_byok": false,
+    "prompt_tokens": 1851,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 0,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2435
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "0"
+     }
+    ],
+    "when": {
+     "op": "<=",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "15"
+    }
+   }
+  },
+  "sentence": "101호 온도가 15도 이하면 창문을 0도로 닫아줘"
  },
  "079f7d2d215bd9ce35d04836160d3644ece06d78": {
   "at": "2026-09-25T23:05:20",
@@ -4418,6 +4598,61 @@
    }
   },
   "sentence": "전체 세대에서 8시간 동안 움직임이 없으면 30분 뒤에 긴급으로 표시해줘"
+ },
+ "0c3383969421d199eabba976c46c5154c41ecf64": {
+  "at": "2026-09-25T23:44:37",
+  "feedback": null,
+  "latency_s": 15.62,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2224,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 2112
+    },
+    "cost": 0.0009835,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0008896,
+     "upstream_inference_cost": 0.0009835,
+     "upstream_inference_prompt_cost": 9.39e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1878,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 0,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4102
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호에 새로 입주하신 어르신은 적응하실 때까지 한 달 동안만 무활동 기준을 4시간으로 해줘"
  },
  "0c4d018a83781d9cfbe96409116cadc90f34cd56": {
   "at": "2026-09-24T23:02:28",
@@ -10256,6 +10491,68 @@
   },
   "sentence": "이층 세대는 3시간 움직임이 없으면 주의로 표시해줘"
  },
+ "1f53fb615ae616530d86a44b2e804f802a3bbddb": {
+  "at": "2026-09-25T23:45:52",
+  "feedback": null,
+  "latency_s": 5.72,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 196,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 0
+    },
+    "cost": 9.2448e-05,
+    "cost_details": {
+     "upstream_inference_completions_cost": 3.528e-05,
+     "upstream_inference_cost": 9.2448e-05,
+     "upstream_inference_prompt_cost": 5.7168e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1864,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1536,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2060
+   },
+   "error": "세대별 예외 설정(override)은 '특정 세대만 다르게' 하는 문장이지만, '한 달 동안만'과 같은 기간 조건을 지원하지 않습니다. 기간 조건 없이 다시 말씀해 주세요.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호에 새로 입주하신 어르신은 적응하실 때까지 한 달 동안만 무활동 기준을 4시간으로 해줘"
+ },
  "1f623b5a49c7c15afc2bbda15956a5e449a05e8d": {
   "at": "2026-09-24T23:15:05",
   "feedback": null,
@@ -14115,6 +14412,61 @@
   },
   "sentence": "전체 세대 8시간 무활동이면 긴급으로 만들고 바로 승인까지 해줘"
  },
+ "2e0e3bc3ee88b195e08a9b57fa15b7db9ef59bc1": {
+  "at": "2026-09-25T23:44:51",
+  "feedback": null,
+  "latency_s": 14.19,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2152,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 1984
+    },
+    "cost": 0.00087361,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0008608,
+     "upstream_inference_cost": 0.00087361,
+     "upstream_inference_prompt_cost": 1.281e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1869,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4021
+   },
+   "error": "2층에서 혼자 사시는 분 댁을 특정하기가 불가능합니다. 201호와 202호 중 어느 세대를 규칙에 적용할지 명확히 알려주십시오.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "2층에서 혼자 사시는 분 댁만 4시간 움직임이 없으면 긴급으로 해줘"
+ },
  "2e0ea45a60d87d6859e6674faed0fb39585bd04c": {
   "at": "2026-09-25T02:20:49",
   "feedback": null,
@@ -14170,6 +14522,68 @@
    }
   },
   "sentence": "202호만 90분으로 바꿔줘"
+ },
+ "2e1c6cd959a8f5269f3c70e1d7c40e8079da7560": {
+  "at": "2026-09-25T23:46:05",
+  "feedback": null,
+  "latency_s": 7.42,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 180,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 0
+    },
+    "cost": 7.0146e-05,
+    "cost_details": {
+     "upstream_inference_completions_cost": 3.24e-05,
+     "upstream_inference_cost": 7.0146e-05,
+     "upstream_inference_prompt_cost": 3.7746e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1853,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2033
+   },
+   "error": "무활동 알림의 현재 기준값을 알 수 없어 '1시간 더 빨리'를 적용할 수 없습니다. 현재 설정된 기준값을 알려주세요.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘"
  },
  "2e1cdcd73d4f65fd8c8bd2137a092759aa11d0ab": {
   "at": "2026-09-23T09:09:43",
@@ -14591,6 +15005,68 @@
    }
   },
   "sentence": "101호 온도가 18도 미만이면 불 꺼줘"
+ },
+ "2f2d8aef4427dcaa91e5593a02d14a4fd64cd802": {
+  "at": "2026-09-25T23:46:02",
+  "feedback": null,
+  "latency_s": 15.15,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 152,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 0
+    },
+    "cost": 0.000211386,
+    "cost_details": {
+     "upstream_inference_completions_cost": 2.9792e-05,
+     "upstream_inference_cost": 0.000211386,
+     "upstream_inference_prompt_cost": 0.000181594
+    },
+    "is_byok": false,
+    "prompt_tokens": 1853,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 0,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2005
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "720"
+    }
+   }
+  },
+  "sentence": "2층 세대는 열두 시간 동안 움직임이 없으면 주의로 표시해줘"
  },
  "2f3a050490df504077652a2bc7d728572a56fca1": {
   "at": "2026-09-25T02:24:34",
@@ -15475,6 +15951,68 @@
    }
   },
   "sentence": "101호 온도가 30퍼센트 넘으면 창문을 90도로 열어줘"
+ },
+ "3192edcaa162debe03df526920954d4e5e9b482b": {
+  "at": "2026-09-25T23:44:39",
+  "feedback": null,
+  "latency_s": 17.93,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2551,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 2432
+    },
+    "cost": 0.00103266,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0010204,
+     "upstream_inference_cost": 0.00103266,
+     "upstream_inference_prompt_cost": 1.226e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1858,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4409
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "300"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 5시간 동안 움직임이 없으면 긴"
  },
  "319d2aaa04b66f76f9f75c5d653b9a0d662bbb55": {
   "at": "2026-09-25T01:18:54",
@@ -17771,6 +18309,68 @@
   },
   "sentence": "102호만 무활동 기준을 6시간으로 바꿔줘"
  },
+ "39e1ba96f5e7da9ed4445ff134375f36ab054d30": {
+  "at": "2026-09-25T23:46:05",
+  "feedback": null,
+  "latency_s": 18.8,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 571,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 420
+    },
+    "cost": 0.0001508367,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0001099175,
+     "upstream_inference_cost": 0.0001508367,
+     "upstream_inference_prompt_cost": 4.09192e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1852,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2423
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "420"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "어… 102 호 그… 무활동 기준을 음 7 시간으로 바꿔줘"
+ },
  "39e6a6c4bf73ee96f62d16a8abbf200793be659e": {
   "at": "2026-09-24T23:01:07",
   "feedback": null,
@@ -19020,6 +19620,62 @@
    }
   },
   "sentence": "모든 집에서 6시간 넘게 움직임이 없으면 긴급 확인해줘"
+ },
+ "3e4a44cfe4e172c1223df879b6686b727fecba17": {
+  "at": "2026-09-25T23:44:10",
+  "feedback": null,
+  "latency_s": 3.41,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 285,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 235
+    },
+    "cost": 0.0032184,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0007125,
+     "upstream_inference_cost": 0.0032184,
+     "upstream_inference_prompt_cost": 0.0025059
+    },
+    "is_byok": false,
+    "prompt_tokens": 2166,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2451
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호 무활동 기준을 5시간 아니 4시간으로 바꿔줘"
  },
  "3e659c18645d582da9e2d19bb0061a52e5efd6e1": {
   "at": "2026-09-25T02:22:39",
@@ -23165,6 +23821,68 @@
   },
   "sentence": "101호 온도가 영하 5도 아래로 떨어지면 불 켜줘"
  },
+ "4c12856d01caa063a42a3ccd98ce93cf04f041bc": {
+  "at": "2026-09-25T23:44:14",
+  "feedback": null,
+  "latency_s": 7.18,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 739,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 647
+    },
+    "cost": 0.00434215,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0018475,
+     "upstream_inference_cost": 0.00434215,
+     "upstream_inference_prompt_cost": 0.00249465
+    },
+    "is_byok": false,
+    "prompt_tokens": 2157,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2896
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호 온도가 30도 넘으면 LED 켜기",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "ON"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 좀…"
+ },
  "4c1566c241f2864f5c2e412d1e45094293bbf153": {
   "at": "2026-09-24T23:11:55",
   "feedback": [
@@ -25529,6 +26247,62 @@
   },
   "sentence": "전체 세대에서 3시간 동안 움직임이 없으면 점검 필요로 표시해줘"
  },
+ "526ac70651c6461b92ac77f0d3c9599e0cc5301b": {
+  "at": "2026-09-25T23:44:11",
+  "feedback": null,
+  "latency_s": 4.39,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 423,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 373
+    },
+    "cost": 0.00356465,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0010575,
+     "upstream_inference_cost": 0.00356465,
+     "upstream_inference_prompt_cost": 0.00250715
+    },
+    "is_byok": false,
+    "prompt_tokens": 2167,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2590
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "101호 사시는 박 할아버지는 무활동 기준을 10시간으로 해 주세요"
+ },
  "5282f52ddfd4491792e49f3b6ffe09705e4998a9": {
   "at": "2026-09-25T01:18:58",
   "feedback": null,
@@ -27789,6 +28563,68 @@
   },
   "sentence": "101호 온도가 30도 넘으면 창문을 -10도로 열어줘"
  },
+ "589bd57f247811ed21bd2d6f31a3fca1b92452e8": {
+  "at": "2026-09-25T23:45:54",
+  "feedback": null,
+  "latency_s": 7.99,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 145,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 0
+    },
+    "cost": 8.2008e-05,
+    "cost_details": {
+     "upstream_inference_completions_cost": 2.61e-05,
+     "upstream_inference_cost": 8.2008e-05,
+     "upstream_inference_prompt_cost": 5.5908e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1850,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1536,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 1995
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호 무활동 기준을 5시간 아니 4시간으로 바꿔줘"
+ },
  "58bb337b0e6023d5292f6befab5fdaf8c17fe25f": {
   "at": "2026-09-24T23:06:50",
   "feedback": null,
@@ -28377,6 +29213,62 @@
    }
   },
   "sentence": "101호 온도가 삼십 도 넘으면 불 켜줘"
+ },
+ "5991c080d1a60ee8c4258056e65370968887d7e2": {
+  "at": "2026-09-25T23:44:11",
+  "feedback": null,
+  "latency_s": 4.52,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 438,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 388
+    },
+    "cost": 0.00361965,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.001095,
+     "upstream_inference_cost": 0.00361965,
+     "upstream_inference_prompt_cost": 0.00252465
+    },
+    "is_byok": false,
+    "prompt_tokens": 2181,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2619
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "202",
+    "type": "motion",
+    "value": "240"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호에 새로 입주하신 어르신은 적응하실 때까지 한 달 동안만 무활동 기준을 4시간으로 해줘"
  },
  "59ad12a6cd9c227030c6f37ee2307f51fb1a2b84": {
   "at": "2026-09-24T23:28:45",
@@ -29100,6 +29992,68 @@
   },
   "sentence": "8시간"
  },
+ "5bc4875dd8b85de9b77cd466d712fff4198bf522": {
+  "at": "2026-09-25T23:44:14",
+  "feedback": null,
+  "latency_s": 6.68,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 731,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 571
+    },
+    "cost": 0.0043359,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0018275,
+     "upstream_inference_cost": 0.0043359,
+     "upstream_inference_prompt_cost": 0.0025084
+    },
+    "is_byok": false,
+    "prompt_tokens": 2168,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2899
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "2층 세대 12시간 무활동 시 주의 표시",
+    "scope": {
+     "homes": "201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "720"
+    }
+   }
+  },
+  "sentence": "2층 세대는 열두 시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
  "5bcece7d46b4754556e5e2ab92ee9b917eb9a48e": {
   "at": "2026-09-24T23:05:03",
   "feedback": null,
@@ -29287,6 +30241,68 @@
    }
   },
   "sentence": "하루 종일 움직임이 없으면 긴급으로 알려줘"
+ },
+ "5c52db476cfce6c76aa63ac52d64f95eb7e0bb31": {
+  "at": "2026-09-25T23:44:20",
+  "feedback": null,
+  "latency_s": 8.48,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 1056,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 901
+    },
+    "cost": 0.00514465,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.00264,
+     "upstream_inference_cost": 0.00514465,
+     "upstream_inference_prompt_cost": 0.00250465
+    },
+    "is_byok": false,
+    "prompt_tokens": 2165,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3221
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "0"
+     }
+    ],
+    "when": {
+     "op": "<",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "15"
+    }
+   }
+  },
+  "sentence": "101호 온도가 15도 이하면 창문을 0도로 닫아줘"
  },
  "5c55fce5a6b1a531514c70d2cfc26cbb4d1811bb": {
   "at": "2026-09-25T01:14:22",
@@ -29556,6 +30572,61 @@
    }
   },
   "sentence": "101호 온도 30도↑ 이면 불 켜줘"
+ },
+ "5d4a572fb33867ced2d825b33e11b05c0573b1ec": {
+  "at": "2026-09-25T23:44:36",
+  "feedback": null,
+  "latency_s": 14.3,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2056,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 1984
+    },
+    "cost": 0.00083506,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0008224,
+     "upstream_inference_cost": 0.00083506,
+     "upstream_inference_prompt_cost": 1.266e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1866,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3922
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "420"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "어… 102 호 그… 무활동 기준을 음 7 시간으로 바꿔줘"
  },
  "5df6e58df5a5a96b0da963eadf3df185b5e5c5df": {
   "at": "2026-09-25T22:58:03",
@@ -30056,6 +31127,130 @@
    }
   },
   "sentence": "101호 온도가 30도 아래로 안 떨어지면 불 켜줘"
+ },
+ "5ee294e538df3a8791c1a5e2d75ddb3b9edb0936": {
+  "at": "2026-09-25T23:44:46",
+  "feedback": null,
+  "latency_s": 24.65,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 3779,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 3648
+    },
+    "cost": 0.00152416,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0015116,
+     "upstream_inference_cost": 0.00152416,
+     "upstream_inference_prompt_cost": 1.256e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1864,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 5643
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "WATCH",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "720"
+    }
+   }
+  },
+  "sentence": "2층 세대는 열두 시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
+ "5f0b85e9e44f7ac9cd1317fdd1e5c0d18b7d1350": {
+  "at": "2026-09-25T23:46:20",
+  "feedback": null,
+  "latency_s": 15.1,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 488,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 336
+    },
+    "cost": 0.0001348592,
+    "cost_details": {
+     "upstream_inference_completions_cost": 9.394e-05,
+     "upstream_inference_cost": 0.0001348592,
+     "upstream_inference_prompt_cost": 4.09192e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1852,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2340
+   },
+   "error": "어느 두 세대인지 알려주세요. 예: 101, 102",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "두 세대만 3시간 동안 움직임이 없으면 주의로 표시해줘"
  },
  "5f380d8dccbba973377a623bd9f57d3b7cffca54": {
   "at": "2026-09-24T23:16:26",
@@ -32107,6 +33302,68 @@
   },
   "sentence": "101호 습도가 15% 아래로 떨어지면 창문을 0도로 닫아줘"
  },
+ "653ee95091e9717c506b5c18e1f3742686d9806f": {
+  "at": "2026-09-25T23:46:53",
+  "feedback": null,
+  "latency_s": 57.62,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 1228,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 975
+    },
+    "cost": 0.0002768262,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.00023639,
+     "upstream_inference_cost": 0.0002768262,
+     "upstream_inference_prompt_cost": 4.04362e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1847,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3075
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "OFF"
+     }
+    ],
+    "when": {
+     "op": "<=",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "25"
+    }
+   }
+  },
+  "sentence": "101호 온도가 25도를 넘지 않으면 불 꺼줘"
+ },
  "654a12376269dac5611241682442bf57e87e60a3": {
   "at": "2026-09-24T23:15:48",
   "feedback": null,
@@ -32568,6 +33825,62 @@
    }
   },
   "sentence": "101호 온도가 30도 넘고 습도도 70% 넘고 움직임도 있으면 창문을 120도로 열어줘"
+ },
+ "6621245188d320e328897ccaf9c2ce81674a6624": {
+  "at": "2026-09-25T23:44:12",
+  "feedback": null,
+  "latency_s": 4.68,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 424,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 374
+    },
+    "cost": 0.0035684,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.00106,
+     "upstream_inference_cost": 0.0035684,
+     "upstream_inference_prompt_cost": 0.0025084
+    },
+    "is_byok": false,
+    "prompt_tokens": 2168,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2592
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": "420"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "어… 102 호 그… 무활동 기준을 음 7 시간으로 바꿔줘"
  },
  "66359572cb92e5896a703408ab1fa21f955c620d": {
   "at": "2026-09-23T09:05:08",
@@ -37292,6 +38605,61 @@
   },
   "sentence": "전체 세대에서 1000시간 동안 움직임이 없으면 긴급으로 표시해줘"
  },
+ "7535bd632a8f9c9970e7e521a2e4217c3cc6e285": {
+  "at": "2026-09-25T23:45:03",
+  "feedback": null,
+  "latency_s": 16.45,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2126,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 1984
+    },
+    "cost": 0.00086291,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0008504,
+     "upstream_inference_cost": 0.00086291,
+     "upstream_inference_prompt_cost": 1.251e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1863,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3989
+   },
+   "error": "두 세대 중 어떤 두 세대를 대상으로 규칙을 생성할지 지정이 필요합니다. 예: 101,102 또는 101,201 등.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "두 세대만 3시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
  "755f5a624bdbe6f7e4ea709591f5d7111a6477d3": {
   "at": "2026-09-24T23:09:38",
   "feedback": null,
@@ -39521,6 +40889,68 @@
   },
   "sentence": "201호 배터리가 20% 밑으로 떨어지면 점검 필요로 표시해줘"
  },
+ "7c6f1d37a0cafd99202ec1a27481fca20a0852ce": {
+  "at": "2026-09-25T23:45:52",
+  "feedback": null,
+  "latency_s": 5.22,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 154,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 0
+    },
+    "cost": 0.00019395,
+    "cost_details": {
+     "upstream_inference_completions_cost": 2.772e-05,
+     "upstream_inference_cost": 0.00019395,
+     "upstream_inference_prompt_cost": 0.00016623
+    },
+    "is_byok": false,
+    "prompt_tokens": 1847,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 0,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2001
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "300"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 5시간 동안 움직임이 없으면 긴"
+ },
  "7c8f0001442fcdc0be3187d29be35901b6b7a461": {
   "at": "2026-09-24T23:23:05",
   "feedback": null,
@@ -40768,6 +42198,62 @@
   },
   "sentence": "101호 온도가 20~25도 사이면 불 켜줘"
  },
+ "80b3ef1bddef61cde3e5cefed18aae691d3a3614": {
+  "at": "2026-09-25T23:44:14",
+  "feedback": null,
+  "latency_s": 7.43,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 783,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 648
+    },
+    "cost": 0.0044809,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0019575,
+     "upstream_inference_cost": 0.0044809,
+     "upstream_inference_prompt_cost": 0.0025234
+    },
+    "is_byok": false,
+    "prompt_tokens": 2180,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2963
+   },
+   "error": "하나의 요청에 규칙 생성과 세대별 예외 설정이 동시에 포함되어 처리할 수 없습니다.",
+   "intent": "create_rule",
+   "need": "impossible",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "전체 세대 6시간 무활동이면 주의로 걸어 주고, 102호는 기준을 10시간으로 바꿔 줘"
+ },
  "80cb93c0e2f7525ff12bb43b516496669ef0f912": {
   "at": "2026-09-25T23:21:47",
   "feedback": null,
@@ -41055,6 +42541,68 @@
    }
   },
   "sentence": "2층 세대는 3시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
+ "815c7430cadd14173fd0be190cb74aad46420b45": {
+  "at": "2026-09-25T23:45:09",
+  "feedback": null,
+  "latency_s": 30.31,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 4377,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 4224
+    },
+    "cost": 0.00176331,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0017508,
+     "upstream_inference_cost": 0.00176331,
+     "upstream_inference_prompt_cost": 1.251e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1863,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 6240
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "0"
+     }
+    ],
+    "when": {
+     "op": "<=",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "15"
+    }
+   }
+  },
+  "sentence": "101호 온도가 15도 이하면 창문을 0도로 닫아줘"
  },
  "81bba3b3f4a516a87c05d86fbc89f848606b0595": {
   "at": "2026-09-25T01:03:06",
@@ -41487,6 +43035,124 @@
   },
   "sentence": "101호 조명이 켜져 있으면 창문을 90도로 열어줘"
  },
+ "8323bdb1cfbbf35ad3d986149d15f3900bfdfc80": {
+  "at": "2026-09-25T23:44:19",
+  "feedback": null,
+  "latency_s": 7.21,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 886,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 751
+    },
+    "cost": 0.0047234,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.002215,
+     "upstream_inference_cost": 0.0047234,
+     "upstream_inference_prompt_cost": 0.0025084
+    },
+    "is_byok": false,
+    "prompt_tokens": 2168,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3054
+   },
+   "error": "현재 무활동 기준 시간을 알려주셔야 1시간 더 빠른 값을 정확히 설정할 수 있습니다.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘"
+ },
+ "833e98185e50466eacef2122ade0f5af99c43c80": {
+  "at": "2026-09-25T23:44:18",
+  "feedback": null,
+  "latency_s": 4.21,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 502,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 437
+    },
+    "cost": 0.00174865,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.001255,
+     "upstream_inference_cost": 0.00174865,
+     "upstream_inference_prompt_cost": 0.00049365
+    },
+    "is_byok": false,
+    "prompt_tokens": 2169,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 2112,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2671
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "1800"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 하루하고 6시간 동안 움직임이 없으면 긴급으로 표시해줘"
+ },
  "83433afb5db711208cd52f92da6b930fb43f1562": {
   "at": "2026-09-24T23:05:40",
   "feedback": null,
@@ -41694,6 +43360,61 @@
   },
   "sentence": "101호 온도가 삼십 도 넘으면 불 켜줘"
  },
+ "83a9cade59b3b8a6398bd245a0125ff13b64b596": {
+  "at": "2026-09-25T23:44:39",
+  "feedback": null,
+  "latency_s": 17.72,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2430,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 2304
+    },
+    "cost": 0.0010652,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.000972,
+     "upstream_inference_cost": 0.0010652,
+     "upstream_inference_prompt_cost": 9.32e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1864,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 0,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4294
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "600"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "101호 사시는 박 할아버지는 무활동 기준을 10시간으로 해 주세요"
+ },
  "83bf963591d97b243183387e5caeb1540fcdfa80": {
   "at": "2026-09-24T23:21:02",
   "feedback": null,
@@ -41757,6 +43478,61 @@
    }
   },
   "sentence": "102호 기준을 두 배로 늘려줘"
+ },
+ "83f5e2c66e45d14d68ce1adfbc91ad86babb799e": {
+  "at": "2026-09-25T23:44:42",
+  "feedback": null,
+  "latency_s": 20.1,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2499,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 2304
+    },
+    "cost": 0.00101216,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0009996,
+     "upstream_inference_cost": 0.00101216,
+     "upstream_inference_prompt_cost": 1.256e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1864,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4363
+   },
+   "error": "무활동 기준의 구체적 수치를 확정하지 않으셨습니다. 예시 문장에는 '5시간' 또는 '4시간' 두 가지 중 하나로 정해져야 하지만 현재는 어떤 값을 적용할지 불분명합니다. 담당자가 구체 값을 확인해야 규칙 생성을 진행할 수 있습니다.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "202호 무활동 기준을 5시간 아니 4시간으로 바꿔줘"
  },
  "842208b8e64db33cff5c823173dd8d280455351a": {
   "at": "2026-09-25T01:11:10",
@@ -43276,6 +45052,68 @@
   },
   "sentence": "101호가 더우면 창문을 90도로 열어줘"
  },
+ "88b080eeaa4cce7e9099df8daee97877e5cee2cd": {
+  "at": "2026-09-25T23:46:14",
+  "feedback": null,
+  "latency_s": 22.43,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 682,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 525
+    },
+    "cost": 0.0001728804,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.000131285,
+     "upstream_inference_cost": 0.0001728804,
+     "upstream_inference_prompt_cost": 4.15954e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1859,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2541
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "30"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_humi",
+     "type": "",
+     "value": "85"
+    }
+   }
+  },
+  "sentence": "혹시 101호 습도가 85% 넘으면 창문을 30도로 열어 주실 수 있을까요?"
+ },
  "88b943f3b24d040ba1e58b39c1851a82e6dc24cf": {
   "at": "2026-09-24T22:59:53",
   "feedback": null,
@@ -44036,6 +45874,61 @@
    }
   },
   "sentence": "101호 temperature 30도 넘으면 LED 켜줘"
+ },
+ "8adb0b365be3a5f5f699975deadc56dc4bc6a986": {
+  "at": "2026-09-25T23:44:56",
+  "feedback": null,
+  "latency_s": 20.39,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 3115,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 3008
+    },
+    "cost": 0.00125886,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.001246,
+     "upstream_inference_cost": 0.00125886,
+     "upstream_inference_prompt_cost": 1.286e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1870,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4985
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_humi",
+     "type": "",
+     "value": "85"
+    }
+   }
+  },
+  "sentence": "혹시 101호 습도가 85% 넘으면 창문을 30도로 열어 주실 수 있을까요?"
  },
  "8b01b9c7ae21a3d174b9f58031dc2fcfe12ef9f8": {
   "at": "2026-09-24T23:25:56",
@@ -44825,6 +46718,118 @@
   },
   "sentence": "101호가 습하면 창문을 90도로 열어줘"
  },
+ "8d0fb06966717a42a6eabb6add97336797763696": {
+  "at": "2026-09-25T23:45:44",
+  "feedback": [
+   "구조: then(동작)이 비어있음 → 규칙이 아무것도 안 함"
+  ],
+  "latency_s": 33.19,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 4923,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 4800
+    },
+    "cost": 0.00198701,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0019692,
+     "upstream_inference_cost": 0.00198701,
+     "upstream_inference_prompt_cost": 1.781e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1969,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 6892
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "360"
+    }
+   }
+  },
+  "sentence": "전체 세대 6시간 무활동이면 주의로 걸어 주고, 102호는 기준을 10시간으로 바꿔 줘"
+ },
+ "8d19d5055cc088c0b022ac83930ff2ef796ee738": {
+  "at": "2026-09-25T23:45:02",
+  "feedback": null,
+  "latency_s": 20.65,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2817,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 2752
+    },
+    "cost": 0.00113941,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0011268,
+     "upstream_inference_cost": 0.00113941,
+     "upstream_inference_prompt_cost": 1.261e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1865,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4682
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "102",
+    "type": "motion",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘"
+ },
  "8d1f92bcb7b01c1de29057a49dd454397098cf55": {
   "at": "2026-09-23T09:09:29",
   "feedback": null,
@@ -44918,6 +46923,61 @@
    }
   },
   "sentence": "101호 온도 30도↑ 이면 불 켜줘"
+ },
+ "8d5767a4f34f96ecb3b71df6db947b377d0db38e": {
+  "at": "2026-09-25T23:44:55",
+  "feedback": null,
+  "latency_s": 12.33,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 1440,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 1344
+    },
+    "cost": 0.00058846,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.000576,
+     "upstream_inference_cost": 0.00058846,
+     "upstream_inference_prompt_cost": 1.246e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1862,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3302
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "360"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 말고 101호 기준을 6시간으로 바꿔줘"
  },
  "8d924a2babf36224f61e0719bd6e335549f35abb": {
   "at": "2026-09-25T23:05:51",
@@ -46910,6 +48970,68 @@
   },
   "sentence": "연기가 감지되면 긴급으로 표시해줘"
  },
+ "93175e8f1e630ea97d560535d80d64274d385cb1": {
+  "at": "2026-09-25T23:46:42",
+  "feedback": null,
+  "latency_s": 55.28,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 1267,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 1074
+    },
+    "cost": 0.0004218347,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0002438975,
+     "upstream_inference_cost": 0.0004218347,
+     "upstream_inference_prompt_cost": 0.0001779372
+    },
+    "is_byok": false,
+    "prompt_tokens": 1842,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 0,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3109
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "ON"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 좀…"
+ },
  "9326f14556106e6b6aade362f469537284a72b01": {
   "at": "2026-09-25T02:24:00",
   "feedback": null,
@@ -47431,6 +49553,63 @@
    }
   },
   "sentence": "201호 배터리가 20% 아래면 불 켜줘"
+ },
+ "944cbd8ab219b779293374b0e7d0438f4d62172c": {
+  "at": "2026-09-25T23:45:29",
+  "feedback": [
+   "구조: then(동작)이 비어있음 → 규칙이 아무것도 안 함"
+  ],
+  "latency_s": 17.53,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2422,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 2304
+    },
+    "cost": 0.00098551,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0009688,
+     "upstream_inference_cost": 0.00098551,
+     "upstream_inference_prompt_cost": 1.671e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1947,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4369
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 좀…"
  },
  "9462b4f761b1085db713fadea1654ab64742fe38": {
   "at": "2026-09-24T23:11:02",
@@ -50848,6 +53027,61 @@
   },
   "sentence": "101호 온도가 500도 넘으면 불 켜줘"
  },
+ "9cc37e046a3297432a1dbdfc2e9d48f75175c2f9": {
+  "at": "2026-09-25T23:44:42",
+  "feedback": null,
+  "latency_s": 20.28,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2507,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 2432
+    },
+    "cost": 0.00101606,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0010028,
+     "upstream_inference_cost": 0.00101606,
+     "upstream_inference_prompt_cost": 1.326e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1878,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 4385
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "360"
+    }
+   }
+  },
+  "sentence": "전체 세대 6시간 무활동이면 주의로 걸어 주고, 102호는 기준을 10시간으로 바꿔 줘"
+ },
  "9cf130a4452b1304bd963a3d7f0847e5c4c22c66": {
   "at": "2026-09-24T23:11:22",
   "feedback": null,
@@ -50917,6 +53151,68 @@
    }
   },
   "sentence": "전체 세대에서 움직임이 계속 있으면 긴급으로 표시해줘"
+ },
+ "9d02c76661964bdd4e2c9683a50157f5ca002e7a": {
+  "at": "2026-09-25T23:44:17",
+  "feedback": null,
+  "latency_s": 6.42,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 754,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 587
+    },
+    "cost": 0.0043984,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.001885,
+     "upstream_inference_cost": 0.0043984,
+     "upstream_inference_prompt_cost": 0.0025134
+    },
+    "is_byok": false,
+    "prompt_tokens": 2172,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2926
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "2층 세대(201,202)만 4시간 무활동 시 URGENT 표시",
+    "scope": {
+     "homes": "201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "240"
+    }
+   }
+  },
+  "sentence": "2층에서 혼자 사시는 분 댁만 4시간 움직임이 없으면 긴급으로 해줘"
  },
  "9d72c8f4f02bc5115ea4013aadaebd9a7df9ce0b": {
   "at": "2026-09-24T23:24:42",
@@ -51194,6 +53490,68 @@
    }
   },
   "sentence": "101호 온도가 30퍼센트 넘으면 창문을 90도로 열어줘"
+ },
+ "9e8431e596b3c98de6b71e5e0880fa63a2fc51c3": {
+  "at": "2026-09-25T23:44:18",
+  "feedback": null,
+  "latency_s": 6.93,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 856,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 688
+    },
+    "cost": 0.0046409,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.00214,
+     "upstream_inference_cost": 0.0046409,
+     "upstream_inference_prompt_cost": 0.0025009
+    },
+    "is_byok": false,
+    "prompt_tokens": 2162,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3018
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호 온도 25도 이하 시 LED OFF",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "OFF"
+     }
+    ],
+    "when": {
+     "op": "<=",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "25"
+    }
+   }
+  },
+  "sentence": "101호 온도가 25도를 넘지 않으면 불 꺼줘"
  },
  "9e8477b8c83b1155aa9400664e2cf1371d841be2": {
   "at": "2026-09-25T01:21:26",
@@ -51680,6 +54038,68 @@
    }
   },
   "sentence": "\"101호\" 온도가 30도 넘으면 불 켜줘!!!"
+ },
+ "a0009fd33cbd1d0686c0dea32f23b952c309bd0e": {
+  "at": "2026-09-25T23:46:19",
+  "feedback": null,
+  "latency_s": 17.13,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 152,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 0
+    },
+    "cost": 0.000211778,
+    "cost_details": {
+     "upstream_inference_completions_cost": 2.9792e-05,
+     "upstream_inference_cost": 0.000211778,
+     "upstream_inference_prompt_cost": 0.000181986
+    },
+    "is_byok": false,
+    "prompt_tokens": 1857,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 0,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2009
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "1800"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 하루하고 6시간 동안 움직임이 없으면 긴급으로 표시해줘"
  },
  "a0822f24bd5f27dad507d8f3e1c07e464ab4c786": {
   "at": "2026-09-25T01:10:15",
@@ -54082,6 +56502,68 @@
    }
   },
   "sentence": "101호 온도가 30도 아래로 안 떨어지면 불 켜줘"
+ },
+ "a8775f806e08f4eac255bef94a64e47df897e8fa": {
+  "at": "2026-09-25T23:44:55",
+  "feedback": null,
+  "latency_s": 13.67,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 2035,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 1920
+    },
+    "cost": 0.00082661,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.000814,
+     "upstream_inference_cost": 0.00082661,
+     "upstream_inference_prompt_cost": 1.261e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1865,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 3900
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "1800"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 하루하고 6시간 동안 움직임이 없으면 긴급으로 표시해줘"
  },
  "a899cb8486d87f4d95ead6604c8f2931a61a03d1": {
   "at": "2026-09-23T13:18:59",
@@ -57227,6 +59709,68 @@
    }
   },
   "sentence": "30분 동안 움직임 없으면 주의로 해줘"
+ },
+ "b31ded2132495828f008da63d0f957187cd98a39": {
+  "at": "2026-09-25T23:45:58",
+  "feedback": null,
+  "latency_s": 5.53,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 156,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 0
+    },
+    "cost": 6.6456e-05,
+    "cost_details": {
+     "upstream_inference_completions_cost": 2.808e-05,
+     "upstream_inference_cost": 6.6456e-05,
+     "upstream_inference_prompt_cost": 3.8376e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1860,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2016
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "201,202"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "240"
+    }
+   }
+  },
+  "sentence": "2층에서 혼자 사시는 분 댁만 4시간 움직임이 없으면 긴급으로 해줘"
  },
  "b3211f3dec3861c4d9ca7f8d0f92e9c3799ef29b": {
   "at": "2026-09-24T23:26:52",
@@ -62189,6 +64733,68 @@
    }
   },
   "sentence": "1시간이면 주의, 2시간이면 긴급, 3시간이면 점검 필요로 해줘"
+ },
+ "c1de1bb2445d9eaac1e4c10711cc5304b937f66a": {
+  "at": "2026-09-25T23:44:16",
+  "feedback": null,
+  "latency_s": 5.63,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 654,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 479
+    },
+    "cost": 0.00213115,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.001635,
+     "upstream_inference_cost": 0.00213115,
+     "upstream_inference_prompt_cost": 0.00049615
+    },
+    "is_byok": false,
+    "prompt_tokens": 2171,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 2112,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2825
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "101호 습도 85% 초과 시 창문 30도 열기",
+    "scope": {
+     "homes": ""
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "30"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_humi",
+     "type": "",
+     "value": "85"
+    }
+   }
+  },
+  "sentence": "혹시 101호 습도가 85% 넘으면 창문을 30도로 열어 주실 수 있을까요?"
  },
  "c1dfad0c1b171725587a87e5086cd72e618efe64": {
   "at": "2026-09-24T22:57:43",
@@ -67502,6 +70108,62 @@
   },
   "sentence": "101호 지금 온도가 몇 도야?"
  },
+ "d0aa4c9c7221c66c225a370d297bb137fd9c9737": {
+  "at": "2026-09-25T23:44:19",
+  "feedback": null,
+  "latency_s": 5.07,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 616,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 494
+    },
+    "cost": 0.0020299,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.00154,
+     "upstream_inference_cost": 0.0020299,
+     "upstream_inference_prompt_cost": 0.0004899
+    },
+    "is_byok": false,
+    "prompt_tokens": 2166,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 2112,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2782
+   },
+   "error": "어느 두 세대인지 지정되지 않았습니다",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "두 세대만 3시간 동안 움직임이 없으면 주의로 표시해줘"
+ },
  "d0e12d7067797dd288f447fb3751cc4a03037ac5": {
   "at": "2026-09-24T22:59:01",
   "feedback": null,
@@ -68938,6 +71600,70 @@
   },
   "sentence": "101호가 화씨 80도 넘으면 창문을 90도로 열어줘"
  },
+ "d5024b59349007c98d877222c5b150da844a8408": {
+  "at": "2026-09-25T23:45:39",
+  "feedback": [
+   "구조: then(동작)이 비어있음 → 규칙이 아무것도 안 함"
+  ],
+  "latency_s": 27.28,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 3490,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 3392
+    },
+    "cost": 0.00141341,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.001396,
+     "upstream_inference_cost": 0.00141341,
+     "upstream_inference_prompt_cost": 1.741e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1961,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 5451
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_window",
+      "severity": "",
+      "value": "30"
+     }
+    ],
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_humi",
+     "type": "",
+     "value": "85"
+    }
+   }
+  },
+  "sentence": "혹시 101호 습도가 85% 넘으면 창문을 30도로 열어 주실 수 있을까요?"
+ },
  "d518eacf4fb64e13810855330884d2c2fb450aef": {
   "at": "2026-09-25T01:09:14",
   "feedback": null,
@@ -69372,6 +72098,68 @@
    }
   },
   "sentence": "전체 세대 8시간 무활동이면 긴급으로 만들고 바로 승인까지 해줘"
+ },
+ "d5fd426bf4333899124249cac5cc7ee6148422aa": {
+  "at": "2026-09-25T23:45:11",
+  "feedback": null,
+  "latency_s": 31.3,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 4581,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 4480
+    },
+    "cost": 0.00184471,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.0018324,
+     "upstream_inference_cost": 0.00184471,
+     "upstream_inference_prompt_cost": 1.231e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1859,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 6440
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "101"
+    },
+    "then": [
+     {
+      "path": "Mobius/byeongari/h101_led",
+      "severity": "",
+      "value": "OFF"
+     }
+    ],
+    "when": {
+     "op": "<=",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "25"
+    }
+   }
+  },
+  "sentence": "101호 온도가 25도를 넘지 않으면 불 꺼줘"
  },
  "d61ab4239ce18bcfd82b4e3c0e301e44b50ce8d6": {
   "at": "2026-09-25T01:05:29",
@@ -71035,6 +73823,62 @@
    }
   },
   "sentence": "어르신들이 오래 안 움직이시면 알려주세요"
+ },
+ "db216ca8a27434d66168837895d4560ce7386b91": {
+  "at": "2026-09-25T23:44:18",
+  "feedback": null,
+  "latency_s": 3.62,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 420,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 305
+    },
+    "cost": 0.0015374,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.00105,
+     "upstream_inference_cost": 0.0015374,
+     "upstream_inference_prompt_cost": 0.0004874
+    },
+    "is_byok": false,
+    "prompt_tokens": 2164,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 2112,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2584
+   },
+   "error": "",
+   "intent": "set_override",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "101",
+    "type": "motion",
+    "value": "360"
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 말고 101호 기준을 6시간으로 바꿔줘"
  },
  "db7d08ca56df6515efdaa06e61f23d96ccb33edd": {
   "at": "2026-09-24T23:06:01",
@@ -75636,6 +78480,61 @@
   },
   "sentence": "101호 온도가 30퍼센트 넘으면 불 켜줘"
  },
+ "e9c6b789e0d9501d4265f796160fab7e97fae2fb": {
+  "at": "2026-09-25T23:44:43",
+  "feedback": null,
+  "latency_s": 21.36,
+  "model": "openrouter:openai/gpt-5-nano",
+  "out": {
+   "_usage": {
+    "completion_tokens": 3410,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 3328
+    },
+    "cost": 0.00137611,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.001364,
+     "upstream_inference_cost": 0.00137611,
+     "upstream_inference_prompt_cost": 1.211e-05
+    },
+    "is_byok": false,
+    "prompt_tokens": 1855,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 1792,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 5265
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "when": {
+     "op": ">",
+     "path": "Mobius/byeongari/h101_temp",
+     "type": "",
+     "value": "30"
+    }
+   }
+  },
+  "sentence": "101호 온도가 30도 넘으면 불 좀…"
+ },
  "e9e75aca73527dd9c15fcbc2e8c060c943265c63": {
   "at": "2026-09-25T01:24:01",
   "feedback": [
@@ -78326,6 +81225,68 @@
   },
   "sentence": "101호 온도가 30도 넘으면 불 꺼줘"
  },
+ "f124dc9e99ae95c886f81d90adc57f2df4e5f350": {
+  "at": "2026-09-25T23:44:11",
+  "feedback": null,
+  "latency_s": 4.11,
+  "model": "openrouter:x-ai/grok-4.3",
+  "out": {
+   "_usage": {
+    "completion_tokens": 422,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 279
+    },
+    "cost": 0.00355465,
+    "cost_details": {
+     "upstream_inference_completions_cost": 0.001055,
+     "upstream_inference_cost": 0.00355465,
+     "upstream_inference_prompt_cost": 0.00249965
+    },
+    "is_byok": false,
+    "prompt_tokens": 2161,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 192,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2583
+   },
+   "error": "",
+   "intent": "create_rule",
+   "need": "",
+   "ok": true,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": "ALL"
+    },
+    "then": [
+     {
+      "path": "",
+      "severity": "URGENT",
+      "value": ""
+     }
+    ],
+    "when": {
+     "op": "idle_over_m",
+     "path": "",
+     "type": "motion",
+     "value": "300"
+    }
+   }
+  },
+  "sentence": "전체 세대에서 5시간 동안 움직임이 없으면 긴"
+ },
  "f14b9573890d6b1dd3e59c58a8dac9660df4655f": {
   "at": "2026-09-25T01:16:09",
   "feedback": null,
@@ -80301,6 +83262,62 @@
    }
   },
   "sentence": "모든 세대 배터리가 20% 아래면 주의로 표시해줘"
+ },
+ "f6e2041d2535f625b24722b2e016cf029c0c9e36": {
+  "at": "2026-09-25T23:46:26",
+  "feedback": null,
+  "latency_s": 20.39,
+  "model": "openrouter:deepseek/deepseek-v4-flash",
+  "out": {
+   "_usage": {
+    "completion_tokens": 165,
+    "completion_tokens_details": {
+     "audio_tokens": 0,
+     "image_tokens": 0,
+     "reasoning_tokens": 0
+    },
+    "cost": 0.000213444,
+    "cost_details": {
+     "upstream_inference_completions_cost": 3.234e-05,
+     "upstream_inference_cost": 0.000213444,
+     "upstream_inference_prompt_cost": 0.000181104
+    },
+    "is_byok": false,
+    "prompt_tokens": 1848,
+    "prompt_tokens_details": {
+     "audio_tokens": 0,
+     "cache_write_tokens": 0,
+     "cached_tokens": 0,
+     "video_tokens": 0
+    },
+    "schema_forced": true,
+    "total_tokens": 2013
+   },
+   "error": "문장에 '어떤 기준'인지(예: 무활동, 온도 등)가 명시되지 않았습니다. '무활동 기준', '움직임 기준' 등을 말씀해주세요.",
+   "intent": "create_rule",
+   "need": "ask",
+   "ok": false,
+   "override": {
+    "home": "",
+    "type": "",
+    "value": ""
+   },
+   "rule": {
+    "and": [],
+    "reason": "",
+    "scope": {
+     "homes": ""
+    },
+    "then": [],
+    "when": {
+     "op": "",
+     "path": "",
+     "type": "",
+     "value": ""
+    }
+   }
+  },
+  "sentence": "102호 말고 101호 기준을 6시간으로 바꿔줘"
  },
  "f6f060a5d2f614aaf0a5aafa0e3e44c423153251": {
   "at": "2026-09-25T22:50:29",
