@@ -1,4 +1,4 @@
-# 온살핌 — 인수인계 (2026-09-17 시작, 09-25 오후 갱신)
+# 온살핌 — 인수인계 (2026-09-17 시작, 09-25 밤 갱신)
 
 > 코드는 직접 읽으면 된다. 이 문서는 **코드에 남지 않는 것**만 적었다:
 > 왜 그렇게 짰는지, 플랫폼에 무엇이 만들어져 있는지, 무엇을 실제로 돌려서 확인했는지, 다음에 할 일.
@@ -11,7 +11,65 @@
 
 ---
 
-## 00. 지금 여기서 이어서 하기 (9/25 오후 기준 — 가장 최신)
+## 00. 지금 여기서 이어서 하기 (9/25 밤 기준 — 가장 최신)
+
+### 지금 상태 — 33차, 문장 206개
+
+문장이 206개가 됐다(190 + 열한 번째 새 묶음 `m01`~`m16`). 자세한 것은 `IOT/harness_eval.py` 의 `HISTORY` 30~33차 절.
+`docs/HARNESS_EVAL.md` 는 30차에 190문장 기준으로 만든 것이다 — 로컬 3종이 새 16문장을 재면 206문장으로 다시 만든다.
+
+| 모델 | 문장 | **하네스 통과 후 잘못 나감** | 모델 답이 맞았는데 하네스가 막음 | 기대 결과와 일치 |
+|---|---|---|---|---|
+| gemini-3.1-flash-lite (무료) | 206 | **0** | 0 | 205/206 |
+| openrouter:x-ai/grok-4.3 | 206 | **0** | 0 | 196/206 |
+| openrouter:openai/gpt-5-nano | 206 | **0** | 0 | 181/206 |
+| openrouter:deepseek/deepseek-v4-flash | 206 | **0** | 0 | 185/206 |
+| ollama:qwen3:8b | 190 | **0** | 0 | 172/190 |
+| ollama:gemma4:e4b | 190 | **0** | 0 | 167/190 |
+| ollama:exaone3.5:7.8b | 190 | **0** | 0 | 170/190 |
+
+- **세대 구조 트리**(`--nested`, 보드·공용 서버와 같은 `h101/temp`)는 Gemini 로만 쟀다: 190문장 잘못 나감 0, 189/190
+- 대표 숫자는 그대로 **44건 → 0건**(190문장, Gemini). u03·u04 정답을 바꿔 Gemini 'AI 자체 정답률'이 130 → 129 로 바뀌었다(참고 숫자)
+
+### 9/25 에 바뀐 것
+- **30차** — `harness_eval.py --nested` 로 세대 구조 트리로 다시 잼(무료 Gemini 179회). 드러난 것: 조건 없는 제어에 AI가 조건을 지어냄(p15) → 문장에 조건('~면'·'~때'·비교 말)이 없으면 멈춤. AI 답에 따라 흔들리던 것을 AI 부르기 전에 문장으로 정함: 층·전체 세대에 '늘려·줄여' → 거절, 움직임 외 센서에 위험도 → 거절, 센서와 단위가 어긋남 → 되묻기. **u03·u04 정답 거절 → 되묻기 (사용자 결정, 열 번째 정답 수정)**
+- **31·32차** — 새 묶음 16개(음성 입력 흔적·현장 요청·뜻 함정). 30차 하네스가 **8/16**. 막은 것: 켜기·끄기를 말하지 않았는데 AI가 ON(m05), 기한 '한 달 동안만'을 버림(m07), '혼자 사시는 분 댁만'을 버림(m10), 말 고치기 '5시간 아니 4시간'·'102호 말고 101호'(m03·m15), '하루하고 6시간'(m14), '더 빨리 오게'(m13 — 60분으로 잘못 나갈 수 있던 숨은 구멍). 모두 `sentence_facts.py`·`engine.py` 의 문장 검사
+- **33차** — OpenRouter 3종으로 새 16문장: 모두 잘못 나감 0
+- **AI 호출 순서** — 규칙 번역(`llm_translator.MODELS`)과 받아쓰기(`speech_transcribe.MODELS`) 모두 **OpenRouter 유료 Gemini 3.1 Flash-Lite 먼저 → 호출이 실패하면 같은 모델 무료**. OpenRouter 요청은 `provider.data_collection=deny`(입력을 수집하지 않는 공급자로만). 측정(`harness_eval.py`)은 모델을 직접 지정하므로 영향 없다
+- **음성** — 대시보드가 녹음을 16kHz 모노 WAV 로 바꿔 보낸다(OpenRouter 가 webm 을 안 받음). 받아쓰기에 '숫자는 아라비아 숫자로' 지시(예시에 실제 호수를 넣으면 그 번호로 끌려간다). 비교 도구 `IOT/stt_eval.py`(Gemini 대 Whisper large-v3-turbo), 녹음용 `IOT/stt_sentences.txt` 24문장
+- **실행** — `start_real.bat`(실물 보드)·`start_virtual.bat`(가상 세대), Mac 은 같은 이름의 `.command`
+- **시연** — 통신 두절은 **202호**(처음엔 안 꽂음 → 꽂으면 입주, 공통 규칙이 저절로 걸림 → 뽑으면 '점검 필요'). `demo_rehearsal.py` 7/7. 리허설 사이 초기화: `python virtual_home.py --remove 202 --demo --yes`
+- **펌웨어** — UNO R4 WiFi·ESP32 × BOARD 1~4 컴파일 확인. Windows 사용자 이름이 한글이면 ESP32 링크 실패(`arduino/ARDUINO_WIRING.md` 함정 9)
+- **공용 서버** — 옛 컨테이너·가상 세대 103~105 를 지웠다. 지금 `h101`·`h102`(가상 세대가 만든 `pir`·`evt`, 라벨은 보드와 같음)만 있다
+
+### GPU PC(RTX 4070)에서 할 일
+
+0. **`git pull` 먼저.** 33차 캐시가 들어 있다. `IOT/eval/cache.json` 은 두 PC가 동시에 고치면 합치기 어렵다 — 노트북 쪽은 GPU PC 가 push 할 때까지 캐시를 건드리지 않는다
+1. **로컬 3종으로 새 16문장** (206문장 중 새 것만 부른다):
+   ```
+   python harness_eval.py ollama:qwen3:8b ollama:gemma4:e4b ollama:exaone3.5:7.8b
+   ```
+   볼 것: 모델마다 '하네스 통과 후 잘못 나감'·'모델 답이 맞았는데 하네스가 막음'이 0인가. 0이 아니면 30~32차처럼 **모델 이름을 보지 않는 문장 검사**로 막는다 — 검증기 안에 넣으면 되먹임이 새로 생겨 다른 모델 캐시가 모자라진다(AI 부르기 전 검사나 검증기 뒤 멈춤 검사로). 고친 뒤 일곱 모델을 캐시로 다시 재서 **나빠진 문장이 없는지** 문장별로 비교한다
+2. **보고서 다시 만들기** — 일곱 모델 모두 206문장이 되면 아래로 만들고 `HISTORY` 에 34차로 적는다:
+   ```
+   python harness_eval.py gemini-3.1-flash-lite ollama:qwen3:8b ollama:gemma4:e4b ollama:exaone3.5:7.8b openrouter:x-ai/grok-4.3 openrouter:openai/gpt-5-nano openrouter:deepseek/deepseek-v4-flash --offline --save
+   ```
+3. (선택) **로컬 3종도 세대 구조 트리로** — `python harness_eval.py --nested ollama:qwen3:8b ollama:gemma4:e4b ollama:exaone3.5:7.8b` (206문장 × 3, 로컬이라 무료). 지금 세대 구조 트리는 Gemini 로만 쟀다 — 로컬 모델에서도 0인지 말할 수 있게 된다
+4. **음성 받아쓰기 비교** — 팀 녹음(24문장 × 여러 명)이 모이면:
+   ```
+   pip install faster-whisper nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"
+   python stt_eval.py "녹음폴더"
+   ```
+   녹음은 **저장소 밖**에 둔다(팀원 목소리). 결과는 화면 요약과 `녹음폴더/stt_eval.csv`. 'GPU 를 못 찾아 CPU 로 돈다'가 뜨면 GPU 설정 문제다. Gemini 쪽 기본 경로는 OpenRouter 유료(무료 등급은 입력을 제품 개선에 쓴다) — 무료로 재려면 `--gemini gemini-3.1-flash-lite`, **어느 쪽으로 잴지 사용자에게 먼저 묻는다**
+
+### 이 날 정해진 작업 규칙 (9장에 더해)
+- **하네스 측정의 Gemini 는 무료 API**(기본 모델). OpenRouter 는 Gemini 가 아닌 모델에만. 돈이 드는 측정은 시작 전에 어느 경로로 잴지 말한다
+- 정답(expect)을 바꾸는 것은 팀 결정 — 먼저 사용자에게 묻는다
+- 커밋·파일에 개인 사정 표현을 쓰지 않는다(장비는 'GPU PC', '노트북')
+
+---
+
+## 00-c. 9/25 오후 — 29차 (지난 기록)
 
 ### 지금 상태 — 29차, 일곱 모델 모두 잘못 나감 0
 
