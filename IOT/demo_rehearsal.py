@@ -9,7 +9,9 @@
 
 규칙은 임시 파일에만 쓴다(실제 data/rules.json 은 건드리지 않는다). 공용 서버에는 쓰지 않는다.
 화면에 뜨는 문구를 그대로 찍는다 — 대본에서 말할 문장은 이 출력에 맞춘다.
-4단계(보드 전원 차단)는 보드 없이 판정 함수(care_monitor.judge)에 '마지막 보고 20초 전'을 넣어 재현한다.
+202호 보드는 처음에 꽂지 않는다(arduino/ARDUINO_WIRING.md) — 1~3단계는 202호가 없는 트리로 돌린다.
+4단계는 202호를 꽂아(트리에 202호가 생김) 공통 규칙이 저절로 걸리는지 보고, 다시 뽑는 두절은 보드 없이
+판정 함수(care_monitor.judge)에 '마지막 보고 20초 전'을 넣어 재현한다.
 """
 import argparse
 import collections
@@ -35,6 +37,7 @@ S1 = "전체 세대에서 오래 움직임이 없으면 긴급으로 표시해�
 S3 = "102호만 6시간으로 바꿔줘"
 S5 = "102호 기준 30분 줄여줘"
 S6 = "102호 온도가 30도 넘으면 불 켜줘"
+LATE_HOME = "202"    # 처음엔 꽂지 않고 4단계에서 꽂았다 뽑는 보드
 
 
 def _plan(rule, devs):
@@ -49,10 +52,12 @@ def _base_rule(devs):
                                  "then": [{"path": "", "value": "", "severity": "URGENT"}]}}])
 
 
-def run_once(devs, start_rules=()):
+def run_once(all_devs, start_rules=()):
     """대본 한 번. 반환: [(단계, 대본대로 됐나, 화면 문구)]"""
     got = []
     engine.save_rules(copy.deepcopy(list(start_rules)))   # 시작 상태 — 기본은 규칙이 하나도 없다
+    devs = [d for d in all_devs if d["meta"].get("home") != LATE_HOME]   # 202호는 4단계에서 꽂는다
+    n = len(scope.discover_homes(devs))
 
     # 1. 되묻기
     r1 = engine.add_rule_from_sentence(S1, devs)
@@ -68,7 +73,7 @@ def run_once(devs, start_rules=()):
         a = engine.approve_rule(r1["id"], fill_value="8시간", replace=bool(r1.get("conflicts")), devices=devs)
         rule = next((r for r in engine.load_rules() if r["id"] == r1["id"]), {}).get("rule", {})
         plan = _plan(rule, devs) if a["ok"] else ""
-        got.append(("2 승인", a["ok"] and plan.count("8시간") == 4, plan or "; ".join(a["errors"])))
+        got.append(("2 승인", a["ok"] and plan.count("8시간") == n, plan or "; ".join(a["errors"])))
     else:
         got.append(("2 승인", False, "1단계가 되묻기로 끝나지 않아 할 수 없음 — 대본대로 승인된 규칙을 넣고 계속"))
     if not any(r.get("status") == "approved" and r.get("enabled") for r in engine.load_rules()):
@@ -87,7 +92,16 @@ def run_once(devs, start_rules=()):
         got.append(("3 예외", False, f"{r3['status']} | {' '.join(r3['errors'] + r3['questions'])} — 예외를 직접 넣고 계속"))
         engine.apply_override_to(base_id, "102", "360", devices=devs)
 
-    # 4. 102호 보드 전원 차단 — 5분 전에 움직임이 있던 정상 세대의 보고가 끊겼다 (보고 주기 5초 × 3 = 15초)
+    # 4-1. 202호 보드를 꽂는다 → 2층 입주. 규칙을 다시 만들지 않아도 '전체 세대' 공통 기준이 걸린다
+    devs = all_devs
+    if LATE_HOME in scope.discover_homes(devs):
+        rule = next(r for r in engine.load_rules() if r["id"] == base_id)["rule"]
+        plan = _plan(rule, devs)
+        got.append(("4 입주", f"{LATE_HOME}호 8시간" in plan, f"꽂은 뒤: {plan}"))
+    else:
+        got.append(("4 입주", False, f"트리에 {LATE_HOME}호가 없다 — 보드를 꽂아야 볼 수 있다"))
+
+    # 4-2. 202호 보드를 뽑는다 — 방금 입주해 정상이던 세대의 보고가 끊겼다 (보고 주기 5초 × 3 = 15초)
     now = datetime.now()
     j = cm.judge({"ts": now - timedelta(seconds=20), "value": "0", "period_s": 5},
                  now - timedelta(minutes=5), 360, now=now)
