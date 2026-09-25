@@ -161,8 +161,11 @@ def _find_override_target(ov_type, rules):
 
 # "30분 줄여줘"는 30분으로 바꾸라는 말이 아니라 지금 기준에서 30분을 빼라는 말이다.
 # AI는 둘을 구분하지 못해 8시간 기준을 30분으로 만들었다 (2026-09-23 확인). 방향은 코드가 읽는다.
-_LESS = re.compile(r"(줄여|줄이|낮춰|낮추|단축|짧게|당겨|앞당겨)")
-_MORE = re.compile(r"(늘려|늘리|올려|높여|길게|연장)")
+# '알림이 더 빨리 오게'는 기준을 줄이는 말이다 (31차 m13). 방향 말이 없으면 '1시간으로'(절대값)로 읽혀
+# 기준이 60분이 될 수 있었다 — 이번엔 AI가 되물어서 드러나지 않았다.
+# '빨리 알려줘'는 급하다는 말이지 기준을 바꾸라는 말이 아니다 — '오게·울리게·뜨게'만 본다
+_LESS = re.compile(r"(줄여|줄이|낮춰|낮추|단축|짧게|당겨|앞당겨|(?:빨리|일찍)\s*(?:오|울|뜨))")
+_MORE = re.compile(r"(늘려|늘리|올려|높여|길게|연장|(?:늦게|천천히)\s*(?:오|울|뜨))")
 # "6시간으로 늘려줘"처럼 '얼마로'를 말했으면 상대 변경이 아니다.
 # 숫자 없는 시간 표현도 같다 — "하루로 늘려줘"를 상대 변경으로 읽어 8시간+24시간=32시간이 됐었다 (o04).
 _ABSOLUTE = re.compile(r"(\d+\s*(분|시간)|하루|한나절|반나절|이틀|사흘|종일)\s*(으로|로)")
@@ -473,6 +476,8 @@ def _said_numbers(sentence):
 # 끄고 닫는 동작은 값이 하나로 정해진다(0 / OFF). 여는 동작은 각도가 여러 개라 되물어야 한다.
 # 15차 실험(y01): "창문 닫아줘"의 0 을 지어낸 값으로 보고 되물었다 — 사람은 0을 말할 이유가 없다.
 _CLOSING = re.compile(r"(닫아|닫기|닫는|꺼줘|꺼주|끄기|끄는|내려|해제)")
+# 조명을 켤지 끌지 말했는가. 31차(m05): "…30도 넘으면 불 좀…"에 AI가 ON 을 채웠다 — 숫자가 아니라 지어낸 값 검사를 피했다.
+_ON_OFF_SAID = re.compile(r"(켜|켠|점등|꺼|끄|끈|소등|\bon\b|\boff\b)", re.I)
 
 
 def _is_enumerated(path, devices):
@@ -504,6 +509,10 @@ def _invented_thresholds(sentence, rule, devices=None):
             continue                        # "닫아줘"의 0 은 지어낸 값이 아니다
         if _is_enumerated(p, devices):
             # "움직임이 있으면"에는 숫자가 없지만 값(1)은 지어낸 것이 아니다 — 상태가 둘뿐이다 (13차 w01·w02)
+            continue
+        if v.upper() in ("ON", "OFF"):
+            if not _ON_OFF_SAID.search(sentence):
+                invented.append((c, v))     # 켜라는지 끄라는지 말하지 않았다
             continue
         if p == "system/hour":
             # "밤 10시"→22 처럼 바뀌는 건 정상이다. 다만 문장에 숫자가 하나도 없는데
@@ -897,6 +906,20 @@ def add_rule_from_sentence(sentence, devices, retry=1):
     life = _life_state_condition(sentence)
     if life:
         return _stop(steps, CREATE_STEPS, [life], reason="생활 상태 조건은 판단할 수 없음")
+
+    # 0-e2) 특징·개수로 가리킨 세대('혼자 사시는 분 댁만', '두 세대만') — 약한 쪽으로 틀리면 범위가 넓어진다 (31차 m10·m16)
+    unnamed = facts.unnamed_homes(sentence)
+    if unnamed:
+        return _stop(steps, CREATE_STEPS, [],
+                     questions=[f"'{unnamed}' 이(가) 어느 세대인지 알 수 없습니다 — 호수나 층으로 말씀해 주세요. "
+                                f"(시스템은 누가 어떻게 사는지 저장하지 않습니다)"], reason="세대를 모름")
+
+    # 0-e3) 기한을 붙인 요청 — 규칙·예외에는 끝나는 날이 없다. 기한을 버리고 만들면 계속 적용된다 (31차 m07)
+    period = facts.period_limit(sentence)
+    if period:
+        return _stop(steps, CREATE_STEPS,
+                     [f"기한('{period}')은 규칙에 넣을 수 없습니다 — 만들면 기한이 지나도 계속 적용됩니다. "
+                      f"기한 없이 말씀해 주시고, 끝나면 화면에서 규칙이나 예외를 지워 주세요."], reason="기한은 지원하지 않음")
 
     # 0-f) 움직임이 아닌 센서에 위험도를 붙이면 못 만든다 — 단위를 고쳐도 마찬가지라 단위보다 먼저 본다 (t01)
     sev_sensor = _severity_on_sensor(sentence)

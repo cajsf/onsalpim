@@ -1109,3 +1109,21 @@ assert engine._unit_mismatch("101호 습도가 80% 넘으면 창문을 90도로 
 r = engine.add_rule_from_sentence("101호 온도가 30퍼센트 넘으면 불 켜줘", _DEV)   # AI 를 부르기 전에 멈춘다
 assert r["status"] == "needs_clarification" and "퍼센트" in r["questions"][0], r
 print("  ✅ 30차: 조건 없는 제어·층 예외·센서 위험도·단위 불일치를 AI 답과 상관없이 정한다")
+
+# ── 31차: 11번째 새 문장 묶음(m01~m16)이 드러낸 것 ──
+import sentence_facts as _sf
+assert _sf.durations("202호 무활동 기준을 5시간 아니 4시간으로 바꿔줘") == [240], "말 고치기는 뒤의 값 (m03)"
+assert _sf.named_homes("102호 말고 101호 기준을 6시간으로 바꿔줘") == ["101"], "m15"
+assert _sf.named_homes("102호 말고 나머지 세대는 6시간") == ["102"], "범위를 빼는 말은 그대로"
+assert _sf.durations("전체 세대에서 하루하고 6시간 동안 움직임이 없으면 긴급으로 표시해줘") == [1800], "m14"
+assert engine._override_many_homes("102호 말고 101호 기준을 6시간으로 바꿔줘", _DEV) is None
+r = engine.add_rule_from_sentence("202호 어르신은 적응하실 때까지 한 달 동안만 무활동 기준을 4시간으로 해줘", _DEV)
+assert r["status"] == "rejected" and "기한" in r["errors"][0], r          # AI 를 부르기 전에 멈춘다 (m07)
+r = engine.add_rule_from_sentence("2층에서 혼자 사시는 분 댁만 4시간 움직임이 없으면 긴급으로 해줘", _DEV)
+assert r["status"] == "needs_clarification" and "호수" in r["questions"][0], r   # m10
+inv = engine._invented_thresholds("101호 온도가 30도 넘으면 불 좀…", _ctl(("h101_temp", ">", "30"), [("h101_led", "ON")]), _DEV)
+assert [v for _, v in inv] == ["ON"], "켜라는지 끄라는지 말하지 않았다 (m05)"
+assert not engine._invented_thresholds("101호 온도가 30도 넘으면 불 켜줘", _ctl(("h101_temp", ">", "30"), [("h101_led", "ON")]), _DEV)
+assert engine._relative_delta("102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘") == -1, "빨리 오게 = 줄이기 (m13)"
+assert engine._relative_delta("전체 세대에서 6시간 움직임 없으면 긴급으로 빨리 알려줘") == 0, "빨리 알려 = 급함, 기준 변경 아님"
+print("  ✅ 31차: 말 고치기·하루+시간·기한·호수 없이 가리키기·켜기/끄기 누락·'빨리 오게'")

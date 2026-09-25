@@ -23,6 +23,15 @@ _KO_HOURS = {"한": 1, "두": 2, "세": 3, "네": 4, "다섯": 5, "여섯": 6, "
 _KO_WORDS = [("하루 종일", 1440), ("하루종일", 1440), ("온종일", 1440), ("종일", 1440), ("하루", 1440),
              ("이틀", 2880), ("사흘", 4320), ("반나절", 720), ("한나절", 720)]
 
+# 말하다 고친 값 — "5시간 아니 4시간", "102호 말고 101호". 앞의 값을 지우고 뒤의 값만 읽는다 (31차 m03·m15).
+# 같은 단위가 바로 뒤따를 때만 — "102호 말고 나머지 세대"(범위를 빼는 말)는 건드리지 않는다.
+_CORRECTED = re.compile(r"(\d+(?:\.\d+)?)\s*(시간|분|호|도|%|퍼센트)\s*(?:아니|아니고|아니라|말고)\s*,?\s*"
+                        r"(?=\d+(?:\.\d+)?\s*\2)")
+
+
+def _said(sentence):
+    return _CORRECTED.sub("", sentence or "")
+
 
 def durations(sentence):
     """문장에 나온 시간 길이들을 분으로. 같은 값은 한 번만, 나온 순서대로. 부호(-30분)는 살린다.
@@ -30,7 +39,7 @@ def durations(sentence):
     '8시간 30분'→[510]  '2시간 반'→[150]  '1.5시간'→[90]  '한 시간 반'→[90]  '여덟 시간'→[480]
     '반나절'→[720]  '이틀'→[2880]  '8시간 … 30분 뒤에'→[480, 30]
     """
-    s = sentence or ""
+    s = _said(sentence)
     found = []                       # (시작 위치, 분)
     taken = [False] * len(s)
 
@@ -43,6 +52,8 @@ def durations(sentence):
             found.append((m.start(), calc(m)))
 
     neg = lambda m: -1 if m.group(1) else 1
+    # "하루하고 6시간" — 하루와 시간을 따로 읽으면 기준이 둘로 보인다 (31차 m14)
+    grab(r"(하루|1\s*일)\s*(?:하고|와|에|\+)?\s*" + _NUM + r"\s*시간", lambda m: 1440 + float(m.group(2)) * 60)
     grab(_SIGN + _NUM + r"\s*시간\s*" + _NUM + r"\s*분",
          lambda m: neg(m) * (float(m.group(2)) * 60 + float(m.group(3))))
     grab(_SIGN + _NUM + r"\s*시간\s*반", lambda m: neg(m) * (float(m.group(2)) * 60 + 30))
@@ -72,7 +83,7 @@ def numbers(sentence):
     ("50%로 켜줘"의 50, "-10도"의 부호, "20도 아래면"의 20, "30분 뒤에"의 30).
     """
     out = []
-    for m in _NUMBER.finditer(sentence or ""):
+    for m in _NUMBER.finditer(_said(sentence)):
         if m.group(3):
             continue
         v = float(m.group(2)) * (-1 if m.group(1) else 1)
@@ -115,7 +126,7 @@ def floor_homes(sentence, known):
 
 def named_homes(sentence):
     """호수로 적은 세대 (나온 순서, 중복 없이). 트리에 있는지는 보지 않는다 — 없는 세대는 scope 가 막는다."""
-    return list(dict.fromkeys(re.findall(r"(\d{3,4})\s*호", sentence or "")))
+    return list(dict.fromkeys(re.findall(r"(\d{3,4})\s*호", _said(sentence))))
 
 
 def says_all(sentence):
@@ -193,6 +204,29 @@ def comparison_count(sentence):
     return len(_COMPARE_WORDS.findall(sentence or ""))
 
 
+# 기한을 붙인 요청 — 규칙·예외에는 끝나는 날이 없어 기한을 버리면 계속 적용된다 (31차 m07 "한 달 동안만").
+# '8시간 동안'(무활동 시간)과 헷갈리지 않게 일·주·달·개월·년 단위와 '~동안만'·'~때까지'만 본다. '하루'는 무활동 기준에도 쓴다.
+_PERIOD = re.compile(r"(동안만|까지만|당분간|임시로|때까지|(?:\d+|한|두|세|네|몇)\s*(?:일|주|주일|달|개월|년)\s*(?:동안|간))")
+
+
+def period_limit(sentence):
+    m = _PERIOD.search(sentence or "")
+    return m.group(0) if m else None
+
+
+# 호수 없이 사람의 특징이나 개수로 가리킨 세대 — 시스템은 누가 혼자 사는지, 어느 두 세대인지 모른다 (31차 m10·m16).
+# 호수를 함께 말했으면 덧붙인 말일 뿐이라 보지 않는다 (m06 "101호 사시는 박 할아버지는").
+_UNNAMED = re.compile(r"(혼자\s*사시|홀로\s*사시|독거|거동이?\s*불편|치매|휠체어|노부부|[가-힣]*\s*사시는\s*분|계신\s*(?:분|댁|집)"
+                      r"|(?:한|두|세|네|몇|\d+)\s*(?:세대|집|가구)\s*만)")
+
+
+def unnamed_homes(sentence):
+    if named_homes(sentence):
+        return None
+    m = _UNNAMED.search(sentence or "")
+    return m.group(0).strip() if m else None
+
+
 def fmt(v):
     """정수면 '480', 아니면 '0.5'."""
     return str(int(v)) if float(v).is_integer() else str(v)
@@ -240,4 +274,14 @@ if __name__ == "__main__":
     assert person_reference("우리 어르신들 중에서 혹시라도") is None
     assert color_request("불을 보라색으로 켜줘") and on_and_off("불 켜고 불 꺼줘")
     assert MULTIPLY.search("두 배로 늘려줘") and MULTIPLY.search("절반으로 줄여줘")
+    # 31차 — 말 고치기·하루+시간·기한·호수 없이 가리키기
+    assert durations("202호 무활동 기준을 5시간 아니 4시간으로 바꿔줘") == [240]
+    assert named_homes("102호 말고 101호 기준을 6시간으로") == ["101"]
+    assert named_homes("102호 말고 나머지 세대는") == ["102"], "범위를 빼는 말은 건드리지 않는다"
+    assert durations("전체 세대에서 하루하고 6시간 동안 움직임이 없으면") == [1800]
+    assert durations("101호 무활동 기준만 하루로 늘려줘") == [1440]
+    assert period_limit("적응하실 때까지 한 달 동안만 무활동 기준을 4시간으로") and period_limit("3일 동안 알림 꺼줘")
+    assert period_limit("전체 세대에서 8시간 동안 움직임이 없으면 긴급") is None
+    assert unnamed_homes("2층에서 혼자 사시는 분 댁만 4시간") and unnamed_homes("두 세대만 3시간 동안")
+    assert unnamed_homes("101호 사시는 박 할아버지는 무활동 기준을 10시간으로") is None
     print("sentence_facts: 전부 통과")
