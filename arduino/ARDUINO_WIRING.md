@@ -112,6 +112,21 @@
 7. **전원은 멀티 USB 충전기로.** 노트북 포트가 모자라고, 보드 리셋이 노트북에 영향을 준다.
    (업로드할 때만 노트북에 연결)
 8. DHT11 은 부팅 후 첫 1~2초 판독 실패가 정상이다 (NaN 이면 건너뛴다).
+9. **Windows 사용자 이름이 한글이면 ESP32 컴파일이 마지막 링크에서 실패한다.**
+   (`ld.exe: cannot open output file C:\Users\???\...` 또는 `cannot find -lxtensa`)
+   코드 문제가 아니다 — ESP32 링커가 한글 경로(`C:\Users\<한글>\AppData\Local\Arduino15`)를 못 읽는다.
+   UNO R4 는 괜찮다. 가장 쉬운 방법은 **사용자 이름이 영문인 PC 에서 굽는 것.**
+   그 PC 에서 꼭 구워야 하면 PowerShell 에서 같은 폴더를 드라이브 문자로 잡아 IDE 에 들어 있는 arduino-cli 로 굽는다
+   (`COM3` 은 장치 관리자에서 본 포트로, 경로는 저장소 맨 위 기준):
+
+   ```powershell
+   subst R: "$env:LOCALAPPDATA"
+   $env:ARDUINO_DIRECTORIES_DATA = "R:\Arduino15"
+   & "$env:LOCALAPPDATA\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" compile --fqbn esp32:esp32:esp32 --build-path R:\onsalpim_build -u -p COM3 arduino\home_node
+   subst R: /d
+   ```
+
+   2026-09-25 에 이 방법으로 BOARD 1~4 컴파일까지 확인했다 (업로드 `-u -p` 는 보드가 없어 확인 전).
 
 ## 플랫폼 컨테이너
 
