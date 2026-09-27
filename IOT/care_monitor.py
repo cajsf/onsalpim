@@ -150,6 +150,7 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
     판정 '순서'가 이 함수의 전부다 — 기기를 먼저 보고, 기기가 믿을 만할 때만 생활을 본다.
 
       ① 통신이 끊겼다      → 점검 필요. 생활 판정은 하지 않는다(무활동 타이머 정지)
+         단, 마지막 움직임이 긴급 기준을 넘으면 '안부 확인 필요'를 붙인다 (원인은 기기로 둔 채)
       ② 기기 정상 + 무활동 → 넘은 단계 중 가장 높은 위험도 (긴급 확인 / 주의)
       ③ 기기 정상 + 배터리 → 주의
       ④ 그 외              → 정상
@@ -158,25 +159,30 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
     통신 두절 세대가 전부 자동으로 '긴급' 오탐이 된다. 데이터를 못 믿는 상태에서
     생활 이상을 단정하면 안 된다.
 
+    그렇다고 판정 보류가 무활동 알림을 영원히 막으면 안 된다. 두절 중에 쓰러진 사람을
+    끝내 모르게 된다(노르웨이 원격 돌봄 두절 중 사망 사례). 기기가 정상이었다면 긴급 확인이
+    떴을 시점이 지나면, 위험도는 '점검 필요'로 두고(원인은 기기) 안부 확인도 함께 요청한다.
+    부재 등록 중이면 집에 없는 사람이라 요청하지 않는다.
+
     away: 부재 등록 {'until', 'reason'} — 입원·외출 등으로 집이 빈 기간. 무활동은 판정하지 않고
       기기(통신·배터리)만 본다. 빈 집의 '무활동 긴급'은 헛알림이고, 헛알림이 쌓이면 진짜 알림을 놓친다.
     idle_levels: [{'minutes', 'severity'}, ...] — 단계 경보 (예: 180분 주의, 480분 긴급).
       없으면 idle_min 하나를 긴급 기준으로 쓴다 (기존 호출 호환).
 
-    반환: {'severity', 'reason', 'idle_s', 'silent_s', 'life_known'}
+    반환: {'severity', 'reason', 'idle_s', 'silent_s', 'life_known', 'welfare_check', ...}
     """
     now = now or datetime.now()
     if idle_levels is None:
         idle_levels = [] if idle_min is None else [{"minutes": idle_min, "severity": URGENT}]
     idle_levels = sorted(idle_levels, key=lambda lv: float(lv["minutes"]))
+    urgent_min = next((lv["minutes"] for lv in idle_levels if lv["severity"] == URGENT), None)
     if idle_levels:
-        idle_min = next((lv["minutes"] for lv in idle_levels if lv["severity"] == URGENT),
-                        idle_levels[0]["minutes"])
+        idle_min = urgent_min if urgent_min is not None else idle_levels[0]["minutes"]
 
     silent_s = _elapsed_s(contact["ts"], now)
     stale_after = STALE_FACTOR * contact["period_s"]
 
-    def out(severity, reason, life, device, basis, life_known=True, idle_s=None):
+    def out(severity, reason, life, device, basis, life_known=True, idle_s=None, welfare_check=False):
         """화면이 '생활 상태'와 '기기 상태'를 따로 보여줘야 하므로 나눠서 돌려준다.
 
         이 둘을 한 문장으로 합쳐 내보내면 대시보드가 다시 쪼개야 하고,
@@ -198,6 +204,7 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
             "idle_min": None if idle_min is None else float(idle_min),
             "idle_levels": [{"minutes": float(lv["minutes"]), "severity": lv["severity"]} for lv in idle_levels],
             "life_known": life_known,
+            "welfare_check": welfare_check,   # 두절이 길어져 안부 확인도 필요 (위험도는 점검 필요 그대로)
             "away": away,
         }
 
@@ -208,6 +215,18 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
     # ① 기기 신뢰성 먼저
     if silent_s is None or silent_s > stale_after:
         gap = "데이터 없음" if silent_s is None else f"{_human(silent_s)} 미수신"
+        idle_s = _elapsed_s(last_activity, now)
+        # ①-a 기기가 정상이었다면 긴급 확인이 떴을 시점이 지났다 → 원인은 기기로 둔 채 안부 확인도 요청
+        if not away and urgent_min is not None and idle_s is not None and idle_s > float(urgent_min) * 60:
+            return out(
+                CHECK_DEVICE,
+                f"안부 확인 필요 — {gap}, 마지막 움직임 {_human(idle_s)} 전 (긴급 기준 {human_minutes(urgent_min)} 초과)",
+                life=f"안부 확인 필요 (두절로 확인 불가 · 마지막 움직임 {_human(idle_s)} 전)",
+                device=gap,
+                basis=f"통신 두절로 생활을 확인할 수 없는데 마지막 움직임이 긴급 기준({human_minutes(urgent_min)})을 넘음"
+                      " — 기기 점검과 함께 안부 확인",
+                life_known=False, idle_s=idle_s, welfare_check=True,
+            )
         return out(
             CHECK_DEVICE,
             f"{gap} (보고 주기 {contact['period_s']:.0f}초 기준 두절)",
@@ -217,7 +236,7 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
             life_known=False,      # 생활 상태를 알 수 없다 — 단정하지 않는다
             # 마지막 활동 '기록'은 있으니 화면에는 보여준다. 다만 판정에는 쓰지 않는다 —
             # 두절 이후에 움직였는지는 알 수 없으므로 life_known=False 로 함께 표시한다.
-            idle_s=_elapsed_s(last_activity, now),
+            idle_s=idle_s,
         )
 
     # ①-b 부재 등록 기간 — 생활 판정 보류, 기기는 계속 본다
@@ -340,6 +359,7 @@ class Watchdog:
 
     def __init__(self):
         self.last_severity = {}   # home → 직전 위험도
+        self.last_welfare = {}    # home → 직전 '안부 확인 필요' 여부 (위험도가 같아도 이게 바뀌면 알린다)
 
     def sweep(self, homes_state, now=None):
         """세대별 판정을 한 바퀴 돌고, 상태가 바뀐 세대만 알림 대상으로 표시한다.
@@ -353,8 +373,9 @@ class Watchdog:
             v = judge(st["contact"], st.get("last_activity"), st.get("idle_min"),
                       st.get("battery"), now, st.get("idle_levels"), st.get("away"))
             prev = self.last_severity.get(home)
-            changed = prev != v["severity"]
+            changed = prev != v["severity"] or self.last_welfare.get(home, False) != v["welfare_check"]
             self.last_severity[home] = v["severity"]
+            self.last_welfare[home] = v["welfare_check"]
             results.append({
                 "home": home,
                 "severity": v["severity"],
@@ -372,12 +393,14 @@ class Watchdog:
                 "last_activity_at": v["last_activity_at"],
                 "judged_at": v["judged_at"],
                 "life_known": v["life_known"],
+                "welfare_check": v["welfare_check"],
                 "changed": changed,
                 "from": prev,
             })
 
-        order = {URGENT: 0, CHECK_DEVICE: 1, WATCH: 2, NORMAL: 3}
-        results.sort(key=lambda r: (order[r["severity"]], r["home"]))
+        # 안부 확인까지 필요한 두절 세대는 긴급 바로 다음, 일반 점검 필요보다 먼저
+        order = {URGENT: 0, CHECK_DEVICE: 2, WATCH: 3, NORMAL: 4}
+        results.sort(key=lambda r: (1 if r["welfare_check"] else order[r["severity"]], r["home"]))
         return results
 
 
@@ -386,7 +409,7 @@ def format_board(results):
     lines = []
     for r in results:
         mark = {URGENT: "🔴", CHECK_DEVICE: "🟠", WATCH: "🟡", NORMAL: "🟢"}[r["severity"]]
-        note = "" if r["life_known"] else "  (생활 판정 보류)"
+        note = "  (안부 확인 필요)" if r["welfare_check"] else "" if r["life_known"] else "  (생활 판정 보류)"
         bell = "  ← 상태 변경" if r["changed"] and r["from"] is not None else ""
         lines.append(f'  {mark} {r["home"]}호  {LABEL_KO[r["severity"]]:<6} {r["reason"]}{note}{bell}')
     return "\n".join(lines)
@@ -446,12 +469,14 @@ if __name__ == "__main__":
         st = dict(state["103"], contact={"ts": dead_at, "value": "0", "period_s": 60})
         v = judge(st["contact"], st["last_activity"], st["idle_min"], st["battery"], t)
         n = naive(silent_min, st["idle_min"])
-        print(f'  {label:<18} 순진={LABEL_KO[n]:<6} 온살핌={LABEL_KO[v["severity"]]}')
+        extra = " + 안부 확인" if v["welfare_check"] else ""
+        print(f'  {label:<18} 순진={LABEL_KO[n]:<6} 온살핌={LABEL_KO[v["severity"]]}{extra}')
 
     print("\n  순진한 구현의 실패는 두 번 일어난다:")
     print("    ① 발견 지연 — 장치가 죽은 걸 8시간 동안 모른다 (그동안 이 세대는 돌봄 공백)")
-    print("    ② 오탐     — 8시간이 지나면 '긴급'으로 떠서 복지사를 헛걸음시킨다")
-    print(f"  온살핌은 보고 {STALE_FACTOR}회 연속 누락(=3분)에서 두절을 잡고, 그 뒤로도 '긴급'으로 바꾸지 않는다.")
+    print("    ② 원인 모름 — 8시간이 지나면 '긴급 무활동'으로 떠서, 기기 문제인데 사람 문제로 대응한다")
+    print(f"  온살핌은 보고 {STALE_FACTOR}회 연속 누락(=3분)에서 두절을 잡는다. 두절이 길어져 긴급 기준을 넘으면")
+    print("  위험도는 '점검 필요'로 둔 채(원인은 기기) 안부 확인도 요청한다 — 두절 중에 쓰러진 사람을 놓치지 않게.")
     print("  → 검출 지연 3분 vs 8시간. 이게 두 시계를 분리해야 하는 이유다.")
 
     # ===== 상태 전이: 알림은 바뀔 때만 =====

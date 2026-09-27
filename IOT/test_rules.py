@@ -79,6 +79,27 @@ assert v["severity"] == "WATCH" and "무활동" in v["reason"], "주의 무활�
 v = cm.judge(contact(25), NOW - timedelta(hours=9), None, 80, NOW, levels)
 assert v["severity"] == "CHECK_DEVICE", "두절이면 단계와 무관하게 점검 필요"
 
+# ── 두절이 길어지면 안부 확인도 요청 (판정 보류가 무활동 알림을 영원히 막지 않게) ──
+assert v["welfare_check"] and "안부 확인" in v["life"] and not v["life_known"], \
+    "두절 중 마지막 움직임이 긴급 기준을 넘으면 원인은 기기로 둔 채 안부 확인"
+v = cm.judge(contact(25), NOW - timedelta(hours=4), None, 80, NOW, levels)
+assert v["severity"] == "CHECK_DEVICE" and not v["welfare_check"], "긴급 기준 전이면 점검 필요만"
+v = cm.judge(contact(25), NOW - timedelta(hours=9), None, 80, NOW, [{"minutes": 180, "severity": "WATCH"}])
+assert not v["welfare_check"], "긴급 단계가 없는 세대는 안부 확인을 올리지 않음"
+v = cm.judge(contact(25), NOW - timedelta(hours=9), 480, 80, NOW)
+assert v["welfare_check"], "단계 없이 idle_min 하나로 불러도 같다 (옛 호출)"
+_wd = cm.Watchdog()
+_st = {"101": {"contact": contact(25), "last_activity": NOW - timedelta(hours=7), "idle_levels": levels}}
+assert not _wd.sweep(_st, NOW)[0]["welfare_check"]
+_r = _wd.sweep(_st, NOW + timedelta(hours=2))[0]
+assert _r["severity"] == "CHECK_DEVICE" and _r["welfare_check"] and _r["changed"] and _r["from"] == "CHECK_DEVICE", \
+    "위험도가 점검 필요 그대로여도 안부 확인이 붙으면 알림"
+assert not _wd.sweep(_st, NOW + timedelta(hours=2, seconds=10))[0]["changed"], "같은 상태면 다시 안 알림"
+_st["102"] = {"contact": contact(25), "last_activity": NOW - timedelta(minutes=5), "idle_levels": levels}
+_st["103"] = {"contact": contact(0), "last_activity": NOW - timedelta(minutes=5), "idle_levels": levels}
+assert [x["home"] for x in _wd.sweep(_st, NOW + timedelta(hours=2))] == ["101", "102", "103"], \
+    "안부 확인이 붙은 두절 세대가 일반 점검 필요보다 먼저"
+
 # ── 옛 데이터에 겹침이 남아 있으면: 더 짧은 기준 + 충돌 보고 ──
 lv, conflicts = engine.effective_idle_levels([r7, saved(8, care_rule(value="480"))], TREE)
 assert conflicts == [[7, 8]]
@@ -148,6 +169,11 @@ v = cm.judge(contact(0), NOW - timedelta(hours=30), None, 11, NOW, levels, away)
 assert v["severity"] == "WATCH", "부재 중에도 배터리는 봄"
 v = cm.judge(contact(25), NOW - timedelta(hours=30), None, 80, NOW, levels, away)
 assert v["severity"] == "CHECK_DEVICE", "부재 중에도 통신 두절은 봄"
+assert not v["welfare_check"], "부재 중이면 두절이 길어도 안부 확인을 올리지 않음 (집에 없는 사람)"
+v = cm.judge(contact(0), NOW - timedelta(hours=30), None, 80, NOW, levels, None)
+assert v["severity"] == "URGENT", "부재가 끝났는데 움직임이 없으면 바로 긴급 확인"
+v = cm.judge(contact(25), NOW - timedelta(hours=30), None, 80, NOW, levels, None)
+assert v["severity"] == "CHECK_DEVICE" and v["welfare_check"], "부재가 끝났는데 두절이면 점검 필요 + 안부 확인"
 
 end = engine.end_absence(ok["absence"]["id"], now=NOW + timedelta(hours=2))
 assert end["ok"] and end["absence"]["ended_by"] == "복지사"

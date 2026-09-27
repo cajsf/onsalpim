@@ -746,7 +746,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                     <span class="caret">{{ expanded.has(h.home) ? '▾' : '▸' }}</span>{{ h.home }}호
                   </td>
                   <td>
-                    <span class="dot" :class="h.life_known ? SEV[h.severity]?.cls : 'unknown'"></span>
+                    <span class="dot" :class="h.welfare_check ? 'urgent' : h.life_known ? SEV[h.severity]?.cls : 'unknown'"></span>
                     {{ h.life }}
                   </td>
                   <td>

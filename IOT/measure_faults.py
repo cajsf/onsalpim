@@ -50,8 +50,9 @@ def scenario(name, truth, silent_min, idle_min_ago, battery=None):
 
 
 def ours(s):
+    """온살핌 판정 전체 (위험도 + 안부 확인 요청 여부)."""
     return cm.judge(s["contact"], s["last_activity"], IDLE_MIN,
-                    battery=s["battery"], now=NOW)["severity"]
+                    battery=s["battery"], now=NOW)
 
 
 def ablated(s):
@@ -101,7 +102,8 @@ def tally(rows, key):
 def run():
     rows = []
     for s in CASES:
-        rows.append({**s, "ours": ours(s), "ablated": ablated(s),
+        v = ours(s)
+        rows.append({**s, "ours": v["severity"], "welfare": v["welfare_check"], "ablated": ablated(s),
                      "want": EXPECTED[s["truth"]]})
     return rows
 
@@ -121,6 +123,7 @@ def to_markdown(rows):
     fa_o, ms_o, dev_o = tally(rows, "ours")
     fa_a, ms_a, dev_a = tally(rows, "ablated")
     n_dev = sum(1 for r in rows if r["truth"].startswith("기기"))
+    n_welfare = sum(1 for r in rows if r["welfare"])
     minute = first_false_alarm_minute()
 
     out = [
@@ -144,14 +147,24 @@ def to_markdown(rows):
         f"| 오탐 (헛알림) | **{fa_o}건** | **{fa_a}건** |",
         f"| 미탐 (놓침) | **{ms_o}건** | **{ms_a}건** |",
         f"| 기기 이상 식별 | **{dev_o}/{n_dev}** | **{dev_a}/{n_dev}** |",
+        f"| 안부 확인 요청 (두절이 긴급 기준을 넘김, 원인은 기기로 표시) | {n_welfare}건 | — |",
         "",
     ]
     if minute is not None:
         h = minute / 60
         out += [
-            f"기기 계층이 없으면 **전원이 나간 지 {h:.0f}시간째부터 헛알림**이 나간다.",
-            "아무 일도 없는 집에 복지사가 출동한다. 온살핌은 "
+            f"기기 계층이 없으면 **전원이 나간 지 {h:.0f}시간째부터 원인을 모르는 '긴급'**이 나간다.",
+            "기기 점검이 필요한 집인데 안부 확인부터 하게 된다. 온살핌은 "
             f"{cm.STALE_FACTOR*PERIOD_S}초 만에 '점검 필요'로 띄운다 — 사람이 아니라 기기 문제라고.",
+            "",
+        ]
+    if n_welfare:
+        out += [
+            f"**두절이 긴급 기준({IDLE_MIN//60}시간)보다 길어진 {n_welfare}건은 '점검 필요'에 안부 확인 요청을 붙였다.**",
+            "기기가 정상이었다면 긴급 확인이 떴을 시점이라, 그 사이 쓰러졌을 가능성을 지울 수 없기 때문이다",
+            "(판정 보류가 무활동 알림을 영원히 막으면 두절 중에 쓰러진 사람을 끝내 모른다).",
+            f"이 {n_welfare}건을 헛알림으로 치면 온살핌도 {fa_o + n_welfare}건이다. 다만 원인(기기)을 붙인 확인 요청이라",
+            "원인을 모르는 '긴급 무활동'과는 대응이 다르다 — 기기 점검과 안부 전화를 함께 보낸다.",
             "",
         ]
 
@@ -161,8 +174,9 @@ def to_markdown(rows):
     for r in rows:
         mark = lambda got: f"{name(got)} {'✅' if got == r['want'] else '❌'}"
         star = " ※" if r["name"] in LIMITATION else ""
+        welfare = " + 안부 확인" if r["welfare"] else ""
         out.append(f"| {r['name']}{star} | {r['truth']} | {name(r['want'])} | "
-                   f"{mark(r['ours'])} | {mark(r['ablated'])} |")
+                   f"{mark(r['ours'])}{welfare} | {mark(r['ablated'])} |")
 
     out += [
         "",
