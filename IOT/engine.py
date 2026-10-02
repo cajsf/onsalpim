@@ -49,6 +49,7 @@ RESET_BACKUP_DIR = os.path.join(DATA_DIR, "reset_backup")   # 시연 초기화�
 PENDING, APPROVED = "pending", "approved"
 ALERT_KEEP = 100        # 알림 이력 보관 개수
 HISTORY_KEEP_S = 24 * 3600   # 세대 타임라인 보관 기간
+SEV_KEEP_S = 35 * 86400      # 위험도 변화만은 더 오래 둔다 — 월간 보고가 한 달 치를 본다 (바뀔 때만 남아 작다)
 MOVE_GAP_S = 60              # 움직임 표시 간격 — 5초마다 오는 움직임을 전부 남기면 하루 1만 건이 넘는다
 STATS_KEEP_DAYS = 35         # 시간별 집계 보관 기간
 STATS_MAX_STEP_S = 60        # 판정 사이가 이보다 벌어지면(엔진 꺼짐·멈춤) 그 구간은 어느 상태로도 세지 않는다
@@ -1384,6 +1385,7 @@ def append_history(results, gap_since=None, now=None):
     """
     now = now or datetime.now()
     cutoff = (now - timedelta(seconds=HISTORY_KEEP_S)).isoformat(timespec="seconds")
+    sev_cutoff = (now - timedelta(seconds=SEV_KEEP_S)).isoformat(timespec="seconds")
     hist = load_history()
     dirty = False
     for r in results:
@@ -1402,9 +1404,9 @@ def append_history(results, gap_since=None, now=None):
             h["seen"] = a
             dirty = True
         # 보관 기간 밖은 버리되, 구간의 시작 상태를 알 수 있게 위험도는 마지막 하나를 남긴다
-        old = [e for e in h["sev"] if e[0] < cutoff]
+        old = [e for e in h["sev"] if e[0] < sev_cutoff]
         if len(old) > 1:
-            h["sev"] = old[-1:] + [e for e in h["sev"] if e[0] >= cutoff]
+            h["sev"] = old[-1:] + [e for e in h["sev"] if e[0] >= sev_cutoff]
             dirty = True
         if h["move"] and h["move"][0] < cutoff:
             h["move"] = [t for t in h["move"] if t >= cutoff]
@@ -1684,6 +1686,80 @@ def end_absence(absence_id, by="복지사", now=None):
         with open(ABSENCES_FILE, "w", encoding="utf-8") as f:
             json.dump(items, f, ensure_ascii=False, indent=1)
     return {"ok": True, "errors": [], "absence": a}
+
+
+# ---------- 월간 보고 초안 ----------
+# 2026 사업안내가 월간보고에 '5일 이상 활동미감지·전원차단·데이터미수신 대상자 명단(사유 포함)'을
+# 새로 넣었지만 사유를 나누는 기준은 없다. 엔진이 남긴 위험도 기록으로 그 명단의 '초안'을 만든다.
+# 사유는 판정이 붙인 라벨이고, 확정은 복지사가 한다 — 대응 메모를 '확인'으로 옆에 둔다.
+# 공식 서식은 보지 못했다. 항목 이름만 따랐다.
+
+REPORT_MIN_S = 5 * 86400
+REPORT_KINDS = {
+    # 서버는 전원이 나간 것과 통신만 끊긴 것을 가를 수 없다 — 둘 다 '데이터가 안 온다'로만 보인다
+    "CHECK_DEVICE": ("기기", "데이터 미수신 (전원 차단 또는 통신 두절) — 움직임 판정은 보류"),
+    "URGENT": ("생활", "활동 미감지 (기기 통신은 정상)"),
+}
+
+
+def _report_notes(home, a, b, alerts, actions):
+    """구간 [a, b] 안에 이 세대에 난 알림의 대응 메모 — 복지사가 확인한 사유."""
+    notes = []
+    for al in alerts:
+        if al["home"] != home or not (a <= al["ts"] <= b):
+            continue
+        for l in (actions.get(alert_id(al)) or {}).get("log", []):
+            if l.get("memo"):
+                notes.append({"at": l["at"], "status": ACTION_STATUSES.get(l["status"], l["status"]), "memo": l["memo"]})
+    return sorted(notes, key=lambda n: n["at"])
+
+
+def monthly_report(month, min_s=REPORT_MIN_S, now=None):
+    """month('YYYY-MM')에 걸친 구간 중 min_s 이상 이어진 것. 진행 중이면 end=None.
+
+    위험도 구간: 기록은 바뀔 때만 남으므로 한 항목이 곧 한 구간이다. None(엔진 꺼짐)도 구간을 끊는다 —
+    판정하지 않은 시간을 이어 붙이면 실제보다 길게 보인다.
+    """
+    now = now or datetime.now()
+    m0 = datetime.strptime(month, "%Y-%m")      # 형식이 틀리면 ValueError — API 가 400 으로 돌려준다
+    lo = m0.isoformat(timespec="seconds")
+    hi = (m0 + timedelta(days=32)).replace(day=1).isoformat(timespec="seconds")
+    # 진행 중 구간의 끝은 엔진이 마지막으로 돈 시각 — 엔진이 꺼져 있었다면 '지금'까지 늘리지 않는다
+    last_run = min(_last_heartbeat() or now.isoformat(timespec="seconds"), now.isoformat(timespec="seconds"))
+    actions = load_actions()
+    alerts = {alert_id(a): a for a in [v["alert"] for v in actions.values() if v.get("alert")] + load_alerts()}
+    alerts = list(alerts.values())
+
+    rows = []
+    for home, h in load_history().items():
+        sev = h["sev"]
+        for i, (a, s) in enumerate(sev):
+            if s not in REPORT_KINDS:
+                continue
+            nxt = sev[i + 1][0] if i + 1 < len(sev) else None
+            b = nxt or last_run
+            if _gap_s(a, b) < min_s or not (a < hi and b > lo):
+                continue
+            kind, draft = REPORT_KINDS[s]
+            hit = [al for al in alerts if al["home"] == home and a <= al["ts"] <= b]
+            if s == "CHECK_DEVICE" and any("안부 확인" in (al.get("reason") or "") for al in hit):
+                draft += " · 두절 중 긴급 기준을 넘어 안부 확인을 요청함"
+            rows.append({"home": home, "kind": kind, "start": a, "end": nxt, "duration_s": _gap_s(a, b),
+                         "draft": draft, "notes": _report_notes(home, a, b, alerts, actions)})
+
+    # 부재 등록 기간 — 엔진은 그동안 무활동을 판정하지 않지만, 국가 장비라면 활동미감지로 올라갈 기간이다
+    for ab in load_absences():
+        a = ab["start"]
+        b = min(ab.get("ended_at") or ab["end"], ab["end"])
+        live = b > now.isoformat(timespec="seconds")
+        b_eff = now.isoformat(timespec="seconds") if live else b
+        if b_eff <= a or _gap_s(a, b_eff) < min_s or not (a < hi and b_eff > lo):
+            continue
+        rows.append({"home": ab["home"], "kind": "부재", "start": a, "end": None if live else b,
+                     "duration_s": _gap_s(a, b_eff),
+                     "draft": f"외출·부재 — 부재 등록 ({ab['reason']}, 등록: {ab.get('by', '복지사')})",
+                     "notes": _report_notes(ab["home"], a, b_eff, alerts, actions)})
+    return sorted(rows, key=lambda r: (r["home"], r["start"]))
 
 
 # ---------- 조건 판단 ----------

@@ -15,6 +15,8 @@ engine.HISTORY_FILE = os.path.join(TMP, "h.json")   # 실제 파일은 건드리
 engine.STATS_FILE = os.path.join(TMP, "s.json")
 engine.ALERTS_FILE = os.path.join(TMP, "a.json")
 engine.ACTIONS_FILE = os.path.join(TMP, "act.json")
+engine.ABSENCES_FILE = os.path.join(TMP, "ab.json")
+engine.HEARTBEAT_FILE = os.path.join(TMP, "hb.json")
 T0 = datetime(2026, 9, 18, 10, 0, 0)
 
 
@@ -47,9 +49,12 @@ h = sweep(900, "URGENT", at(18), gap=at(320))
 assert h["sev"][-2:] == [[at(320), None], [at(900), "URGENT"]], "엔진이 꺼졌던 구간은 공백"
 
 h = sweep(90000, "NORMAL", at(89990))
-assert h["sev"][0][0] < at(90000 - engine.HISTORY_KEEP_S) and len(h["sev"]) == 2, \
-    "보관 기간 밖은 버리되 시작 상태 하나는 남김"
-assert h["move"] == [at(89990)]
+assert len(h["sev"]) == 5, "위험도 변화는 월간 보고 때문에 24시간이 지나도 남김"
+assert h["move"] == [at(89990)], "움직임은 24시간만"
+
+h = sweep(engine.SEV_KEEP_S + 1000, "URGENT", at(89990))
+assert h["sev"][0] == [at(900), "URGENT"] and len(h["sev"]) == 3, \
+    "위험도도 보관 기간 밖은 버리되 시작 상태 하나는 남김"
 
 print("타임라인 점검 통과")
 
@@ -148,3 +153,56 @@ assert not engine.record_action(m["id"], "edit", "메모")["ok"], "조치 완료
 assert next(a for a in engine.alerts_with_actions() if a["id"] == m["id"])["state"] == "late"
 
 print("알림 대응 점검 통과")
+
+
+# ── 월간 보고 초안 ── 2026-10 기준, d(n) = 10/1 + n일
+M0 = datetime(2026, 10, 1)
+def d(n):
+    return (M0 + timedelta(days=n)).isoformat(timespec="seconds")
+
+
+def put(path, obj):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False)
+
+
+put(engine.HISTORY_FILE, {
+    "202": {"sev": [[d(0), "NORMAL"], [d(1), "CHECK_DEVICE"], [d(7), "NORMAL"]], "move": [], "seen": None},
+    "102": {"sev": [[d(0), "NORMAL"], [d(2), "URGENT"], [d(3), "NORMAL"]], "move": [], "seen": None},
+    "201": {"sev": [[d(0), "NORMAL"], [d(10), "URGENT"]], "move": [], "seen": None},          # 진행 중
+    "301": {"sev": [[d(-8), "CHECK_DEVICE"], [d(-1), "NORMAL"]], "move": [], "seen": None},   # 9월에 끝남
+    "302": {"sev": [[d(1), "CHECK_DEVICE"], [d(3), None], [d(4), "CHECK_DEVICE"], [d(6), "NORMAL"]],
+            "move": [], "seen": None},                                                       # 엔진 꺼짐으로 끊김
+})
+put(engine.HEARTBEAT_FILE, {"last_run": d(16)})     # 엔진은 10/17 에 멈췄다
+welfare = {"ts": d(2), "home": "202", "from": "CHECK_DEVICE", "to": "CHECK_DEVICE",
+           "reason": "안부 확인 필요 — 통신 두절, 마지막 움직임 9시간 전"}
+put(engine.ALERTS_FILE, [welfare])
+put(engine.ACTIONS_FILE, {engine.alert_id(welfare): {"alert": welfare, "log": [
+    {"status": "done", "memo": "방문 — 콘센트가 빠져 있었음, 어르신 무사", "by": "복지사", "at": d(2.1)}]}})
+put(engine.ABSENCES_FILE, [
+    {"id": 1, "home": "102", "start": d(5), "end": d(12), "reason": "입원", "by": "복지사"},
+    {"id": 2, "home": "101", "start": d(5), "end": d(7), "reason": "가족 방문", "by": "복지사"},
+])
+
+rows = engine.monthly_report("2026-10", now=datetime(2026, 10, 21))
+got = {(r["home"], r["kind"]) for r in rows}
+assert got == {("202", "기기"), ("201", "생활"), ("102", "부재")}, got
+r202 = next(r for r in rows if r["home"] == "202")
+assert r202["duration_s"] == 6 * 86400 and r202["end"] == d(7)
+assert "안부 확인" in r202["draft"], "두절 중 안부 확인 요청이 있었으면 사유에 붙인다"
+assert r202["notes"][0]["memo"].startswith("방문"), "복지사의 대응 메모가 확인 사유로 붙는다"
+r201 = next(r for r in rows if r["home"] == "201")
+assert r201["end"] is None and r201["duration_s"] == 6 * 86400, "진행 중 구간은 엔진이 마지막으로 돈 시각까지만"
+assert "302" not in {h for h, _ in got}, "엔진이 꺼진 구간으로 끊긴 두 구간을 이어 붙이지 않는다"
+assert "301" not in {h for h, _ in got}, "다른 달에 끝난 구간은 넣지 않는다"
+assert ("102", "생활") in {(r["home"], r["kind"]) for r in engine.monthly_report("2026-10", min_s=3600, now=datetime(2026, 10, 21))}, \
+    "기준을 짧게 주면 짧은 구간도 나온다 (시연용)"
+assert engine.monthly_report("2026-09", now=datetime(2026, 10, 21))[0]["home"] == "301", "9월엔 9월 구간"
+try:
+    engine.monthly_report("10월")
+    raise AssertionError("형식이 틀린 달은 거부해야 한다")
+except ValueError:
+    pass
+
+print("월간 보고 점검 통과")

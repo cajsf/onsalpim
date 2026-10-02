@@ -4,7 +4,7 @@ api_server.py — 웹 대시보드용 REST API 서버.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 from flask import Flask, jsonify, request
@@ -235,7 +235,23 @@ def alert_action(alert_id):
 def home_history(home):
     """세대 타임라인 — 엔진이 판정하며 남긴 위험도 변화와 움직임 (최근 24시간)."""
     h = engine.load_history().get(home) or {"sev": [], "move": []}
-    return jsonify({"sev": h["sev"], "move": h["move"]})
+    # 위험도 변화는 월간 보고 때문에 35일을 두지만 타임라인은 24시간만 그린다 — 구간의 시작 상태 하나는 같이
+    cut = (datetime.now() - timedelta(seconds=engine.HISTORY_KEEP_S)).isoformat(timespec="seconds")
+    sev = h["sev"]
+    first = next((i for i, e in enumerate(sev) if e[0] >= cut), len(sev))
+    return jsonify({"sev": sev[max(first - 1, 0):], "move": h["move"]})
+
+
+@app.route("/api/report/monthly")
+def monthly_report():
+    """월간 보고 초안 — month=YYYY-MM, min_s=최소 지속 초 (기본 5일. 시연은 짧게)."""
+    month = request.args.get("month") or datetime.now().strftime("%Y-%m")
+    try:
+        min_s = max(int(request.args.get("min_s", engine.REPORT_MIN_S)), 0)
+        rows = engine.monthly_report(month, min_s)
+    except ValueError:
+        return jsonify({"error": "month 는 YYYY-MM, min_s 는 정수(초)여야 합니다."}), 400
+    return jsonify({"month": month, "min_s": min_s, "rows": rows})
 
 
 @app.route("/api/stats")
