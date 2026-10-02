@@ -302,10 +302,11 @@ def _apply_override(sentence, out, devices, steps):
                             f"'{ov_type}' 기준을 쓰는 기존 규칙을 코드가 찾았습니다"})
     steps.append({"id": "scope", "label": STEP_LABELS["scope"], "status": "ok",
                   "detail": f"{home}호 예외 {scope._fmt_minutes(value)} 적용 가능"})
+    # '6시간(360분)'처럼 분을 같이 보인다 — 1시간 미만이면 '2분(2분)'이 되니 붙이지 않는다
+    said = scope._fmt_minutes(value) + (f"({value}분)" if float(value) >= 60 else "")
     read_as = (f"{home}호 무활동 기준을 지금 {scope._fmt_minutes(changed[0])}에서 "
-               f"{scope._fmt_minutes(changed[1])} {'줄여' if sign < 0 else '늘려'} "
-               f"{scope._fmt_minutes(value)}({value}분)으로"
-               if changed else f"{home}호 무활동 기준을 {scope._fmt_minutes(value)}({value}분)으로")
+               f"{scope._fmt_minutes(changed[1])} {'줄여' if sign < 0 else '늘려'} {said}으로"
+               if changed else f"{home}호 무활동 기준을 {said}으로")
     ask = (f"문장에서 읽은 내용: {read_as}. "
            + ("아래 규칙에 적용할까요?" if len(candidates) == 1
               else f"적용할 규칙이 {len(candidates)}개입니다. 하나를 골라 주세요."))
@@ -1355,8 +1356,9 @@ def append_alerts(results):
         return []
     log = load_alerts()
     now = datetime.now().isoformat(timespec="seconds")
+    # welfare: 위험도는 '점검 필요' 그대로인데 두절이 길어져 안부 확인도 필요해진 알림 — 화면이 긴급처럼 띄운다
     new = [{"ts": now, "home": r["home"], "from": r["from"],
-            "to": r["severity"], "reason": r["reason"]} for r in changed]
+            "to": r["severity"], "reason": r["reason"], "welfare": bool(r.get("welfare_check"))} for r in changed]
     log = (new + log)[:ALERT_KEEP]     # 최신이 앞
     with open(ALERTS_FILE, "w", encoding="utf-8") as f:
         json.dump(log, f, ensure_ascii=False, indent=2)
@@ -1744,7 +1746,8 @@ def monthly_report(month, min_s=REPORT_MIN_S, now=None):
                 continue
             kind, draft = REPORT_KINDS[s]
             hit = [al for al in alerts if al["home"] == home and a <= al["ts"] <= b]
-            if s == "CHECK_DEVICE" and any("안부 확인" in (al.get("reason") or "") for al in hit):
+            # welfare 표시는 10/2부터 남는다 — 그 전 알림은 사유 문구로 본다
+            if s == "CHECK_DEVICE" and any(al.get("welfare") or "안부 확인" in (al.get("reason") or "") for al in hit):
                 draft += " · 두절 중 긴급 기준을 넘어 안부 확인을 요청함"
             cut = nxt is None and not engine_live
             rows.append({"home": home, "kind": kind, "start": a, "end": b if cut else nxt, "cut": cut,

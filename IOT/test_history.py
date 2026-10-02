@@ -140,6 +140,10 @@ new = engine.append_alerts([
     {"home": "106", "changed": True, "from": None, "severity": "NORMAL", "reason": "정상"},
 ])
 assert [a["home"] for a in new] == ["103"], "처음부터 이상인 세대만 알림"
+assert new[0]["welfare"] is False
+w = engine.append_alerts([{"home": "103", "changed": True, "from": "CHECK_DEVICE", "severity": "CHECK_DEVICE",
+                           "reason": "안부 확인 필요 — 두절", "welfare_check": True}])
+assert w[0]["welfare"] is True, "두절이 길어져 안부 확인으로 올라간 알림은 표시를 남긴다 (화면이 긴급처럼 띄운다)"
 assert next(a for a in engine.alerts_with_actions() if a["home"] == "103")["state"] == "open"
 
 # 응답 없이 지나간 알림은 '뒤늦게 확인'으로 끝낸다

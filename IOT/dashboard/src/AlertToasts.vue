@@ -24,7 +24,7 @@ watch(() => props.alerts, (list) => {
   ids.forEach((id) => seen.add(id))
   if (fresh.length) {
     shown.value = [...fresh.map((a) => a.id), ...shown.value]
-    if (props.sound) beep(fresh.some((a) => a.to === 'URGENT'))
+    if (props.sound) beep(fresh.some((a) => a.to === 'URGENT' || a.welfare))
   }
 })
 
@@ -65,9 +65,10 @@ function beep(urgent) {
 
 <template>
   <div class="toasts" aria-live="assertive">
-    <div v-for="a in toasts.slice(0, MAX)" :key="a.id" class="toast" :class="'t-' + SEV[a.to]?.cls" role="alert">
+    <div v-for="a in toasts.slice(0, MAX)" :key="a.id" class="toast" :class="'t-' + (a.welfare ? 'urgent' : SEV[a.to]?.cls)" role="alert">
       <div class="t-head">
-        <span class="tag" :class="'tag-' + SEV[a.to]?.cls">{{ SEV[a.to]?.ko }}</span>
+        <span v-if="a.welfare" class="tag tag-urgent">안부 확인</span>
+        <span v-else class="tag" :class="'tag-' + SEV[a.to]?.cls">{{ SEV[a.to]?.ko }}</span>
         <strong>{{ a.home }}호</strong>
         <span class="mono t-time">{{ timeOf(a.ts) }}</span>
         <button class="t-x" title="팝업 닫기 (알림은 '대응 필요'로 남습니다)" @click="dismiss(a.id)">×</button>

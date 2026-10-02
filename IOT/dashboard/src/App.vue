@@ -208,6 +208,8 @@ const harnessNote = computed(() => {
   return null
 })
 
+const welfareCount = computed(() => homes.value.filter((h) => h.welfare_check).length)
+
 const counts = computed(() => {
   const c = { NORMAL: 0, WATCH: 0, URGENT: 0, CHECK_DEVICE: 0 }
   for (const h of homes.value) if (c[h.severity] !== undefined) c[h.severity]++
@@ -663,7 +665,9 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div>
               <p class="kpi-label">기기 이상</p>
               <p class="kpi-value">{{ counts.CHECK_DEVICE }} <span>건</span></p>
-              <p class="kpi-foot">통신 두절 — 생활 판정 보류</p>
+              <p class="kpi-foot">
+                통신 두절 — 생활 판정 보류<template v-if="welfareCount"> · <b class="kpi-welfare">그중 안부 확인 {{ welfareCount }}</b></template>
+              </p>
             </div>
           </article>
           <article class="kpi kpi-green clickable" role="button" tabindex="0" title="승인 대기 규칙 보기"
@@ -758,6 +762,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   <td>
                     <span class="tag" :class="'tag-' + SEV[h.severity]?.cls">
                       {{ SEV[h.severity]?.ko }}
+                    </span>
+                    <!-- 두절이 길어져 긴급 기준을 넘음 — 원인은 기기 그대로, 사람 확인도 보낸다 -->
+                    <span v-if="h.welfare_check" class="tag tag-urgent welfare" title="통신 두절이 긴급 기준보다 길어졌습니다">
+                      안부 확인
                     </span>
                   </td>
                   <td class="rule-cell">
@@ -1363,6 +1371,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; }
 .kpi-value span { font-size: 0.82rem; font-weight: 600; color: var(--muted); }
 .kpi-foot { font-size: 0.68rem; color: var(--muted); }
+.kpi-welfare { color: var(--urgent); }
+.tag.welfare { margin-left: 0.3rem; }
 .kpi-blue { background: #eff5ff; }
 .kpi-red { background: var(--urgent-soft); }
 .kpi-orange { background: var(--device-soft); }
