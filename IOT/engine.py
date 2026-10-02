@@ -1719,13 +1719,15 @@ def monthly_report(month, min_s=REPORT_MIN_S, now=None):
 
     위험도 구간: 기록은 바뀔 때만 남으므로 한 항목이 곧 한 구간이다. None(엔진 꺼짐)도 구간을 끊는다 —
     판정하지 않은 시간을 이어 붙이면 실제보다 길게 보인다.
+    엔진이 멈춘 채면 마지막 구간은 '진행 중'이 아니라 마지막 판정에서 끊는다 (cut=True) — 그 뒤는 모른다.
     """
     now = now or datetime.now()
+    now_iso = now.isoformat(timespec="seconds")
     m0 = datetime.strptime(month, "%Y-%m")      # 형식이 틀리면 ValueError — API 가 400 으로 돌려준다
     lo = m0.isoformat(timespec="seconds")
     hi = (m0 + timedelta(days=32)).replace(day=1).isoformat(timespec="seconds")
-    # 진행 중 구간의 끝은 엔진이 마지막으로 돈 시각 — 엔진이 꺼져 있었다면 '지금'까지 늘리지 않는다
-    last_run = min(_last_heartbeat() or now.isoformat(timespec="seconds"), now.isoformat(timespec="seconds"))
+    last_run = min(_last_heartbeat() or now_iso, now_iso)
+    engine_live = _gap_s(last_run, now_iso) <= STATS_MAX_STEP_S
     actions = load_actions()
     alerts = {alert_id(a): a for a in [v["alert"] for v in actions.values() if v.get("alert")] + load_alerts()}
     alerts = list(alerts.values())
@@ -1744,7 +1746,9 @@ def monthly_report(month, min_s=REPORT_MIN_S, now=None):
             hit = [al for al in alerts if al["home"] == home and a <= al["ts"] <= b]
             if s == "CHECK_DEVICE" and any("안부 확인" in (al.get("reason") or "") for al in hit):
                 draft += " · 두절 중 긴급 기준을 넘어 안부 확인을 요청함"
-            rows.append({"home": home, "kind": kind, "start": a, "end": nxt, "duration_s": _gap_s(a, b),
+            cut = nxt is None and not engine_live
+            rows.append({"home": home, "kind": kind, "start": a, "end": b if cut else nxt, "cut": cut,
+                         "duration_s": _gap_s(a, b),
                          "draft": draft, "notes": _report_notes(home, a, b, alerts, actions)})
 
     # 부재 등록 기간 — 엔진은 그동안 무활동을 판정하지 않지만, 국가 장비라면 활동미감지로 올라갈 기간이다
@@ -1755,7 +1759,7 @@ def monthly_report(month, min_s=REPORT_MIN_S, now=None):
         b_eff = now.isoformat(timespec="seconds") if live else b
         if b_eff <= a or _gap_s(a, b_eff) < min_s or not (a < hi and b_eff > lo):
             continue
-        rows.append({"home": ab["home"], "kind": "부재", "start": a, "end": None if live else b,
+        rows.append({"home": ab["home"], "kind": "부재", "start": a, "end": None if live else b, "cut": False,
                      "duration_s": _gap_s(a, b_eff),
                      "draft": f"외출·부재 — 부재 등록 ({ab['reason']}, 등록: {ab.get('by', '복지사')})",
                      "notes": _report_notes(ab["home"], a, b_eff, alerts, actions)})

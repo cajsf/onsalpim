@@ -25,6 +25,8 @@ export const api = {
   getAlerts: (limit = 20) => request(`/alerts?limit=${limit}`),
   // 세대 타임라인 — 엔진이 남긴 위험도 변화·움직임 (최근 24시간)
   getHistory: (home) => request(`/history/${encodeURIComponent(home)}`),
+  // 월간 보고 초안 — month 'YYYY-MM', minS = 최소 지속 초 (보고 기준 5일, 시연은 짧게)
+  getMonthlyReport: (month, minS) => request(`/report/monthly?month=${month}&min_s=${minS}`),
   // value 를 같이 보내면 비어 있던 기준값을 채우면서 승인한다
   // replace=true → 같은 세대·같은 위험도로 겹치는 기존 규칙을 끄고 이 규칙으로 대체
   async approveRule(id, value, replace = false) {

@@ -7,6 +7,7 @@ import HomeTimeline from './HomeTimeline.vue'
 import HomeActions from './HomeActions.vue'
 import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
+import MonthlyReport from './MonthlyReport.vue'
 import { SEV, SEV_ORDER, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
 
 // 통계 분석은 세대별 활동 이력이 쌓여야 의미가 있는데 아직 저장소가 없어 '준비 중'으로 둔다.
@@ -15,6 +16,7 @@ const NAV = [
   { id: 'homes',     label: '세대 관리', icon: 'users', ready: true },
   { id: 'rules',     label: '규칙 관리', icon: 'doc',   ready: true },
   { id: 'alerts',    label: '알림 이력', icon: 'bell',  ready: true },
+  { id: 'report',    label: '월간 보고', icon: 'doc',   ready: true },
   { id: 'devices',   label: '기기 관리', icon: 'chip',  ready: true },
   { id: 'stats',     label: '통계 분석', icon: 'chart', ready: false },
 ]
@@ -1188,6 +1190,21 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <AlertItem v-for="a in shownAlerts" :key="a.id" :a="a" :focused="a.id === focusAlertId"
                        @changed="onAlertChanged" />
           </ul>
+        </section>
+      </main>
+
+      <!-- ────────── 월간 보고 ────────── -->
+      <main v-else-if="activeView === 'report'" class="content">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>월간 보고 초안 — 5일 이상 활동 미감지·전원 차단·데이터 미수신</h2>
+              <p class="hint">
+                엔진이 남긴 판정 기록에서 기준 이상 이어진 구간을 뽑아, 사유를 기기·생활·부재로 나눈 초안을 붙입니다.
+              </p>
+            </div>
+          </div>
+          <MonthlyReport />
         </section>
       </main>
 

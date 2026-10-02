@@ -193,7 +193,11 @@ assert r202["duration_s"] == 6 * 86400 and r202["end"] == d(7)
 assert "안부 확인" in r202["draft"], "두절 중 안부 확인 요청이 있었으면 사유에 붙인다"
 assert r202["notes"][0]["memo"].startswith("방문"), "복지사의 대응 메모가 확인 사유로 붙는다"
 r201 = next(r for r in rows if r["home"] == "201")
-assert r201["end"] is None and r201["duration_s"] == 6 * 86400, "진행 중 구간은 엔진이 마지막으로 돈 시각까지만"
+assert r201["cut"] and r201["end"] == d(16) and r201["duration_s"] == 6 * 86400, \
+    "엔진이 멈췄으면 '진행 중'이 아니라 마지막 판정에서 끊는다"
+put(engine.HEARTBEAT_FILE, {"last_run": d(20)})     # 엔진이 지금 돌고 있으면
+r201 = next(r for r in engine.monthly_report("2026-10", now=datetime(2026, 10, 21)) if r["home"] == "201")
+assert r201["end"] is None and not r201["cut"] and r201["duration_s"] == 10 * 86400, "진행 중"
 assert "302" not in {h for h, _ in got}, "엔진이 꺼진 구간으로 끊긴 두 구간을 이어 붙이지 않는다"
 assert "301" not in {h for h, _ in got}, "다른 달에 끝난 구간은 넣지 않는다"
 assert ("102", "생활") in {(r["home"], r["kind"]) for r in engine.monthly_report("2026-10", min_s=3600, now=datetime(2026, 10, 21))}, \
