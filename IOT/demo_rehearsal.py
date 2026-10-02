@@ -36,6 +36,9 @@ S1 = "전체 세대에서 오래 움직임이 없으면 긴급으로 표시해�
 S3 = "102호만 6시간으로 바꿔줘"
 S5 = "102호 기준 30분 줄여줘"
 S6 = "102호 온도가 30도 넘으면 불 켜줘"
+# 전시에서 8시간을 기다릴 수 없다 — 꽂은 202호만 기준을 줄여, 뽑은 뒤 몇 분 안에 '안부 확인'이 붙는 걸 보인다.
+# 시간을 몰래 당기지 않고 화면에 보이는 예외로 줄인다 (표에 "예외 2분 (공통 8시간)"이 뜬다)
+S4 = "202호만 무활동 기준을 2분으로 바꿔줘"
 LATE_HOME = "202"    # 처음엔 꽂지 않고 4단계에서 꽂았다 뽑는 보드
 
 
@@ -100,13 +103,26 @@ def run_once(all_devs, start_rules=()):
     else:
         got.append(("4 입주", False, f"트리에 {LATE_HOME}호가 없다 — 보드를 꽂아야 볼 수 있다"))
 
-    # 4-2. 202호 보드를 뽑는다 — 방금 입주해 정상이던 세대의 보고가 끊겼다 (보고 주기 5초 × 3 = 15초)
+    # 4-2. 전시용 기준 — 202호만 2분. 3단계와 같은 예외 기능이다
+    r4 = engine.add_rule_from_sentence(S4, devs)
+    if r4["status"] == "needs_choice":
+        c = r4["choice"]
+        ap4 = engine.apply_override_to(r4["candidates"][0]["id"], c["home"], c["value"], devices=devs)
+        got.append(("4 전시용 기준", ap4["ok"] and c["home"] == LATE_HOME and c["value"] == "2",
+                    f"카드: {' '.join(r4['questions'])}"))
+    else:
+        got.append(("4 전시용 기준", False, f"{r4['status']} | {' '.join(r4['errors'] + r4['questions'])} — 직접 넣고 계속"))
+        engine.apply_override_to(base_id, LATE_HOME, "2", devices=devs)
+    levels202 = engine.effective_idle_levels(engine.load_rules(), devs)[0].get(LATE_HOME) or []
+
+    # 4-3. 202호 보드를 뽑는다 — 뽑기 직전 손을 흔들었다(30초 전 움직임). 보고 주기 5초 × 3 = 15초
     now = datetime.now()
-    j = cm.judge({"ts": now - timedelta(seconds=20), "value": "0", "period_s": 5},
-                 now - timedelta(minutes=5), 360, now=now)
+    unplugged = {"ts": now - timedelta(seconds=20), "value": "0", "period_s": 5}
+    waved = now - timedelta(seconds=30)
+    j = cm.judge(unplugged, waved, None, now=now, idle_levels=levels202)
     j14 = cm.judge({"ts": now - timedelta(seconds=14), "value": "0", "period_s": 5},
-                   now - timedelta(minutes=5), 360, now=now)
-    got.append(("4 두절", j["severity"] == cm.CHECK_DEVICE,
+                   waved, None, now=now, idle_levels=levels202)
+    got.append(("4 두절", j["severity"] == cm.CHECK_DEVICE and not j["welfare_check"],
                 f"20초 미수신 → {scope.SEV_KO.get(j['severity'], j['severity'])} ({j['reason']}) | "
                 f"14초 → {scope.SEV_KO.get(j14['severity'], j14['severity'])} (AI 호출 없음)"))
 
@@ -134,6 +150,13 @@ def run_once(all_devs, start_rules=()):
     got.append(("6 차단", r6["status"] == "rejected" and not r6.get("ai_down"),
                 f"{r6['status']} ({who}) | {' '.join(r6['errors'] + r6['questions'])} | 안내: 세대 "
                 f"{', '.join(av['homes'])}호 · 센서 {', '.join(scope.TYPE_KO.get(t, t) for t in av['types'])}"))
+
+    # 7. 5·6단계를 하는 사이 202호는 끊긴 채 2분이 지났다 — 원인(기기)은 그대로, 안부 확인이 붙는다
+    later = now + timedelta(seconds=100)
+    j7 = cm.judge(unplugged, waved, None, now=later, idle_levels=levels202)
+    got.append(("7 안부 확인", j7["severity"] == cm.CHECK_DEVICE and j7["welfare_check"],
+                f"뽑은 뒤 약 2분 → {scope.SEV_KO.get(j7['severity'], j7['severity'])}"
+                f"{' + 안부 확인' if j7['welfare_check'] else ''} ({j7['reason']})"))
     return got
 
 
