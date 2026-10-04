@@ -1,0 +1,18 @@
+[Unit]
+Description=Onsalpim rule engine and care watchdog loop
+After=network-online.target onsalpim-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@DEPLOY_USER@
+Group=@DEPLOY_USER@
+WorkingDirectory=@DEPLOY_ROOT@/IOT
+Environment=PYTHONUTF8=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@DEPLOY_ROOT@/IOT/.venv/bin/python -c "import engine; engine.loop(interval=4)"
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

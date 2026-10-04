@@ -1,4 +1,5 @@
-const BASE = '/api'
+// 로컬·VM(Nginx): '/api' — Render Static 등 분리 배포: VITE_API_BASE=https://xxx.onrender.com/api
+const BASE = import.meta.env.VITE_API_BASE || '/api'
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {

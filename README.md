@@ -88,6 +88,13 @@ npm run dev --prefix dashboard                          # 대시보드 :5173
 
 가상 세대 모드: `move` 정상 · `still` 무활동→긴급 · `batt=11` 배터리 부족→주의 · 목록에서 빼면 두절→점검 필요
 
+## 배포
+
+| 방식 | 문서 |
+|------|------|
+| **Render / Railway / 맥+Cloudflare Tunnel** (VM SSH 없음) | **[deploy/paas/README.md](deploy/paas/README.md)** · 루트 `render.yaml` |
+| **Oracle / Google VM** (Nginx + Gunicorn + systemd) | **[deploy/README.md](deploy/README.md)** |
+
 ## 검증
 
 ```bash

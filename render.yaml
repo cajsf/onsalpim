@@ -1,0 +1,32 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# New → Blueprint → 이 저장소 연결 후 배포.
+# Dashboard Static Site 의 VITE_API_BASE 는 API 서비스 URL 배포 후 수동 설정:
+#   https://<onsalpim-api>.onrender.com/api
+
+services:
+  - type: web
+    name: onsalpim-api
+    runtime: python
+    rootDir: IOT
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start_paas.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PLATFORM_API_KEY
+        sync: false
+    healthCheckPath: /api/health
+
+  - type: web
+    name: onsalpim-dashboard
+    runtime: static
+    rootDir: IOT/dashboard
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE
+        sync: false
