@@ -3,8 +3,10 @@ import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { EngineBanner } from '@/components/EngineBanner';
 import { HomeListItem } from '@/components/HomeListItem';
+import { Screen } from '@/components/Screen';
+import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
-import { SEV_ORDER } from '@/lib/format';
+import { SEV_ORDER, stampOf } from '@/lib/format';
 import type { CareHome } from '@/lib/types';
 import { useNow } from '@/hooks/useNow';
 import { usePolling } from '@/hooks/usePolling';
@@ -32,31 +34,35 @@ export default function CareScreen() {
   const engine = data?.engine ?? null;
   const care = data?.care ?? null;
   const homes = useMemo(() => sortHomes(care?.homes ?? []), [care]);
+  const updatedHint = care?.updated ? `판정 ${stampOf(care.updated)}` : null;
 
   return (
-    <View style={styles.flex}>
-      <EngineBanner
-        engine={engine}
-        care={care}
-        loading={loading}
-        fetchError={error}
-      />
-      <FlatList
-        data={homes}
-        keyExtractor={(h) => h.home}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
-        ListEmptyComponent={
-          !loading ? (
-            <Text style={styles.empty}>표시할 세대가 없습니다.</Text>
-          ) : null
-        }
-        renderItem={({ item }) => <HomeListItem home={item} nowMs={nowMs} />}
-      />
-    </View>
+    <Screen>
+      <View style={styles.flex}>
+        <EngineBanner
+          engine={engine}
+          care={care}
+          loading={loading}
+          fetchError={error}
+          updatedHint={updatedHint}
+        />
+        <FlatList
+          data={homes}
+          keyExtractor={(h) => h.home}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={theme.brand} />}
+          ListEmptyComponent={
+            !loading ? <Text style={styles.empty}>표시할 세대가 없습니다.</Text> : null
+          }
+          renderItem={({ item }) => <HomeListItem home={item} nowMs={nowMs} />}
+        />
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#fafafa' },
-  empty: { textAlign: 'center', color: '#757575', marginTop: 40 },
+  flex: { flex: 1 },
+  listContent: { paddingTop: 8, paddingBottom: 24 },
+  empty: { textAlign: 'center', color: theme.muted, marginTop: 40 },
 });

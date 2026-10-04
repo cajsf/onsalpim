@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
 import type { PreviewResult } from '@/lib/types';
 
@@ -91,13 +92,21 @@ export function RulePreviewPanel({ ruleId, fillValue, replace, enabled }: Props)
 }
 
 const styles = StyleSheet.create({
-  box: { backgroundColor: '#f5f5f5', borderRadius: 8, padding: 12, gap: 6, marginTop: 8 },
-  title: { fontWeight: '700', fontSize: 14 },
-  muted: { color: '#757575', fontSize: 13, lineHeight: 18 },
-  warn: { color: '#e65100', fontSize: 13 },
+  box: {
+    backgroundColor: theme.surface2,
+    borderRadius: theme.radiusSm,
+    padding: 12,
+    gap: 6,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  title: { fontWeight: '700', fontSize: 14, color: theme.text },
+  muted: { color: theme.muted, fontSize: 13, lineHeight: 18 },
+  warn: { color: theme.watch, fontSize: 13 },
   kpi: { gap: 2 },
-  k: { fontSize: 12, color: '#616161' },
-  v: { fontSize: 18, fontWeight: '700', marginBottom: 6 },
-  hot: { color: '#c62828' },
-  row: { fontSize: 13, color: '#333' },
+  k: { fontSize: 12, color: theme.muted },
+  v: { fontSize: 18, fontWeight: '700', marginBottom: 6, color: theme.text },
+  hot: { color: theme.urgent },
+  row: { fontSize: 13, color: theme.text2 },
 });

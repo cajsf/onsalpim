@@ -2,6 +2,7 @@ import { SymbolView } from 'expo-symbols';
 import { Tabs } from 'expo-router';
 
 import Colors from '@/constants/Colors';
+import { theme } from '@/constants/theme';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { badgeText, useTabBadges } from '@/hooks/useTabBadges';
@@ -14,6 +15,11 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarInactiveTintColor: theme.muted,
+        tabBarStyle: {
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
+        },
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen
@@ -34,7 +40,7 @@ export default function TabLayout() {
         options={{
           title: '알림',
           tabBarBadge: badgeText(todoAlertCount),
-          tabBarBadgeStyle: { backgroundColor: '#c62828' },
+          tabBarBadgeStyle: { backgroundColor: theme.urgent },
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'bell.fill', android: 'notifications', web: 'notifications' }}
@@ -49,7 +55,7 @@ export default function TabLayout() {
         options={{
           title: '규칙',
           tabBarBadge: badgeText(pendingRuleCount),
-          tabBarBadgeStyle: { backgroundColor: '#f57f17' },
+          tabBarBadgeStyle: { backgroundColor: theme.watch },
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'doc.text.fill', android: 'description', web: 'description' }}

@@ -4,6 +4,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 
 import { AlertActions } from '@/components/AlertActions';
 import { SeverityTag } from '@/components/SeverityTag';
+import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
 import { SEV, stampOf } from '@/lib/format';
 import type { AlertRecord } from '@/lib/types';
@@ -84,12 +85,17 @@ export default function AlertDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#fafafa' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  err: { color: '#c62828' },
-  header: { padding: 16, backgroundColor: '#fff', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#ddd' },
-  ts: { color: '#757575', marginBottom: 4 },
-  home: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
+  flex: { flex: 1, backgroundColor: theme.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg },
+  err: { color: theme.urgent },
+  header: {
+    padding: theme.screenPad,
+    backgroundColor: theme.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.border,
+  },
+  ts: { color: theme.muted, marginBottom: 4 },
+  home: { fontSize: 22, fontWeight: '700', marginBottom: 8, color: theme.text },
   tags: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  reason: { lineHeight: 22, color: '#333' },
+  reason: { lineHeight: 22, color: theme.text2 },
 });

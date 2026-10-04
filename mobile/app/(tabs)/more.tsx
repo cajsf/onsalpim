@@ -11,7 +11,9 @@ import {
   View,
 } from 'react-native';
 
+import { Screen } from '@/components/Screen';
 import { SettingsPanel } from '@/components/SettingsPanel';
+import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
 import { devName, fmtDurationSec, stampOf } from '@/lib/format';
 import type { MonthlyReportRow } from '@/lib/types';
@@ -78,29 +80,31 @@ export default function MoreScreen() {
 
   if (section === 'menu') {
     return (
-      <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
-        <Text style={styles.h1}>더보기</Text>
-        <Pressable style={styles.menuItem} onPress={() => { setSection('report'); loadReport(); }}>
-          <Text style={styles.menuTitle}>월간 보고 초안</Text>
-          <Text style={styles.menuSub}>5일 이상 미감지·두절 등 명단</Text>
-        </Pressable>
-        <Pressable style={styles.menuItem} onPress={() => { setSection('devices'); loadDevices(); }}>
-          <Text style={styles.menuTitle}>기기 목록</Text>
-          <Text style={styles.menuSub}>공용 서버에서 읽은 장치 트리</Text>
-        </Pressable>
-        <View style={styles.spacer} />
-        <SettingsPanel />
-      </ScrollView>
+      <Screen>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
+          <Text style={styles.h1}>더보기</Text>
+          <Pressable style={styles.menuItem} onPress={() => { setSection('report'); loadReport(); }}>
+            <Text style={styles.menuTitle}>📋 월간 보고 초안</Text>
+            <Text style={styles.menuSub}>5일 이상 미감지·두절 등 명단</Text>
+          </Pressable>
+          <Pressable style={styles.menuItem} onPress={() => { setSection('devices'); loadDevices(); }}>
+            <Text style={styles.menuTitle}>🔌 기기 목록</Text>
+            <Text style={styles.menuSub}>공용 서버에서 읽은 장치 트리</Text>
+          </Pressable>
+          <View style={styles.spacer} />
+          <SettingsPanel />
+        </ScrollView>
+      </Screen>
     );
   }
 
   if (section === 'report') {
     return (
-      <View style={styles.flex}>
+      <Screen>
         <Pressable style={styles.back} onPress={() => setSection('menu')}>
           <Text style={styles.backText}>← 더보기</Text>
         </Pressable>
-        <ScrollView contentContainerStyle={styles.pad}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
           <Text style={styles.h1}>월간 보고</Text>
           <Text style={styles.lbl}>월 (YYYY-MM)</Text>
           <TextInput style={styles.input} value={month} onChangeText={setMonth} autoCapitalize="none" />
@@ -136,16 +140,17 @@ export default function MoreScreen() {
             <Text style={styles.muted}>해당 조건에 맞는 항목이 없습니다.</Text>
           ) : null}
         </ScrollView>
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.flex}>
+    <Screen>
       <Pressable style={styles.back} onPress={() => setSection('menu')}>
         <Text style={styles.backText}>← 더보기</Text>
       </Pressable>
       <FlatList
+        style={styles.flex}
         data={devices}
         keyExtractor={(d) => d.path}
         refreshControl={
@@ -172,53 +177,84 @@ export default function MoreScreen() {
           !devLoading ? <Text style={[styles.muted, styles.pad]}>장치가 없습니다.</Text> : null
         }
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#fafafa' },
-  pad: { padding: 16, paddingBottom: 32 },
-  h1: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
+  flex: { flex: 1 },
+  pad: { padding: theme.screenPad, paddingBottom: 32 },
+  h1: { fontSize: 22, fontWeight: '700', marginBottom: 12, color: theme.text },
   menuItem: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.surface,
     padding: 16,
-    borderRadius: 10,
+    borderRadius: theme.radius,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: theme.border,
+    ...theme.shadowSm,
   },
-  menuTitle: { fontSize: 17, fontWeight: '600' },
-  menuSub: { color: '#757575', marginTop: 4, fontSize: 13 },
+  menuTitle: { fontSize: 17, fontWeight: '600', color: theme.text },
+  menuSub: { color: theme.muted, marginTop: 4, fontSize: 13 },
   spacer: { height: 20 },
-  back: { padding: 12, backgroundColor: '#fff' },
-  backText: { color: '#1565c0', fontWeight: '600' },
-  lbl: { fontSize: 12, fontWeight: '600', color: '#616161', marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginBottom: 10 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  chip: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#eee', borderRadius: 14 },
-  chipOn: { backgroundColor: '#1565c0' },
-  chipText: { fontSize: 13, color: '#424242' },
-  chipTextOn: { color: '#fff' },
-  loadBtn: {
-    backgroundColor: '#1565c0',
+  back: {
     padding: 12,
-    borderRadius: 8,
+    backgroundColor: theme.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.border,
+  },
+  backText: { color: theme.brandDim, fontWeight: '600' },
+  lbl: { fontSize: 12, fontWeight: '600', color: theme.muted, marginBottom: 4 },
+  input: {
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: theme.radiusSm,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: theme.surface,
+    color: theme.text,
+  },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: theme.surface2,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  chipOn: { backgroundColor: theme.brandSoft, borderColor: theme.brand },
+  chipText: { fontSize: 13, color: theme.text2 },
+  chipTextOn: { color: theme.brandDim, fontWeight: '600' },
+  loadBtn: {
+    backgroundColor: theme.brand,
+    padding: 12,
+    borderRadius: theme.radiusSm,
     alignItems: 'center',
     marginBottom: 12,
   },
   loadBtnText: { color: '#fff', fontWeight: '600' },
-  err: { color: '#c62828', marginBottom: 8 },
-  muted: { color: '#757575', textAlign: 'center', marginTop: 20 },
-  card: { backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8 },
-  cardTitle: { fontWeight: '700' },
-  cardBody: { color: '#616161', marginTop: 4, fontSize: 13 },
-  cardDraft: { marginTop: 6, lineHeight: 20 },
+  err: { color: theme.urgent, marginBottom: 8 },
+  muted: { color: theme.muted, textAlign: 'center', marginTop: 20 },
+  card: {
+    backgroundColor: theme.surface,
+    padding: 12,
+    borderRadius: theme.radiusSm,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: theme.border,
+    ...theme.shadowSm,
+  },
+  cardTitle: { fontWeight: '700', color: theme.text },
+  cardBody: { color: theme.muted, marginTop: 4, fontSize: 13 },
+  cardDraft: { marginTop: 6, lineHeight: 20, color: theme.text2 },
   devRow: {
-    paddingHorizontal: 16,
+    paddingHorizontal: theme.screenPad,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
+    borderColor: theme.border,
+    backgroundColor: theme.surface,
   },
-  devPath: { fontWeight: '600' },
-  devMeta: { color: '#757575', fontSize: 13, marginTop: 2 },
+  devPath: { fontWeight: '600', color: theme.text },
+  devMeta: { color: theme.muted, fontSize: 13, marginTop: 2 },
 });

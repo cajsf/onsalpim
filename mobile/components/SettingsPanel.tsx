@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
 import { FALLBACK_API_BASE } from '@/lib/api';
 
@@ -49,13 +50,14 @@ export function SettingsPanel() {
         autoCapitalize="none"
         autoCorrect={false}
         placeholder="https://onsalpim-api.onrender.com/api"
+        placeholderTextColor={theme.muted}
         editable={ready}
       />
       <View style={styles.row}>
         <Pressable style={[styles.btn, styles.ghost]} onPress={() => setDraft(FALLBACK_API_BASE)}>
           <Text style={styles.ghostText}>기본값</Text>
         </Pressable>
-        <Pressable style={styles.btn} onPress={save}>
+        <Pressable style={[styles.btn, styles.primary]} onPress={save}>
           <Text style={styles.btnText}>저장</Text>
         </Pressable>
       </View>
@@ -69,23 +71,40 @@ export function SettingsPanel() {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 8 },
-  title: { fontSize: 17, fontWeight: '700' },
-  hint: { color: '#616161', fontSize: 13 },
-  current: { fontSize: 12, color: '#424242' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10 },
+  card: {
+    backgroundColor: theme.surface,
+    borderRadius: theme.radius,
+    padding: 14,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.border,
+    ...theme.shadowSm,
+  },
+  title: { fontSize: 17, fontWeight: '700', color: theme.text },
+  hint: { color: theme.muted, fontSize: 13 },
+  current: { fontSize: 12, color: theme.text2 },
+  input: {
+    borderWidth: 1,
+    borderColor: theme.borderStrong,
+    borderRadius: theme.radiusSm,
+    padding: 12,
+    fontSize: 15,
+    backgroundColor: theme.surface,
+  },
   row: { flexDirection: 'row', gap: 10 },
   btn: {
     flex: 1,
-    backgroundColor: '#1565c0',
+    minHeight: theme.minTouch,
+    justifyContent: 'center',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: theme.radiusSm,
     alignItems: 'center',
   },
+  primary: { backgroundColor: theme.brand },
   btnText: { color: '#fff', fontWeight: '600' },
-  ghost: { backgroundColor: '#e3f2fd' },
-  ghostText: { color: '#1565c0', fontWeight: '600' },
-  fix: { backgroundColor: '#2e7d32' },
-  err: { color: '#c62828' },
-  ok: { color: '#2e7d32' },
+  ghost: { backgroundColor: theme.brandSoft },
+  ghostText: { color: theme.brandDim, fontWeight: '600' },
+  fix: { backgroundColor: theme.normal, marginTop: 4 },
+  err: { color: theme.urgent },
+  ok: { color: theme.normal },
 });

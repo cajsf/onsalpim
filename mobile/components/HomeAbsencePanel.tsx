@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
 import { stampOf } from '@/lib/format';
 import type { AbsenceRecord } from '@/lib/types';
@@ -139,6 +140,7 @@ export function HomeAbsencePanel({ home, onChanged }: Props) {
             value={reason}
             onChangeText={setReason}
             placeholder="직접 입력"
+            placeholderTextColor={theme.muted}
             maxLength={50}
           />
           <Text style={styles.lbl}>시작 (YYYY-MM-DDTHH:mm)</Text>
@@ -169,39 +171,51 @@ export function HomeAbsencePanel({ home, onChanged }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
+    backgroundColor: theme.surface,
+    borderRadius: theme.radius,
     padding: 14,
     marginTop: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    ...theme.shadowSm,
   },
   headBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 16, fontWeight: '700' },
-  caret: { color: '#757575', fontSize: 16 },
-  hint: { color: '#757575', fontSize: 13, marginTop: 6, lineHeight: 18 },
+  title: { fontSize: 16, fontWeight: '700', color: theme.text },
+  caret: { color: theme.muted, fontSize: 16 },
+  hint: { color: theme.muted, fontSize: 13, marginTop: 6, lineHeight: 18 },
   list: { marginTop: 10, gap: 6 },
   absRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  absText: { flex: 1, fontSize: 13, color: '#424242' },
-  link: { color: '#1565c0', fontWeight: '600' },
+  absText: { flex: 1, fontSize: 13, color: theme.text2 },
+  link: { color: theme.brandDim, fontWeight: '600' },
   form: { marginTop: 12, gap: 8 },
-  lbl: { fontSize: 12, fontWeight: '600', color: '#616161' },
+  lbl: { fontSize: 12, fontWeight: '600', color: theme.muted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#eee', borderRadius: 14 },
-  chipOn: { backgroundColor: '#1565c0' },
-  chipText: { fontSize: 13, color: '#424242' },
-  chipTextOn: { color: '#fff' },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: theme.surface2,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  chipOn: { backgroundColor: theme.brandSoft, borderColor: theme.brand },
+  chipText: { fontSize: 13, color: theme.text2 },
+  chipTextOn: { color: theme.brandDim, fontWeight: '600' },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    borderColor: theme.border,
+    borderRadius: theme.radiusSm,
     padding: 10,
     fontSize: 15,
+    backgroundColor: theme.surface,
+    color: theme.text,
   },
-  err: { color: '#c62828' },
-  ok: { color: '#2e7d32' },
+  err: { color: theme.urgent },
+  ok: { color: theme.normal },
   submit: {
-    backgroundColor: '#1565c0',
+    backgroundColor: theme.brand,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: theme.radiusSm,
     alignItems: 'center',
     marginTop: 4,
   },

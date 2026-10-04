@@ -9,8 +9,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RulePreviewPanel } from '@/components/RulePreviewPanel';
+import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
 import {
   actText,
@@ -101,7 +103,7 @@ export default function RuleDetailScreen() {
   if (loading && !rule) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={theme.brand} />
       </View>
     );
   }
@@ -119,72 +121,84 @@ export default function RuleDetailScreen() {
   const blockApprove = (rule.conflicts || []).some((c) => !c.covers_all);
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
-      <Text style={styles.sentence}>"{rule.sentence}"</Text>
-      <View style={styles.card}>
-        <Row label="조건" value={condText(body)} />
-        <Row label="동작" value={actText(body)} />
-        <Row label="적용 대상" value={scopeText(body)} />
-      </View>
-
-      {(rule.questions || []).map((q) => (
-        <Text key={q} style={styles.clarify}>
-          {q}
-        </Text>
-      ))}
-
-      {(rule.conflicts || []).map((c) => (
-        <Text key={c.id} style={styles.warn}>
-          ⚠ 규칙 #{c.id}({c.summary})과 {c.homes.join(', ')}호에서 겹칩니다.
-          {c.covers_all ? ' 승인 시 기존 규칙을 끕니다.' : ' 일부 세대만 겹쳐 대체할 수 없습니다.'}
-        </Text>
-      ))}
-
-      {isPending && needsFill ? (
-        <>
-          <Text style={styles.lbl}>기준값 (예: 8시간, 480)</Text>
-          <TextInput style={styles.input} value={fillValue} onChangeText={setFillValue} />
-        </>
-      ) : null}
-
-      {isPending ? (
-        <RulePreviewPanel
-          ruleId={rule.id}
-          fillValue={fill}
-          replace={replace}
-          enabled={canPreview}
-        />
-      ) : null}
-
-      {error ? <Text style={styles.err}>{error}</Text> : null}
-
-      {isPending ? (
-        <View style={styles.actions}>
-          <Pressable
-            style={StyleSheet.flatten([styles.btn, styles.ghost, confirmReject && styles.danger])}
-            onPress={reject}
-            disabled={busy}>
-            <Text style={styles.ghostText}>
-              {confirmReject ? '한 번 더 누르면 거부' : rule.conflicts?.length ? '기존 규칙 유지' : '거부'}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={StyleSheet.flatten([styles.btn, blockApprove && styles.disabled])}
-            onPress={approve}
-            disabled={busy || blockApprove}>
-            {busy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnText}>
-                {rule.conflicts?.length ? '새 규칙 적용' : '승인하기'}
-              </Text>
-            )}
-          </Pressable>
+    <View style={styles.flex}>
+      <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
+        <Text style={styles.sentence}>"{rule.sentence}"</Text>
+        <View style={styles.card}>
+          <Row label="조건" value={condText(body)} />
+          <Row label="동작" value={actText(body)} />
+          <Row label="적용 대상" value={scopeText(body)} />
         </View>
-      ) : (
-        <Text style={styles.muted}>이 규칙은 이미 승인·적용된 상태입니다.</Text>
-      )}
-    </ScrollView>
+
+        {(rule.questions || []).map((q) => (
+          <Text key={q} style={styles.clarify}>
+            {q}
+          </Text>
+        ))}
+
+        {(rule.conflicts || []).map((c) => (
+          <Text key={c.id} style={styles.warn}>
+            ⚠ 규칙 #{c.id}({c.summary})과 {c.homes.join(', ')}호에서 겹칩니다.
+            {c.covers_all ? ' 승인 시 기존 규칙을 끕니다.' : ' 일부 세대만 겹쳐 대체할 수 없습니다.'}
+          </Text>
+        ))}
+
+        {isPending && needsFill ? (
+          <>
+            <Text style={styles.lbl}>기준값 (예: 8시간, 480)</Text>
+            <TextInput
+              style={styles.input}
+              value={fillValue}
+              onChangeText={setFillValue}
+              placeholder="8시간"
+              placeholderTextColor={theme.muted}
+            />
+          </>
+        ) : null}
+
+        {isPending ? (
+          <RulePreviewPanel
+            ruleId={rule.id}
+            fillValue={fill}
+            replace={replace}
+            enabled={canPreview}
+          />
+        ) : null}
+
+        {error ? <Text style={styles.err}>{error}</Text> : null}
+
+        {!isPending ? (
+          <Text style={styles.muted}>이 규칙은 이미 승인·적용된 상태입니다.</Text>
+        ) : null}
+      </ScrollView>
+
+      {isPending ? (
+        <SafeAreaView edges={['bottom']} style={styles.footer}>
+          <View style={styles.actions}>
+            <Pressable
+              style={StyleSheet.flatten([styles.btn, styles.ghost, confirmReject && styles.dangerGhost])}
+              onPress={reject}
+              disabled={busy}>
+              <Text style={StyleSheet.flatten([styles.ghostText, confirmReject && styles.dangerText])}>
+                {confirmReject ? '한 번 더 누르면 거부' : rule.conflicts?.length ? '기존 유지' : '거부'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={StyleSheet.flatten([styles.btn, styles.primary, blockApprove && styles.disabled])}
+              onPress={approve}
+              disabled={busy || blockApprove}>
+              {busy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.btnText}>
+                  {rule.conflicts?.length ? '새 규칙 적용' : '승인하기'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      ) : null}
+    </View>
   );
 }
 
@@ -198,31 +212,58 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#fafafa' },
-  pad: { padding: 16, paddingBottom: 40 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  err: { color: '#c62828', marginTop: 8 },
-  sentence: { fontSize: 18, fontWeight: '700', lineHeight: 26, marginBottom: 12 },
-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 10 },
+  flex: { flex: 1, backgroundColor: theme.bg },
+  pad: { padding: theme.screenPad, paddingBottom: 120 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg },
+  err: { color: theme.urgent, marginTop: 8 },
+  sentence: { fontSize: 18, fontWeight: '700', lineHeight: 26, marginBottom: 12, color: theme.text },
+  card: {
+    backgroundColor: theme.surface,
+    borderRadius: theme.radius,
+    padding: 14,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: theme.border,
+    ...theme.shadowSm,
+  },
   row: { gap: 4 },
-  dt: { fontSize: 12, color: '#757575', fontWeight: '600' },
-  dd: { fontSize: 15, lineHeight: 22 },
-  clarify: { color: '#1565c0', marginTop: 10, lineHeight: 20 },
-  warn: { color: '#e65100', marginTop: 8, lineHeight: 20, fontSize: 13 },
-  lbl: { marginTop: 12, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginTop: 6 },
-  muted: { color: '#757575', marginTop: 16 },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  dt: { fontSize: 12, color: theme.muted, fontWeight: '600' },
+  dd: { fontSize: 15, lineHeight: 22, color: theme.text2 },
+  clarify: { color: theme.brandDim, marginTop: 10, lineHeight: 20 },
+  warn: { color: theme.watch, marginTop: 8, lineHeight: 20, fontSize: 13 },
+  lbl: { marginTop: 12, fontWeight: '600', color: theme.text },
+  input: {
+    borderWidth: 1,
+    borderColor: theme.borderStrong,
+    borderRadius: theme.radiusSm,
+    padding: 12,
+    marginTop: 6,
+    backgroundColor: theme.surface,
+    fontSize: 16,
+  },
+  muted: { color: theme.muted, marginTop: 16 },
+  footer: {
+    backgroundColor: theme.surface,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+    paddingHorizontal: theme.screenPad,
+    paddingTop: 10,
+    ...theme.shadow,
+  },
+  actions: { flexDirection: 'row', gap: 10, paddingBottom: 8 },
   btn: {
     flex: 1,
-    backgroundColor: '#1565c0',
+    minHeight: theme.minTouch,
+    justifyContent: 'center',
     padding: 14,
-    borderRadius: 8,
+    borderRadius: theme.radiusSm,
     alignItems: 'center',
   },
+  primary: { backgroundColor: theme.brand },
   btnText: { color: '#fff', fontWeight: '700' },
-  ghost: { backgroundColor: '#e3f2fd' },
-  ghostText: { color: '#1565c0', fontWeight: '600' },
-  danger: { backgroundColor: '#ffebee' },
+  ghost: { backgroundColor: theme.brandSoft },
+  ghostText: { color: theme.brandDim, fontWeight: '600' },
+  dangerGhost: { backgroundColor: theme.urgentSoft },
+  dangerText: { color: theme.urgent },
   disabled: { opacity: 0.45 },
 });

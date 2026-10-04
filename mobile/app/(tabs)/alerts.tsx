@@ -10,6 +10,8 @@ import {
 
 import { AlertListItem } from '@/components/AlertListItem';
 import { EngineBanner } from '@/components/EngineBanner';
+import { Screen } from '@/components/Screen';
+import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
 import { usePolling } from '@/hooks/usePolling';
 import type { AlertRecord, EngineStatus } from '@/lib/types';
@@ -58,63 +60,79 @@ export default function AlertsScreen() {
   }, [alerts, filter]);
 
   return (
-    <View style={styles.flex}>
-      <EngineBanner engine={engine} care={null} loading={loading} fetchError={error} />
-      {openCount > 0 ? (
-        <View style={styles.openBanner}>
-          <Text style={styles.openBannerTitle}>대응 필요 {openCount}건</Text>
-          <Text style={styles.openBannerSub}>아직 확인하지 않은 알림입니다. 탭해서 대응을 남겨 주세요.</Text>
+    <Screen>
+      <View style={styles.flex}>
+        <EngineBanner engine={engine} care={null} loading={loading} fetchError={error} />
+        {openCount > 0 ? (
+          <View style={styles.openBanner}>
+            <Text style={styles.openBannerTitle}>대응 필요 {openCount}건</Text>
+            <Text style={styles.openBannerSub}>아직 확인하지 않은 알림입니다.</Text>
+          </View>
+        ) : null}
+        <View style={styles.filters}>
+          <Pressable
+            style={StyleSheet.flatten([styles.chip, filter === 'todo' && styles.chipOn])}
+            onPress={() => setFilter('todo')}>
+            <Text style={StyleSheet.flatten([styles.chipText, filter === 'todo' && styles.chipTextOn])}>
+              미완료
+            </Text>
+          </Pressable>
+          <Pressable
+            style={StyleSheet.flatten([styles.chip, filter === 'all' && styles.chipOn])}
+            onPress={() => setFilter('all')}>
+            <Text style={StyleSheet.flatten([styles.chipText, filter === 'all' && styles.chipTextOn])}>
+              전체
+            </Text>
+          </Pressable>
         </View>
-      ) : null}
-      <View style={styles.filters}>
-        <Pressable
-          style={StyleSheet.flatten([styles.chip, filter === 'todo' && styles.chipOn])}
-          onPress={() => setFilter('todo')}>
-          <Text style={StyleSheet.flatten([styles.chipText, filter === 'todo' && styles.chipTextOn])}>
-            미완료
-          </Text>
-        </Pressable>
-        <Pressable
-          style={StyleSheet.flatten([styles.chip, filter === 'all' && styles.chipOn])}
-          onPress={() => setFilter('all')}>
-          <Text style={StyleSheet.flatten([styles.chipText, filter === 'all' && styles.chipTextOn])}>
-            전체
-          </Text>
-        </Pressable>
+        <FlatList
+          data={shown}
+          keyExtractor={(a) => a.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={theme.brand} />}
+          ListEmptyComponent={
+            !loading ? <Text style={styles.empty}>알림이 없습니다.</Text> : null
+          }
+          renderItem={({ item }) => <AlertListItem alert={item} compact />}
+        />
       </View>
-      <FlatList
-        data={shown}
-        keyExtractor={(a) => a.id}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
-        ListEmptyComponent={
-          !loading ? <Text style={styles.empty}>알림이 없습니다.</Text> : null
-        }
-        renderItem={({ item }) => <AlertListItem alert={item} compact />}
-      />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#fafafa' },
+  flex: { flex: 1 },
   openBanner: {
-    backgroundColor: '#ffebee',
-    paddingHorizontal: 14,
+    backgroundColor: theme.urgentSoft,
+    paddingHorizontal: theme.screenPad,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ef9a9a',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
   },
-  openBannerTitle: { color: '#c62828', fontWeight: '700', fontSize: 15 },
-  openBannerSub: { color: '#b71c1c', fontSize: 13, marginTop: 2, lineHeight: 18 },
-  filters: { flexDirection: 'row', gap: 8, padding: 10, backgroundColor: '#fff' },
+  openBannerTitle: { color: theme.urgent, fontWeight: '700', fontSize: 15 },
+  openBannerSub: { color: theme.urgent, fontSize: 13, marginTop: 2, opacity: 0.85 },
+  filters: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 10,
+    paddingHorizontal: theme.screenPad,
+    backgroundColor: theme.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#eee',
+    minHeight: theme.minTouch,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: theme.surface2,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
-  chipOn: { backgroundColor: '#1565c0' },
-  chipText: { color: '#424242', fontWeight: '600' },
-  chipTextOn: { color: '#fff' },
-  empty: { textAlign: 'center', color: '#757575', marginTop: 40 },
+  chipOn: { backgroundColor: theme.brandSoft, borderColor: theme.brand },
+  chipText: { color: theme.text2, fontWeight: '600' },
+  chipTextOn: { color: theme.brandDim },
+  listContent: { paddingTop: 8, paddingBottom: 24 },
+  empty: { textAlign: 'center', color: theme.muted, marginTop: 40 },
 });

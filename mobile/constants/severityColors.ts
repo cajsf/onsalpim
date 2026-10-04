@@ -1,18 +1,30 @@
+import { theme } from '@/constants/theme';
 import type { Severity } from '@/lib/types';
 
+/** 대시보드 .tag-normal / .tag-watch / .tag-urgent / .tag-device */
 export const SEV_COLORS: Record<
   Severity,
-  { bg: string; text: string; border: string }
+  { bg: string; text: string; border: string; bar: string }
 > = {
-  NORMAL: { bg: '#e8f5e9', text: '#2e7d32', border: '#a5d6a7' },
-  WATCH: { bg: '#fff8e1', text: '#f57f17', border: '#ffe082' },
-  URGENT: { bg: '#ffebee', text: '#c62828', border: '#ef9a9a' },
-  CHECK_DEVICE: { bg: '#e3f2fd', text: '#1565c0', border: '#90caf9' },
+  NORMAL: { bg: theme.normalSoft, text: theme.normal, border: theme.normalSoft, bar: theme.normal },
+  WATCH: { bg: theme.watchSoft, text: theme.watch, border: theme.watchSoft, bar: theme.watch },
+  URGENT: { bg: theme.urgentSoft, text: theme.urgent, border: theme.urgentSoft, bar: theme.urgent },
+  CHECK_DEVICE: {
+    bg: theme.deviceSoft,
+    text: theme.device,
+    border: theme.deviceSoft,
+    bar: theme.device,
+  },
 };
 
 export const STATE_COLORS: Record<string, { bg: string; text: string }> = {
-  urgent: { bg: '#ffebee', text: '#c62828' },
-  watch: { bg: '#fff8e1', text: '#f57f17' },
-  normal: { bg: '#e8f5e9', text: '#2e7d32' },
-  muted: { bg: '#f5f5f5', text: '#616161' },
+  urgent: { bg: theme.urgentSoft, text: theme.urgent },
+  watch: { bg: theme.watchSoft, text: theme.watch },
+  normal: { bg: theme.normalSoft, text: theme.normal },
+  muted: { bg: theme.surface2, text: theme.muted },
 };
+
+export function severityBarColor(severity: Severity, welfare?: boolean): string {
+  if (welfare) return theme.urgent;
+  return SEV_COLORS[severity]?.bar ?? theme.border;
+}

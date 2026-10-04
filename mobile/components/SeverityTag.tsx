@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { SEV_COLORS } from '@/constants/severityColors';
+import { theme } from '@/constants/theme';
 import { SEV } from '@/lib/format';
 import type { Severity } from '@/lib/types';
 
@@ -18,7 +19,7 @@ const styles = StyleSheet.create({
   tag: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: theme.radiusSm,
     borderWidth: 1,
     alignSelf: 'flex-start',
   },

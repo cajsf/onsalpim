@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSettings } from '@/context/SettingsContext';
+import { theme } from '@/constants/theme';
 import { SEV, timeOf } from '@/lib/format';
 import type { Severity } from '@/lib/types';
 import { useNow } from '@/hooks/useNow';
@@ -105,21 +106,31 @@ export function HomeTimeline({ home, judgedAt }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
+    backgroundColor: theme.surface,
+    borderRadius: theme.radius,
     padding: 14,
     marginTop: 12,
     gap: 8,
+    borderWidth: 1,
+    borderColor: theme.border,
+    ...theme.shadowSm,
   },
-  title: { fontSize: 16, fontWeight: '700' },
-  muted: { color: '#757575', fontSize: 13, lineHeight: 18 },
+  title: { fontSize: 16, fontWeight: '700', color: theme.text },
+  muted: { color: theme.muted, fontSize: 13, lineHeight: 18 },
   seg: { flexDirection: 'row', gap: 8, marginVertical: 4 },
-  chip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#eee' },
-  chipOn: { backgroundColor: '#1565c0' },
-  chipText: { fontSize: 13, color: '#424242', fontWeight: '600' },
-  chipTextOn: { color: '#fff' },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: theme.surface2,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  chipOn: { backgroundColor: theme.brandSoft, borderColor: theme.brand },
+  chipText: { fontSize: 13, color: theme.text2, fontWeight: '600' },
+  chipTextOn: { color: theme.brandDim },
   row: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
-  time: { width: 48, fontFamily: 'SpaceMono', fontSize: 12, color: '#757575' },
-  move: { flex: 1, color: '#2e7d32' },
-  sev: { flex: 1, color: '#333' },
+  time: { width: 48, fontFamily: 'SpaceMono', fontSize: 12, color: theme.muted },
+  move: { flex: 1, color: theme.normal },
+  sev: { flex: 1, color: theme.text2 },
 });

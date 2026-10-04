@@ -1,52 +1,49 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
 
-import type { RuleRecord } from '@/lib/types';
+import { ListCard } from '@/components/ListCard';
+import { theme } from '@/constants/theme';
 import { condText } from '@/lib/ruleText';
+import type { RuleRecord } from '@/lib/types';
 
 type Props = { rule: RuleRecord; pending?: boolean };
 
 export function RuleListItem({ rule: r, pending }: Props) {
-  const line = `"${r.sentence}"`;
+  const bar = pending ? theme.watch : theme.normal;
 
   return (
     <Link href={{ pathname: '/rule/[id]', params: { id: String(r.id) } }} asChild>
-      <Pressable style={StyleSheet.flatten([styles.row, pending && styles.pending])}>
+      <ListCard barColor={bar} highlight={pending}>
         <View style={styles.head}>
           {pending ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>승인 대기</Text>
+            <View style={styles.badgePending}>
+              <Text style={styles.badgePendingText}>승인 대기</Text>
             </View>
           ) : (
-            <View style={[styles.badge, styles.active]}>
-              <Text style={styles.badgeTextActive}>적용 중</Text>
+            <View style={styles.badgeActive}>
+              <Text style={styles.badgeActiveText}>적용 중</Text>
             </View>
           )}
           <Text style={styles.id}>#{r.id}</Text>
         </View>
-        <Text style={styles.sentence}>{line}</Text>
+        <Text style={styles.sentence} numberOfLines={2}>
+          "{r.sentence}"
+        </Text>
         <Text style={styles.meta} numberOfLines={2}>
           {condText(r.rule as Parameters<typeof condText>[0])}
         </Text>
-      </Pressable>
+      </ListCard>
     </Link>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    padding: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
-    backgroundColor: '#fff',
-  },
-  pending: { backgroundColor: '#fffde7' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  badge: { backgroundColor: '#ffe082', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  badgeText: { fontSize: 11, fontWeight: '700', color: '#f57f17' },
-  active: { backgroundColor: '#e8f5e9' },
-  badgeTextActive: { fontSize: 11, fontWeight: '700', color: '#2e7d32' },
-  id: { color: '#757575', fontSize: 12 },
-  sentence: { fontWeight: '600', marginBottom: 4, lineHeight: 20 },
-  meta: { color: '#616161', fontSize: 13 },
+  badgePending: { backgroundColor: theme.watchSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  badgePendingText: { fontSize: 11, fontWeight: '700', color: theme.watch },
+  badgeActive: { backgroundColor: theme.normalSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  badgeActiveText: { fontSize: 11, fontWeight: '700', color: theme.normal },
+  id: { color: theme.muted, fontSize: 12 },
+  sentence: { fontWeight: '600', marginBottom: 4, lineHeight: 20, color: theme.text },
+  meta: { color: theme.text2, fontSize: 13 },
 });

@@ -1,5 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { theme } from '@/constants/theme';
 import type { CareResponse, EngineStatus } from '@/lib/types';
 
 type Props = {
@@ -7,17 +8,17 @@ type Props = {
   care: CareResponse | null;
   loading?: boolean;
   fetchError?: string;
+  updatedHint?: string | null;
 };
 
-export function EngineBanner({ engine, care, loading, fetchError }: Props) {
+export function EngineBanner({ engine, care, loading, fetchError, updatedHint }: Props) {
   if (fetchError) {
     return (
       <View style={[styles.box, styles.err]}>
         <Text style={styles.errText}>서버 연결 실패 — {fetchError}</Text>
         {fetchError.includes('404') ? (
           <Text style={styles.hint}>
-            API 주소가 care·dashboard URL 이면 404 입니다. 설정 탭에{' '}
-            https://onsalpim-api.onrender.com/api 를 저장하세요.
+            API 는 onsalpim-api …/api 입니다. 더보기 → API 설정을 확인하세요.
           </Text>
         ) : (
           <Text style={styles.hint}>Render Free 는 첫 요청에 30초 정도 걸릴 수 있습니다.</Text>
@@ -29,7 +30,7 @@ export function EngineBanner({ engine, care, loading, fetchError }: Props) {
   if (loading && !engine) {
     return (
       <View style={[styles.box, styles.neutral]}>
-        <ActivityIndicator />
+        <ActivityIndicator color={theme.brand} />
         <Text style={styles.muted}>서버에 연결하는 중…</Text>
       </View>
     );
@@ -63,8 +64,11 @@ export function EngineBanner({ engine, care, loading, fetchError }: Props) {
 
   if (engine?.running) {
     return (
-      <View style={[styles.box, styles.ok]}>
-        <Text style={styles.okText}>실시간 모니터링 중</Text>
+      <View style={styles.compactRow}>
+        <View style={styles.chipOn}>
+          <Text style={styles.chipOnText}>● 실시간 모니터링 중</Text>
+        </View>
+        {updatedHint ? <Text style={styles.updated}>{updatedHint}</Text> : null}
       </View>
     );
   }
@@ -73,14 +77,30 @@ export function EngineBanner({ engine, care, loading, fetchError }: Props) {
 }
 
 const styles = StyleSheet.create({
-  box: { padding: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ccc' },
-  ok: { backgroundColor: '#e8f5e9' },
-  okText: { color: '#2e7d32', fontWeight: '600', textAlign: 'center' },
-  warn: { backgroundColor: '#fff8e1' },
-  warnText: { color: '#e65100', textAlign: 'center' },
-  err: { backgroundColor: '#ffebee' },
-  errText: { color: '#c62828', fontWeight: '600', textAlign: 'center' },
-  hint: { color: '#757575', fontSize: 12, textAlign: 'center', marginTop: 4 },
+  box: { padding: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
+  compactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.screenPad,
+    paddingVertical: 8,
+    backgroundColor: theme.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  chipOn: {
+    backgroundColor: theme.normalSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  chipOnText: { color: theme.normal, fontWeight: '600', fontSize: 13 },
+  updated: { fontSize: 11, color: theme.muted },
+  warn: { backgroundColor: theme.watchSoft },
+  warnText: { color: theme.watch, textAlign: 'center', fontSize: 13, lineHeight: 18 },
+  err: { backgroundColor: theme.urgentSoft },
+  errText: { color: theme.urgent, fontWeight: '600', textAlign: 'center', fontSize: 13 },
+  hint: { color: theme.muted, fontSize: 12, textAlign: 'center', marginTop: 4 },
   neutral: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
-  muted: { color: '#616161' },
+  muted: { color: theme.text2 },
 });

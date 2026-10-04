@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { theme } from '@/constants/theme';
 import { ALERT_STATE, timeOf } from '@/lib/format';
 import type { AlertRecord } from '@/lib/types';
 import type { ApiClient } from '@/lib/api';
@@ -109,32 +110,39 @@ export function AlertActions({ alert: a, api, onUpdated }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 12, padding: 16 },
-  logBox: { backgroundColor: '#f5f5f5', padding: 12, borderRadius: 8 },
-  logTitle: { fontWeight: '600', marginBottom: 6 },
-  logLine: { color: '#424242', marginBottom: 4, lineHeight: 18 },
-  err: { color: '#c62828' },
+  wrap: { gap: 12, padding: theme.screenPad, paddingBottom: 32 },
+  logBox: {
+    backgroundColor: theme.surface2,
+    padding: 12,
+    borderRadius: theme.radiusSm,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  logTitle: { fontWeight: '600', marginBottom: 6, color: theme.text },
+  logLine: { color: theme.text2, marginBottom: 4, lineHeight: 18 },
+  err: { color: theme.urgent },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   btn: {
-    backgroundColor: '#1565c0',
+    backgroundColor: theme.brand,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: theme.radiusSm,
     minWidth: 88,
     alignItems: 'center',
   },
-  ghost: { backgroundColor: '#e3f2fd' },
-  btnText: { color: '#1565c0', fontWeight: '600' },
+  ghost: { backgroundColor: theme.brandSoft },
+  btnText: { color: theme.brandDim, fontWeight: '600' },
   btnTextDark: { color: '#fff', fontWeight: '600' },
   memoBox: { gap: 8 },
-  memoLabel: { fontWeight: '600' },
+  memoLabel: { fontWeight: '600', color: theme.text },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    borderColor: theme.border,
+    borderRadius: theme.radiusSm,
     padding: 10,
     minHeight: 80,
     textAlignVertical: 'top',
-    backgroundColor: '#fff',
+    backgroundColor: theme.surface,
+    color: theme.text,
   },
 });

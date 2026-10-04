@@ -43,6 +43,12 @@ Mobius·Gemini는 **어떤 방식이든** 별도(수업 서버·API 키).
    - `EXPO_PUBLIC_API_BASE` = API URL + `/api` (대시보드 `VITE_API_BASE` 와 같음)
 3. 재빌드 후 폰에서 care URL 접속 → **홈 화면에 추가** (Expo Go·맥 Metro 불필요)
 
+### B-3. 복지사 앱 (설치형 · Android / iOS)
+
+웹 URL 대신 **APK · TestFlight** 같은 진짜 앱이 필요하면 **EAS Build**를 씁니다.  
+절차·계정·명령어: **[mobile/NATIVE_BUILD.md](../../mobile/NATIVE_BUILD.md)**  
+(`eas.json` · 번들 ID `com.onsalpim.care` · API env는 `onsalpim-api` `/api`)
+
 ### C. 주의 (Free)
 
 - **15분 무요청 시 슬립** → 첫 접속 30초~1분 걸릴 수 있음  

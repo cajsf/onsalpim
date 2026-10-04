@@ -5,6 +5,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { HomeAbsencePanel } from '@/components/HomeAbsencePanel';
 import { HomeTimeline } from '@/components/HomeTimeline';
 import { SeverityTag } from '@/components/SeverityTag';
+import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
 import { fmtAgo, fmtMinutes, secondsSince, SEV } from '@/lib/format';
 import type { CareHome } from '@/lib/types';
@@ -45,7 +46,7 @@ export default function HomeDetailScreen() {
   if (loading && !home) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={theme.brand} />
       </View>
     );
   }
@@ -132,17 +133,25 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#fafafa' },
-  pad: { padding: 16, paddingBottom: 32 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  err: { color: '#c62828' },
+  flex: { flex: 1, backgroundColor: theme.bg },
+  pad: { padding: theme.screenPad, paddingBottom: 32 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg },
+  err: { color: theme.urgent },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  title: { fontSize: 24, fontWeight: '700' },
-  reason: { marginBottom: 16, lineHeight: 22, color: '#333' },
-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, gap: 12 },
+  title: { fontSize: 24, fontWeight: '700', color: theme.text },
+  reason: { marginBottom: 16, lineHeight: 22, color: theme.text2 },
+  card: {
+    backgroundColor: theme.surface,
+    borderRadius: theme.radius,
+    padding: 14,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    ...theme.shadowSm,
+  },
   row: { gap: 4 },
-  dt: { fontSize: 12, color: '#757575', fontWeight: '600' },
-  dd: { fontSize: 16, lineHeight: 22 },
-  flag: { color: '#1565c0', fontWeight: '600' },
-  note: { color: '#757575', fontSize: 13 },
+  dt: { fontSize: 12, color: theme.muted, fontWeight: '600' },
+  dd: { fontSize: 16, lineHeight: 22, color: theme.text },
+  flag: { color: theme.device, fontWeight: '600' },
+  note: { color: theme.muted, fontSize: 13 },
 });

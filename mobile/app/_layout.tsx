@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { theme } from '@/constants/theme';
 import { SettingsProvider } from '@/context/SettingsContext';
 
 export { ErrorBoundary } from 'expo-router';
@@ -44,9 +45,30 @@ function RootLayoutNav() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="alert/[id]" options={{ title: '알림 상세' }} />
-        <Stack.Screen name="home/[home]" options={{ title: '세대 상세' }} />
-        <Stack.Screen name="rule/[id]" options={{ title: '규칙' }} />
+        <Stack.Screen
+          name="alert/[id]"
+          options={{
+            title: '알림 상세',
+            headerStyle: { backgroundColor: theme.surface },
+            headerTintColor: theme.brandDim,
+          }}
+        />
+        <Stack.Screen
+          name="home/[home]"
+          options={{
+            title: '세대 상세',
+            headerStyle: { backgroundColor: theme.surface },
+            headerTintColor: theme.brandDim,
+          }}
+        />
+        <Stack.Screen
+          name="rule/[id]"
+          options={{
+            title: '규칙',
+            headerStyle: { backgroundColor: theme.surface },
+            headerTintColor: theme.brandDim,
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );
