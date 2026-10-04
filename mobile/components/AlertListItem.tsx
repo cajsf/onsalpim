@@ -11,10 +11,15 @@ type Props = { alert: AlertRecord; compact?: boolean };
 export function AlertListItem({ alert: a, compact }: Props) {
   const st = a.state ? ALERT_STATE[a.state] : null;
   const stateColor = st ? STATE_COLORS[st.cls] : null;
+  const line =
+    `${a.home}호 ` +
+    (!a.welfare && a.from ? `${SEV[a.from]?.ko ?? a.from} → ` : '') +
+    `${SEV[a.to]?.ko ?? a.to} · ${a.reason}`;
 
   return (
     <Link href={`/alert/${encodeURIComponent(a.id)}`} asChild>
-      <Pressable style={[styles.row, a.state === 'open' && styles.open]}>
+      {/* RN Web: Link+asChild 는 자식 style 배열을 CSS에 못 넣어 크래시 — flatten 필수 (#31352) */}
+      <Pressable style={StyleSheet.flatten([styles.row, a.state === 'open' && styles.open])}>
         <View style={styles.head}>
           {a.welfare ? (
             <SeverityTag severity="URGENT" label="안부 확인" />
@@ -22,7 +27,8 @@ export function AlertListItem({ alert: a, compact }: Props) {
             <SeverityTag severity={a.to} />
           )}
           {st && stateColor ? (
-            <View style={[styles.state, { backgroundColor: stateColor.bg }]}>
+            <View
+              style={StyleSheet.flatten([styles.state, { backgroundColor: stateColor.bg }])}>
               <Text style={{ color: stateColor.text, fontSize: 11, fontWeight: '600' }}>
                 {st.ko}
               </Text>
@@ -30,11 +36,7 @@ export function AlertListItem({ alert: a, compact }: Props) {
           ) : null}
           <Text style={styles.time}>{compact ? timeOf(a.ts) : a.ts.slice(5, 16).replace('T', ' ')}</Text>
         </View>
-        <Text style={styles.body}>
-          <Text style={styles.home}>{a.home}호 </Text>
-          {!a.welfare && a.from ? `${SEV[a.from]?.ko ?? a.from} → ` : ''}
-          {SEV[a.to]?.ko ?? a.to} · {a.reason}
-        </Text>
+        <Text style={styles.body}>{line}</Text>
       </Pressable>
     </Link>
   );
@@ -52,5 +54,4 @@ const styles = StyleSheet.create({
   state: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   time: { marginLeft: 'auto', color: '#757575', fontSize: 12, fontFamily: 'SpaceMono' },
   body: { color: '#333', lineHeight: 20 },
-  home: { fontWeight: '700' },
 });
