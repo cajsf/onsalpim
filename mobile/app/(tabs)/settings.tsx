@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 
 import { useSettings } from '@/context/SettingsContext';
-import { defaultApiBase } from '@/lib/api';
+import { FALLBACK_API_BASE, defaultApiBase } from '@/lib/api';
 
 export default function SettingsScreen() {
   const { apiBase, setApiBase, ready } = useSettings();
@@ -32,7 +32,19 @@ export default function SettingsScreen() {
   }
 
   function resetDefault() {
-    setDraft(defaultApiBase());
+    setDraft(FALLBACK_API_BASE);
+  }
+
+  async function clearSavedAndUseDefault() {
+    setErr('');
+    setMsg('');
+    try {
+      await setApiBase(FALLBACK_API_BASE);
+      setDraft(FALLBACK_API_BASE);
+      setMsg('저장된 주소를 지우고 API 기본값으로 맞췄습니다.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
   }
 
   return (
@@ -50,14 +62,18 @@ export default function SettingsScreen() {
         placeholder="https://onsalpim-api.onrender.com/api"
         editable={ready}
       />
+      <Text style={styles.current}>현재: {apiBase}</Text>
       <View style={styles.row}>
         <Pressable style={[styles.btn, styles.ghost]} onPress={resetDefault}>
-          <Text style={styles.ghostText}>기본값</Text>
+          <Text style={styles.ghostText}>입력란 기본값</Text>
         </Pressable>
         <Pressable style={styles.btn} onPress={save}>
           <Text style={styles.btnText}>저장</Text>
         </Pressable>
       </View>
+      <Pressable style={[styles.btn, styles.fix]} onPress={clearSavedAndUseDefault}>
+        <Text style={styles.btnText}>API 주소 초기화 (404 일 때)</Text>
+      </Pressable>
       {err ? <Text style={styles.err}>{err}</Text> : null}
       {msg ? <Text style={styles.ok}>{msg}</Text> : null}
       <Text style={styles.footer}>
@@ -95,4 +111,6 @@ const styles = StyleSheet.create({
   err: { color: '#c62828', marginTop: 12 },
   ok: { color: '#2e7d32', marginTop: 12 },
   footer: { marginTop: 24, color: '#757575', lineHeight: 20, fontSize: 13 },
+  current: { fontSize: 13, color: '#424242', marginBottom: 10 },
+  fix: { marginTop: 10, backgroundColor: '#2e7d32' },
 });

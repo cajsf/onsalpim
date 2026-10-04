@@ -1,7 +1,7 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
 # New → Blueprint → 이 저장소 연결 후 배포.
-# Dashboard Static Site 의 VITE_API_BASE 는 API 서비스 URL 배포 후 수동 설정:
-#   https://<onsalpim-api>.onrender.com/api
+# Dashboard: VITE_API_BASE = https://<onsalpim-api>.onrender.com/api
+# Care 앱: EXPO_PUBLIC_API_BASE = 같은 API URL (care·dashboard URL 넣으면 404)
 
 services:
   - type: web

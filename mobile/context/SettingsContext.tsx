@@ -1,7 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { createApi, defaultApiBase, normalizeApiBase, type ApiClient } from '@/lib/api';
+import {
+  createApi,
+  defaultApiBase,
+  isValidApiBase,
+  normalizeApiBase,
+  resolveApiBase,
+  type ApiClient,
+} from '@/lib/api';
 
 const STORAGE_KEY = '@onsalpim/apiBase';
 
@@ -22,7 +29,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved) setApiBaseState(normalizeApiBase(saved));
+        if (saved) setApiBaseState(resolveApiBase(saved));
       } catch {
         /* 저장소 불가면 env/기본값 */
       } finally {
@@ -32,6 +39,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setApiBase = useCallback(async (raw: string) => {
+    if (!isValidApiBase(raw)) {
+      throw new Error(
+        'https://onsalpim-api.onrender.com/api 처럼 API 서버 주소를 넣어 주세요. (care·dashboard URL 은 안 됩니다)',
+      );
+    }
     const next = normalizeApiBase(raw);
     setApiBaseState(next);
     await AsyncStorage.setItem(STORAGE_KEY, next);

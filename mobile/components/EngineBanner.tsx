@@ -14,7 +14,14 @@ export function EngineBanner({ engine, care, loading, fetchError }: Props) {
     return (
       <View style={[styles.box, styles.err]}>
         <Text style={styles.errText}>서버 연결 실패 — {fetchError}</Text>
-        <Text style={styles.hint}>Render Free 는 첫 요청에 30초 정도 걸릴 수 있습니다.</Text>
+        {fetchError.includes('404') ? (
+          <Text style={styles.hint}>
+            API 주소가 care·dashboard URL 이면 404 입니다. 설정 탭에{' '}
+            https://onsalpim-api.onrender.com/api 를 저장하세요.
+          </Text>
+        ) : (
+          <Text style={styles.hint}>Render Free 는 첫 요청에 30초 정도 걸릴 수 있습니다.</Text>
+        )}
       </View>
     );
   }
