@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { api } from './api.js'
 import { useSpeechRecognition } from './useSpeechRecognition.js'
 import HomeBasis from './HomeBasis.vue'
@@ -8,6 +8,7 @@ import HomeActions from './HomeActions.vue'
 import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
 import MonthlyReport from './MonthlyReport.vue'
+import RulePreview from './RulePreview.vue'
 import { SEV, SEV_ORDER, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
 
 // 통계 분석은 세대별 활동 이력이 쌓여야 의미가 있는데 아직 저장소가 없어 '준비 중'으로 둔다.
@@ -103,6 +104,8 @@ const clarify = ref('')
 const ruleWarnings = ref([])
 const rulePlan = ref('')
 const fillValue = ref('')
+/** 승인 대기 카드마다 기준값 — 한 입력창을 여러 규칙이 나눠 쓰지 않게 */
+const fillByRuleId = reactive({})
 const lastSentence = ref('')   // 성공하면 입력창은 비우지만 요약 카드에는 남겨야 한다
 
 /* 표 필터 */
@@ -347,6 +350,29 @@ function overrideText(rule) {
   if (!keys.length) return ''
   const idle = (rule?.when || {}).op === 'idle_over_m'
   return keys.map((k) => `${k}호 ${idle ? fmtMinutes(ov[k].value) : ov[k].value}`).join(', ')
+}
+
+/** 무활동 규칙 — 승인 전 2주 미리보기 (기준값 없으면 해당 카드 입력란 값 사용) */
+function pendingFillValue(ruleId, rule) {
+  if (String(rule?.when?.value || '').trim()) return undefined
+  const v = (fillByRuleId[ruleId] ?? fillValue.value ?? '').trim()
+  return v || undefined
+}
+
+function previewEnabled(rule, ruleId) {
+  if ((rule?.when || {}).op !== 'idle_over_m') return false
+  if (String(rule?.when?.value || '').trim()) return true
+  return Boolean((fillByRuleId[ruleId] ?? fillValue.value ?? '').trim())
+}
+
+function previewFill(rule, ruleId) {
+  if (String(rule?.when?.value || '').trim()) return ''
+  return fillByRuleId[ruleId] ?? fillValue.value ?? ''
+}
+
+function previewReplace(conflicts) {
+  const cs = conflicts || []
+  return cs.length > 0 && cs.every((c) => c.covers_all)
 }
 
 /* ────────── 동작 ────────── */
@@ -724,14 +750,20 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   <template v-if="c.covers_all">대체하면 #{{ c.id }}은(는) 예외까지 함께 꺼지고, 대체 기록이 남습니다.</template>
                   <template v-else>일부 세대만 겹쳐 대체할 수 없습니다 — 그 세대만 바꾸려면 "○호만 무활동 기준을 …"처럼 예외로 입력해 주세요.</template>
                 </p>
+                <RulePreview
+                  :rule-id="r.id"
+                  :fill-value="previewFill(r.rule, r.id)"
+                  :replace="previewReplace(r.conflicts)"
+                  :enabled="previewEnabled(r.rule, r.id)"
+                />
                 <div class="pending-act">
                   <input
                     v-if="r.questions && r.questions.length"
-                    v-model="fillValue" class="fill" type="text" placeholder="기준값 (예: 8시간, 90분, 480)"
+                    v-model="fillByRuleId[r.id]" class="fill" type="text" placeholder="기준값 (예: 8시간, 90분, 480)"
                   />
                   <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? (((r.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((r.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
                   <button class="btn primary" :disabled="(r.conflicts || []).some((c) => !c.covers_all)"
-                      @click="approve(r.id, fillValue || undefined, !!(r.conflicts || []).length)">
+                      @click="approve(r.id, pendingFillValue(r.id, r.rule), previewReplace(r.conflicts))">
                 {{ (r.conflicts || []).length ? '새 규칙 적용 (기존 끄기)' : '승인하기' }}
               </button>
                 </div>
@@ -915,6 +947,13 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 <template v-else>일부 세대만 겹쳐 대체할 수 없습니다 — 예외로 입력해 주세요.</template>
               </p>
 
+              <RulePreview
+                :rule-id="lastResult.id"
+                :fill-value="previewFill(lastResult.rule, lastResult.id)"
+                :replace="previewReplace(lastResult.conflicts)"
+                :enabled="previewEnabled(lastResult.rule, lastResult.id)"
+              />
+
               <div class="summary-act">
                 <input
                   v-if="lastResult.status === 'needs_clarification'"
@@ -922,7 +961,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 />
                 <button class="btn ghost" :class="{ danger: confirmingId === lastResult.id }" :disabled="ruleBusy === lastResult.id" @click="reject(lastResult.id)">{{ confirmingId === lastResult.id ? (((lastResult.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((lastResult.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
                 <button class="btn primary" :disabled="(lastResult.conflicts || []).some((c) => !c.covers_all)"
-                        @click="approve(lastResult.id, fillValue || undefined, !!(lastResult.conflicts || []).length)">
+                        @click="approve(lastResult.id, pendingFillValue(lastResult.id, lastResult.rule), previewReplace(lastResult.conflicts))">
                   {{ (lastResult.conflicts || []).length ? '새 규칙 적용 (기존 끄기)' : '승인하기' }}
                 </button>
               </div>
@@ -1020,14 +1059,20 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <template v-if="c.covers_all">대체하면 #{{ c.id }}은(는) 예외까지 함께 꺼지고, 대체 기록이 남습니다.</template>
               <template v-else>일부 세대만 겹쳐 대체할 수 없습니다 — 그 세대만 바꾸려면 "○호만 무활동 기준을 …"처럼 예외로 입력해 주세요.</template>
             </p>
+            <RulePreview
+              :rule-id="r.id"
+              :fill-value="previewFill(r.rule, r.id)"
+              :replace="previewReplace(r.conflicts)"
+              :enabled="previewEnabled(r.rule, r.id)"
+            />
             <div class="pending-act">
               <input
                 v-if="r.questions && r.questions.length"
-                v-model="fillValue" class="fill" type="text" placeholder="기준값 (예: 8시간, 90분, 480)"
+                v-model="fillByRuleId[r.id]" class="fill" type="text" placeholder="기준값 (예: 8시간, 90분, 480)"
               />
               <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? (((r.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((r.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
               <button class="btn primary" :disabled="(r.conflicts || []).some((c) => !c.covers_all)"
-                      @click="approve(r.id, fillValue || undefined, !!(r.conflicts || []).length)">
+                      @click="approve(r.id, pendingFillValue(r.id, r.rule), previewReplace(r.conflicts))">
                 {{ (r.conflicts || []).length ? '새 규칙 적용 (기존 끄기)' : '승인하기' }}
               </button>
             </div>

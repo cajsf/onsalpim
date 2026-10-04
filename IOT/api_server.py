@@ -198,6 +198,34 @@ def engine_status():
     })
 
 
+@app.route("/api/rules/<int:rule_id>/preview", methods=["GET", "POST"])
+def preview_rule(rule_id):
+    """승인 전 — 지난 2주(기본) 기록에 이 규칙을 대입했을 때 알림 추정."""
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        days_raw = data.get("days")
+        replace_raw = data.get("replace")
+    else:
+        data = request.args
+        days_raw = data.get("days", type=int)
+        replace_raw = data.get("replace")
+    try:
+        days = int(days_raw) if days_raw not in (None, "") else 14
+    except (TypeError, ValueError):
+        days = 14
+    days = max(1, min(days, 35))
+    devices = iot.read_tree(AE)
+    result = engine.preview_rule(
+        rule_id,
+        fill_value=data.get("value"),
+        replace=replace_raw in (True, "1", "true", "yes", 1),
+        days=days,
+        devices=devices,
+    )
+    code = 200 if result.get("ok") or result.get("supported") is False else 422
+    return jsonify(result), code
+
+
 @app.route("/api/rules/<int:rule_id>/approve", methods=["POST"])
 def approve_rule(rule_id):
     """승인 대기 규칙을 승인한다. 승인해야 엔진이 실행한다. (전시 계획안 ③)

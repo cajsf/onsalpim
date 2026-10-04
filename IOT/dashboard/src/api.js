@@ -29,6 +29,18 @@ export const api = {
   getMonthlyReport: (month, minS) => request(`/report/monthly?month=${month}&min_s=${minS}`),
   // value 를 같이 보내면 비어 있던 기준값을 채우면서 승인한다
   // replace=true → 같은 세대·같은 위험도로 겹치는 기존 규칙을 끄고 이 규칙으로 대체
+  async previewRule(id, value, replace = false, days = 14) {
+    const res = await fetch(`${BASE}/rules/${id}/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(value === undefined ? {} : { value }),
+        replace,
+        days,
+      }),
+    })
+    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+  },
   async approveRule(id, value, replace = false) {
     const res = await fetch(`${BASE}/rules/${id}/approve`, {
       method: 'POST',

@@ -1324,6 +1324,28 @@ def toggle_rule(rule_id, devices=None):
     return {"ok": True, "errors": []}
 
 
+def preview_rule(rule_id, fill_value=None, replace=False, days=None, devices=None):
+    """승인 전 규칙 — 지난 N일 움직임 기록에 대입했을 때 알림 추정."""
+    import rule_preview
+
+    devices = devices if devices is not None else iot.read_tree("byeongari")
+    return rule_preview.preview_pending_rule(
+        rule_id,
+        fill_value=fill_value,
+        replace=replace,
+        days=days or rule_preview.PREVIEW_DAYS,
+        devices=devices,
+        load_rules=load_rules,
+        is_active=is_active,
+        effective_idle_levels=effective_idle_levels,
+        load_history=load_history,
+        load_stats=load_stats,
+        load_alerts=load_alerts,
+        active_absence=active_absence,
+        load_absences=load_absences,
+    )
+
+
 def reject_rule(rule_id):
     """승인 대기 규칙을 버린다."""
     rules = load_rules()
