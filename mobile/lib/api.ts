@@ -1,4 +1,14 @@
-import type { ActionStatus, AlertRecord, CareResponse, EngineStatus } from './types';
+import type {
+  AbsenceRecord,
+  ActionStatus,
+  AlertRecord,
+  CareResponse,
+  DeviceTree,
+  EngineStatus,
+  MonthlyReportRow,
+  PreviewResult,
+  RuleRecord,
+} from './types';
 
 /** Render Static(care) 와 API(api) 는 호스트가 다르다. 잘못된 env 는 404 로 이어진다. */
 export const FALLBACK_API_BASE = 'https://onsalpim-api.onrender.com/api';
@@ -75,6 +85,68 @@ export function createApi(base: string) {
         errors?: string[];
         log?: AlertRecord['log'];
       }>;
+    },
+    getRules: () => request<RuleRecord[]>('/rules'),
+    getDevices: (force = false) =>
+      request<DeviceTree[]>(`/devices${force ? '?force=1' : ''}`),
+    getMonthlyReport: (month: string, minS: number) =>
+      request<{ month: string; min_s: number; rows: MonthlyReportRow[] }>(
+        `/report/monthly?month=${encodeURIComponent(month)}&min_s=${minS}`,
+      ),
+    getAbsences: (home: string) =>
+      request<AbsenceRecord[]>(`/absences?home=${encodeURIComponent(home)}`),
+    async addAbsence(body: { home: string; start: string; end: string; reason: string }) {
+      const res = await fetch(`${BASE}/absences`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] })) as Promise<{
+        ok: boolean;
+        errors?: string[];
+        absence?: AbsenceRecord;
+      }>;
+    },
+    async endAbsence(id: number) {
+      const res = await fetch(`${BASE}/absences/${id}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }));
+    },
+    async previewRule(id: number, value?: string, replace = false, days = 14) {
+      const res = await fetch(`${BASE}/rules/${id}/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(value === undefined || value === '' ? {} : { value }),
+          replace,
+          days,
+        }),
+      });
+      return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] })) as Promise<
+        PreviewResult
+      >;
+    },
+    async approveRule(id: number, value?: string, replace = false) {
+      const res = await fetch(`${BASE}/rules/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(value === undefined || value === '' ? {} : { value }),
+          replace,
+        }),
+      });
+      return res.json().catch(() => ({})) as Promise<{ ok?: boolean; errors?: string[] }>;
+    },
+    async rejectRule(id: number) {
+      const res = await fetch(`${BASE}/rules/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      return res.json().catch(() => ({})) as Promise<{ ok?: boolean; errors?: string[] }>;
     },
   };
 }

@@ -2,6 +2,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { HomeAbsencePanel } from '@/components/HomeAbsencePanel';
+import { HomeTimeline } from '@/components/HomeTimeline';
 import { SeverityTag } from '@/components/SeverityTag';
 import { useSettings } from '@/context/SettingsContext';
 import { fmtAgo, fmtMinutes, secondsSince, SEV } from '@/lib/format';
@@ -99,6 +101,9 @@ export default function HomeDetailScreen() {
         {h.battery != null ? <Row label="배터리" value={`${Math.round(h.battery)}%`} /> : null}
         <Row label="판정 시각" value={judged != null ? fmtAgo(judged) : '—'} />
       </View>
+
+      <HomeTimeline home={h.home} judgedAt={h.judged_at} />
+      <HomeAbsencePanel home={h.home} onChanged={load} />
     </ScrollView>
   );
 }
@@ -128,7 +133,7 @@ function Row({
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#fafafa' },
-  pad: { padding: 16 },
+  pad: { padding: 16, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   err: { color: '#c62828' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },

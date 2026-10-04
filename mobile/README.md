@@ -70,11 +70,12 @@ EXPO_PUBLIC_API_BASE=https://onsalpim-api.onrender.com/api
 
 ## 화면
 
-| 탭 | API |
-|----|-----|
-| 세대 | `GET /care`, `GET /engine/status` |
-| 알림 | `GET /alerts`, 상세에서 `POST .../action` |
-| 설정 | API 베이스 URL (AsyncStorage) |
+| 탭 | 기능 |
+|----|------|
+| 세대 | `GET /care` · 세대 상세(타임라인·부재) |
+| 알림 | `GET /alerts` · 대응 `POST .../action` |
+| 규칙 | 승인 대기 / 적용 중 · 상세(2주 미리보기·승인·거부) |
+| 더보기 | 월간 보고 · 기기 목록 · API 설정 |
 
 표기 규칙은 `IOT/dashboard/src/format.js` 와 맞춤 (`lib/format.ts`).
 

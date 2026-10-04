@@ -15,7 +15,7 @@ export type CareHome = {
   idle_levels?: { minutes: number; severity: Severity }[];
   away?: { until: string; reason: string };
   battery?: number | null;
-  applied?: { source?: string; common?: number };
+  applied?: { source?: string; common?: number; rule_id?: number; minutes?: number };
 };
 
 export type CareResponse = {
@@ -46,3 +46,58 @@ export type AlertRecord = {
 };
 
 export type ActionStatus = 'ack' | 'progress' | 'done' | 'late' | 'edit';
+
+export type RuleRecord = {
+  id: number;
+  sentence: string;
+  status?: string;
+  enabled?: boolean;
+  rule?: Record<string, unknown>;
+  questions?: string[];
+  conflicts?: {
+    id: number;
+    summary?: string;
+    homes: string[];
+    covers_all?: boolean;
+  }[];
+};
+
+export type AbsenceRecord = {
+  id: number;
+  home: string;
+  start: string;
+  end: string;
+  reason: string;
+  ended_at?: string | null;
+  ended_by?: string | null;
+};
+
+export type PreviewResult = {
+  ok: boolean;
+  supported?: boolean;
+  reason?: string;
+  errors?: string[];
+  days?: number;
+  total?: number;
+  baseline_total?: number;
+  delta_total?: number;
+  sparse_data?: boolean;
+  homes?: { home: string; alerts: number; baseline: number }[];
+};
+
+export type MonthlyReportRow = {
+  home: string;
+  kind: string;
+  start: string;
+  end?: string | null;
+  duration_s: number;
+  draft: string;
+  cut?: boolean;
+  notes: { at: string; status: string; memo: string }[];
+};
+
+export type DeviceTree = {
+  path: string;
+  meta?: { kind?: string; type?: string; desc?: string };
+  labels?: string[];
+};

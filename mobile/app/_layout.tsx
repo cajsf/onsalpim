@@ -46,6 +46,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="alert/[id]" options={{ title: '알림 상세' }} />
         <Stack.Screen name="home/[home]" options={{ title: '세대 상세' }} />
+        <Stack.Screen name="rule/[id]" options={{ title: '규칙' }} />
       </Stack>
     </ThemeProvider>
   );

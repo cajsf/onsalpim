@@ -1,4 +1,4 @@
-/** 대시보드 format.js 와 같은 키·표기 — 화면이 서로 다르게 보이면 안 된다. */
+/** 대시보드 format.js 와 같은 키·표기 — 화면이 서로 다르게 보이지 않는다. */
 
 export const SEV = {
   NORMAL: { ko: '정상', cls: 'normal' as const },
@@ -21,6 +21,24 @@ export const ALERT_STATE: Record<
 };
 
 export const SEV_ORDER = ['URGENT', 'CHECK_DEVICE', 'WATCH', 'NORMAL'] as const;
+
+export const TYPE_KO: Record<string, string> = {
+  motion: '움직임',
+  temperature: '온도',
+  humidity: '습도',
+  battery: '배터리',
+  light: '조명',
+  window: '창문',
+  card: '카드',
+};
+
+export function typeKo(t: string | undefined): string {
+  return TYPE_KO[t || ''] || t || '?';
+}
+
+export function devName(path: string | undefined): string {
+  return (path || '').split('/').slice(2).join('/') || path || '';
+}
 
 export function secondsSince(iso: string | null | undefined, nowMs: number): number | null {
   if (!iso) return null;
@@ -53,4 +71,13 @@ export function timeOf(iso: string | null | undefined): string {
 
 export function stampOf(iso: string | null | undefined): string {
   return iso ? `${iso.slice(5, 7)}/${iso.slice(8, 10)} ${iso.slice(11, 16)}` : '';
+}
+
+export function fmtDurationSec(s: number): string {
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (d) return `${d}일 ${h % 24}시간`;
+  if (h) return `${h}시간 ${m % 60}분`;
+  return `${m}분`;
 }

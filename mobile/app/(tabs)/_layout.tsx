@@ -41,18 +41,32 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="rules"
         options={{
-          title: '설정',
+          title: '규칙',
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
+              name={{ ios: 'doc.text.fill', android: 'description', web: 'description' }}
               tintColor={color}
               size={26}
             />
           ),
         }}
       />
+      <Tabs.Screen
+        name="more"
+        options={{
+          title: '더보기',
+          tabBarIcon: ({ color }) => (
+            <SymbolView
+              name={{ ios: 'ellipsis.circle.fill', android: 'more_horiz', web: 'more_horiz' }}
+              tintColor={color}
+              size={26}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen name="settings" options={{ href: null }} />
     </Tabs>
   );
 }
