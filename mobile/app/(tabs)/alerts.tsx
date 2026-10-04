@@ -12,9 +12,20 @@ import { AlertListItem } from '@/components/AlertListItem';
 import { EngineBanner } from '@/components/EngineBanner';
 import { useSettings } from '@/context/SettingsContext';
 import { usePolling } from '@/hooks/usePolling';
-import type { EngineStatus } from '@/lib/types';
+import type { AlertRecord, EngineStatus } from '@/lib/types';
 
 type Filter = 'todo' | 'all';
+
+const STATE_ORDER: Record<string, number> = { open: 0, ack: 1, progress: 2 };
+
+function sortAlerts(list: AlertRecord[]): AlertRecord[] {
+  return [...list].sort((a, b) => {
+    const oa = STATE_ORDER[a.state ?? ''] ?? 9;
+    const ob = STATE_ORDER[b.state ?? ''] ?? 9;
+    if (oa !== ob) return oa - ob;
+    return b.ts.localeCompare(a.ts);
+  });
+}
 
 export default function AlertsScreen() {
   const { api } = useSettings();
@@ -33,24 +44,42 @@ export default function AlertsScreen() {
   const engine: EngineStatus | null = data?.engine ?? null;
   const alerts = data?.alerts ?? [];
 
+  const openCount = useMemo(
+    () => alerts.filter((a) => a.state === 'open').length,
+    [alerts],
+  );
+
   const shown = useMemo(() => {
-    if (filter === 'all') return alerts;
-    return alerts.filter((a) => ['open', 'ack', 'progress'].includes(a.state ?? ''));
+    const base =
+      filter === 'all'
+        ? alerts
+        : alerts.filter((a) => ['open', 'ack', 'progress'].includes(a.state ?? ''));
+    return sortAlerts(base);
   }, [alerts, filter]);
 
   return (
     <View style={styles.flex}>
       <EngineBanner engine={engine} care={null} loading={loading} fetchError={error} />
+      {openCount > 0 ? (
+        <View style={styles.openBanner}>
+          <Text style={styles.openBannerTitle}>대응 필요 {openCount}건</Text>
+          <Text style={styles.openBannerSub}>아직 확인하지 않은 알림입니다. 탭해서 대응을 남겨 주세요.</Text>
+        </View>
+      ) : null}
       <View style={styles.filters}>
         <Pressable
-          style={[styles.chip, filter === 'todo' && styles.chipOn]}
+          style={StyleSheet.flatten([styles.chip, filter === 'todo' && styles.chipOn])}
           onPress={() => setFilter('todo')}>
-          <Text style={[styles.chipText, filter === 'todo' && styles.chipTextOn]}>미완료</Text>
+          <Text style={StyleSheet.flatten([styles.chipText, filter === 'todo' && styles.chipTextOn])}>
+            미완료
+          </Text>
         </Pressable>
         <Pressable
-          style={[styles.chip, filter === 'all' && styles.chipOn]}
+          style={StyleSheet.flatten([styles.chip, filter === 'all' && styles.chipOn])}
           onPress={() => setFilter('all')}>
-          <Text style={[styles.chipText, filter === 'all' && styles.chipTextOn]}>전체</Text>
+          <Text style={StyleSheet.flatten([styles.chipText, filter === 'all' && styles.chipTextOn])}>
+            전체
+          </Text>
         </Pressable>
       </View>
       <FlatList
@@ -68,6 +97,15 @@ export default function AlertsScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#fafafa' },
+  openBanner: {
+    backgroundColor: '#ffebee',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ef9a9a',
+  },
+  openBannerTitle: { color: '#c62828', fontWeight: '700', fontSize: 15 },
+  openBannerSub: { color: '#b71c1c', fontSize: 13, marginTop: 2, lineHeight: 18 },
   filters: { flexDirection: 'row', gap: 8, padding: 10, backgroundColor: '#fff' },
   chip: {
     paddingHorizontal: 12,

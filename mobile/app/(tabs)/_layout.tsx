@@ -4,9 +4,11 @@ import { Tabs } from 'expo-router';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { badgeText, useTabBadges } from '@/hooks/useTabBadges';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { todoAlertCount, pendingRuleCount } = useTabBadges();
 
   return (
     <Tabs
@@ -31,6 +33,8 @@ export default function TabLayout() {
         name="alerts"
         options={{
           title: '알림',
+          tabBarBadge: badgeText(todoAlertCount),
+          tabBarBadgeStyle: { backgroundColor: '#c62828' },
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'bell.fill', android: 'notifications', web: 'notifications' }}
@@ -44,6 +48,8 @@ export default function TabLayout() {
         name="rules"
         options={{
           title: '규칙',
+          tabBarBadge: badgeText(pendingRuleCount),
+          tabBarBadgeStyle: { backgroundColor: '#f57f17' },
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'doc.text.fill', android: 'description', web: 'description' }}
