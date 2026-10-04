@@ -30,3 +30,14 @@ services:
     envVars:
       - key: VITE_API_BASE
         sync: false
+
+  # 복지사 앱 (Expo → 정적 웹). Mac Metro 없이 URL 로 접속 — 홈 화면에 추가 가능
+  - type: web
+    name: onsalpim-care
+    runtime: static
+    rootDir: mobile
+    buildCommand: npm install && npm run build:web
+    staticPublishPath: ./dist
+    envVars:
+      - key: EXPO_PUBLIC_API_BASE
+        sync: false

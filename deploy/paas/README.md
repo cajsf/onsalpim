@@ -36,6 +36,13 @@ Mobius·Gemini는 **어떤 방식이든** 별도(수업 서버·API 키).
 
 브라우저는 Static URL (`onsalpim-dashboard-xxxx.onrender.com`) 로 접속.
 
+### B-2. 복지사 앱 (Static · Expo Web)
+
+1. Blueprint 가 **`onsalpim-care`** ( `mobile/` ) 도 만듦  
+2. **Environment**:
+   - `EXPO_PUBLIC_API_BASE` = API URL + `/api` (대시보드 `VITE_API_BASE` 와 같음)
+3. 재빌드 후 폰에서 care URL 접속 → **홈 화면에 추가** (Expo Go·맥 Metro 불필요)
+
 ### C. 주의 (Free)
 
 - **15분 무요청 시 슬립** → 첫 접속 30초~1분 걸릴 수 있음  

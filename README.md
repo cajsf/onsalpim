@@ -28,6 +28,8 @@ IOT/                      파이썬 백엔드 (규칙 엔진·판정·검증·AP
   └─ data/                규칙과 돌면서 쌓이는 기록
                           (rules.json 만 저장소에 올라간다)
 
+mobile/                   Expo · 복지사 현장 앱 — mobile/README.md
+
 arduino/                  세대 노드 펌웨어
   ├─ ARDUINO_WIRING.md    배선 규격 — 조립 전에 읽을 것
   ├─ BOARD_WIRING.svg     회로도
