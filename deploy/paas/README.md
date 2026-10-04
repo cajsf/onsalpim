@@ -5,7 +5,7 @@
 
 | 방식 | 비용 | 24시간 | 데이터 |
 |------|------|--------|--------|
-| **Render** (API + Static) | Free 티어 (슬립·한도) | 슬립 후 첫 요청 지연 | 무료는 **휘발** — 재배포 시 data 초기화 가능 |
+| **Render** (API + Static) | API Free · Static 무료 배포 | API 슬립 후 첫 요청 지연 | 무료는 **휘발** — 재배포 시 data 초기화 가능 |
 | **Railway** | 월 크레딧 | 크레딧 내 | Volume 유료/설정 필요 |
 | **맥 + Cloudflare Tunnel** | $0 | **맥 켜 둘 때만** | 로컬 `IOT/data/` |
 

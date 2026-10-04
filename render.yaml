@@ -20,13 +20,13 @@ services:
         sync: false
     healthCheckPath: /api/health
 
+  # Static site — CDN만 쓰므로 plan 필드 없음 (free plan 은 Python Web 전용)
   - type: web
     name: onsalpim-dashboard
     runtime: static
     rootDir: IOT/dashboard
-    plan: free
     buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    staticPublishPath: ./dist
     envVars:
       - key: VITE_API_BASE
         sync: false
