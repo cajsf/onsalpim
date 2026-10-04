@@ -20,8 +20,10 @@ PY
   fi
 fi
 
-python -c "import engine; engine.loop(interval=4)" &
+python -u -c "import engine; engine.loop(interval=4)" &
 ENGINE_PID=$!
 trap 'kill $ENGINE_PID 2>/dev/null || true' EXIT
 
-exec gunicorn -w 2 -b "0.0.0.0:${PORT}" --timeout 120 api_server:app
+# Free 512MB: worker 2개 + 엔진이면 OOM 으로 엔진만 죽는 경우가 있다
+WORKERS="${GUNICORN_WORKERS:-1}"
+exec gunicorn -w "$WORKERS" -b "0.0.0.0:${PORT}" --timeout 120 api_server:app

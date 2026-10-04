@@ -2030,6 +2030,7 @@ def loop(interval=3):
     import time
 
     print(f"규칙 {len(load_rules())}개 로드. {interval}초마다 실행. (Ctrl+C 로 종료)")
+    write_heartbeat()  # PaaS: Mobius 첫 조회(수 초) 전에 API가 '미실행'으로 보이지 않게
     try:
         devices = iot.read_tree("byeongari", max_age=0)
     except requests.RequestException as e:   # 켤 때 서버가 늦어도 루프 안에서 다시 시도한다
