@@ -27,6 +27,7 @@ import requests
 import care_monitor
 import iot_platform as iot
 import llm_translator as tr
+import rules_engine
 import scope
 import sentence_facts as facts
 import validator
@@ -2012,7 +2013,9 @@ def write_care_state(results, homes_state, rules=None, devices=None):
     with open(CARE_STATE_FILE, "w", encoding="utf-8") as f:
         json.dump({"updated": datetime.now().isoformat(), "homes": payload,
                    # 센서를 믿을 수 없어 멈춘 제어 규칙 — 로그에만 있으면 복지사는 모른다
-                   "held_rules": {str(k): v for k, v in _held.items()}},
+                   "held_rules": {str(k): v for k, v in _held.items()},
+                   # 판정을 Drools 가 내렸는지, Java 가 없어 파이썬으로 대신했는지 — 화면이 숨기지 않게
+                   "judge": rules_engine.which()},
                   f, ensure_ascii=False, indent=2)
 
 

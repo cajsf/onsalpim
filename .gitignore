@@ -27,3 +27,6 @@ IOT/data/reset_backup/
 .DS_Store
 Thumbs.db
 ~$*
+
+# ── 규칙 엔진 빌드 결과 (mvnw package 로 다시 만든다) ──
+IOT/rules-engine/target/

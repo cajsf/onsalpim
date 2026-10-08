@@ -87,7 +87,10 @@ const platformError = ref(null)
 const engineChip = computed(() => {
   if (!engineRunning.value) return { cls: 'chip-off', text: '엔진 미실행' }
   if (platformError.value) return { cls: 'chip-warn', text: '공용 서버 응답 없음' }
-  return { cls: 'chip-on', text: '실시간 모니터링 중' }
+  // 판정을 내린 엔진 — Java 가 없는 서버에선 같은 순서의 내장(파이썬) 판정으로 대신한다. 숨기지 않는다
+  const j = care.value.judge
+  const by = j?.engine === 'drools' ? ' · Drools 판정' : j?.engine === 'python' ? ' · 내장 판정' : ''
+  return { cls: 'chip-on', text: '실시간 모니터링 중' + by }
 })
 const engineMessage = ref('')
 const connectionError = ref('')
@@ -625,7 +628,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   @click="resetDemo">
             {{ confirmReset ? '한 번 더 누르면 초기화' : '시연 초기화' }}
           </button>
-          <span class="chip" :class="engineChip.cls" :title="engineMessage">
+          <span class="chip" :class="engineChip.cls" :title="[engineMessage, care.judge?.why].filter(Boolean).join(' — ')">
             {{ engineChip.text }}
           </span>
           <div class="who">
