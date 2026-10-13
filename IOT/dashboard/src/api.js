@@ -110,15 +110,4 @@ export const api = {
     })
     return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
   },
-  async transcribeSpeech(blob) {
-    const form = new FormData()
-    const ext = blob.type.includes('wav') ? 'wav' : blob.type.includes('mp4') ? 'mp4' : 'webm'
-    form.append('audio', blob, `speech.${ext}`)
-    const res = await fetch(`${BASE}/speech`, { method: 'POST', body: form })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      throw new Error(data.error || `HTTP ${res.status}`)
-    }
-    return data
-  },
 }

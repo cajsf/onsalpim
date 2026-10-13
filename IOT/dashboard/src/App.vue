@@ -1,7 +1,6 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { api } from './api.js'
-import { useSpeechRecognition } from './useSpeechRecognition.js'
 import HomeBasis from './HomeBasis.vue'
 import HomeTimeline from './HomeTimeline.vue'
 import HomeActions from './HomeActions.vue'
@@ -119,9 +118,6 @@ function toggleRow(home) {
   s.has(home) ? s.delete(home) : s.add(home)
   expanded.value = s
 }
-
-const { supported: speechSupported, listening, transcribing, speechError, start: toggleSpeech } =
-  useSpeechRecognition((text) => { sentence.value = text })
 
 const examples = [
   '전체 세대에서 8시간 동안 움직임이 없으면 긴급으로 표시해줘',
@@ -833,13 +829,13 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div class="card-head">
               <div>
                 <h2>규칙 만들기</h2>
-                <p class="hint">일상적인 말로 규칙을 작성하면, AI가 구조화하고 복지사가 승인합니다.</p>
+                <p class="hint">아래에 문장을 글로 입력하면, AI가 구조화하고 복지사가 승인합니다.</p>
               </div>
             </div>
 
             <div class="seg">
               <button class="seg-btn" :class="{ on: inputTab === 'nl' }" @click="inputTab = 'nl'">
-                자연어로 입력하기
+                글로 입력하기
               </button>
               <button class="seg-btn" :class="{ on: inputTab === 'json' }" @click="inputTab = 'json'">
                 구조화 미리보기
@@ -847,18 +843,12 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             </div>
 
             <div v-if="inputTab === 'nl'">
-              <div class="ta-wrap" :class="{ listening }">
+              <div class="ta-wrap">
                 <textarea
                   v-model="sentence" :disabled="loading" maxlength="200" rows="3"
                   placeholder="예: 전체 세대에서 8시간 이상 움직임이 없으면 복지사에게 긴급 알림을 보내줘."
                 ></textarea>
                 <div class="ta-foot">
-                  <button
-                    v-if="speechSupported" type="button" class="mic"
-                    :class="{ active: listening, busy: transcribing }"
-                    :disabled="loading || transcribing" @click="toggleSpeech"
-                    :title="listening ? '녹음 중 — 다시 누르면 변환' : '음성으로 입력'"
-                  >🎙</button>
                   <span class="count">{{ sentence.length }}/200</span>
                 </div>
               </div>
@@ -866,10 +856,6 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <button class="btn primary wide" :disabled="loading || !sentence.trim()" @click="submitRule">
                 {{ loading ? '규칙을 만드는 중…' : '✨ 규칙 생성하기' }}
               </button>
-
-              <p v-if="listening" class="msg info">🎤 녹음 중… 말씀하신 뒤 마이크를 다시 눌러 주세요</p>
-              <p v-if="transcribing" class="msg info">⏳ 음성을 글로 변환하는 중…</p>
-              <p v-if="speechError" class="msg err">{{ speechError }}</p>
 
               <div class="chips">
                 <button v-for="ex in examples" :key="ex" class="ex" @click="useExample(ex)">{{ ex }}</button>
@@ -1479,14 +1465,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .seg-btn.on { background: var(--surface); color: var(--brand-dim); font-weight: 600; box-shadow: var(--shadow-sm); }
 
 .ta-wrap { border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-2); padding: 0.6rem 0.7rem; }
-.ta-wrap.listening { border-color: var(--urgent); box-shadow: 0 0 0 3px var(--urgent-soft); }
 .ta-wrap textarea { width: 100%; border: 0; background: none; resize: vertical; font-family: inherit; font-size: 0.86rem; color: var(--text); line-height: 1.6; }
 .ta-wrap textarea:focus { outline: none; }
 .ta-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 0.3rem; }
 .count { font-size: 0.7rem; }
-.mic { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); cursor: pointer; font-size: 0.85rem; }
-.mic.active { background: var(--urgent-soft); border-color: var(--urgent); }
-.mic.busy { opacity: 0.6; }
 
 
 .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.75rem; }

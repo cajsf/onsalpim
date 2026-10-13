@@ -30,9 +30,10 @@ src/
 ├── HomeActions.vue          세대 조치 — 이 세대만 기준 바꾸기 / 부재 등록·해제
 ├── api.js                   Flask API 호출
 ├── format.js                위험도·시간 표기, nowMs (시계), autoClear
-├── style.css                전역 (.btn, .msg, 색 토큰)
-└── useSpeechRecognition.js  마이크 → /api/speech
+└── style.css                전역 (.btn, .msg, 색 토큰)
 ```
+
+규칙 만들기는 **텍스트 입력만** 쓴다 (음성·STT UI 없음).
 
 **시간 표기는 클라이언트가 계산한다.** 서버는 판정 시각을 보내고 화면이 `nowMs` 로 경과를 다시 센다.
 서버가 계산한 "3초 전"을 그대로 쓰면 엔진이 멈췄을 때 그 숫자가 그대로 굳어버린다.
@@ -56,8 +57,9 @@ src/
 | POST | `/api/absences/:id/end` | 부재 해제 |
 | DELETE | `/api/rules/:id` | 규칙 삭제 |
 | GET | `/api/devices` · `/api/sensors` · `/api/actuators` | 리소스 트리 · 센서값 · 명령값 |
-| POST | `/api/speech` | 녹음 → Gemini STT |
 | GET | `/api/engine/status` · `/api/health` | 엔진 하트비트 · 서버 생존 |
+
+(`POST /api/speech` 는 시험·평가용으로 서버에만 남아 있으며 대시보드에서는 호출하지 않는다.)
 
 ## 화면을 고칠 때 지킬 것
 
