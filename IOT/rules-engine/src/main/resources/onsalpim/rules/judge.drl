@@ -1,0 +1,102 @@
+// 온살핌 세대 판정 규칙 — care_monitor.judge() 의 판정 순서를 그대로 옮겼다.
+//
+//   ① 통신이 끊겼다      → 점검 필요. 생활 판정은 하지 않는다
+//      단, 마지막 움직임이 긴급 기준을 넘으면 안부 확인도 요청한다 (원인은 기기로 둔 채)
+//   ①-b 부재 등록 중     → 무활동 판정 보류, 기기(배터리)만 본다
+//   ② 기기 정상 + 무활동 → 넘은 단계 중 긴급이 있으면 긴급, 없으면 가장 높은 단계
+//   ③ 기기 정상 + 배터리 → 주의
+//   ④ 그 외              → 정상
+//
+// 세대마다 결정은 하나다. 앞 순서 규칙이 Decision 을 넣으면 뒤 규칙은 'not Decision' 으로 막힌다
+// (salience 가 순서다). 입력은 숫자뿐이다 — 경과 시간은 파이썬이 계산해 넘긴다.
+// 이 파일은 저장소에 고정돼 있다. 복지사·AI 가 만드는 것은 기준값(Level) 같은 데이터뿐이다.
+
+package onsalpim.rules
+
+import onsalpim.rules.Case
+import onsalpim.rules.Level
+import onsalpim.rules.Params
+import onsalpim.rules.Decision
+
+rule "① 두절 + 긴급 기준 초과 → 점검 필요 + 안부 확인"
+    salience 100
+when
+    $p : Params()
+    $u : Level( severity == "URGENT", $cid : caseId, $um : minutes )
+    not Level( caseId == $cid, severity == "URGENT", minutes < $um )
+    $c : Case( id == $cid, silentS == null || silentS > $p.staleFactor * periodS,
+               away == false, idleS != null, idleS > $um * 60 )
+    not Decision( caseId == $cid )
+then
+    insert( new Decision( $cid, "DEVICE_WELFARE", $um ) );
+end
+
+rule "① 두절 → 점검 필요 (생활 판정 보류)"
+    salience 90
+when
+    $p : Params()
+    $c : Case( silentS == null || silentS > $p.staleFactor * periodS )
+    not Decision( caseId == $c.id )
+then
+    insert( new Decision( $c.getId(), "DEVICE_SILENT", null ) );
+end
+
+rule "①-b 부재 중 + 배터리 부족 → 주의"
+    salience 80
+when
+    $p : Params()
+    $c : Case( away == true, battery != null, battery < $p.batteryLow )
+    not Decision( caseId == $c.id )
+then
+    insert( new Decision( $c.getId(), "AWAY_BATTERY", null ) );
+end
+
+rule "①-b 부재 중 → 무활동 판정 보류"
+    salience 75
+when
+    $c : Case( away == true )
+    not Decision( caseId == $c.id )
+then
+    insert( new Decision( $c.getId(), "AWAY", null ) );
+end
+
+rule "② 무활동 — 긴급 단계를 넘음"
+    salience 70
+when
+    $l : Level( severity == "URGENT", $cid : caseId, $m : minutes )
+    not Level( caseId == $cid, severity == "URGENT", minutes < $m )
+    $c : Case( id == $cid, idleS != null, idleS > $m * 60 )
+    not Decision( caseId == $cid )
+then
+    insert( new Decision( $cid, "IDLE_URGENT", $m ) );
+end
+
+rule "② 무활동 — 주의 단계를 넘음 (넘은 단계 중 가장 높은 것)"
+    salience 60
+when
+    $l : Level( $cid : caseId, $m : minutes )
+    $c : Case( id == $cid, idleS != null, idleS > $m * 60 )
+    not Level( caseId == $cid, minutes > $m, minutes * 60 < $c.idleS )
+    not Decision( caseId == $cid )
+then
+    insert( new Decision( $cid, "IDLE_WATCH", $m ) );
+end
+
+rule "③ 배터리 부족 → 주의"
+    salience 50
+when
+    $p : Params()
+    $c : Case( battery != null, battery < $p.batteryLow )
+    not Decision( caseId == $c.id )
+then
+    insert( new Decision( $c.getId(), "BATTERY", null ) );
+end
+
+rule "④ 정상"
+    salience 0
+when
+    $c : Case()
+    not Decision( caseId == $c.id )
+then
+    insert( new Decision( $c.getId(), "NORMAL", null ) );
+end

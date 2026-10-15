@@ -180,7 +180,58 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
         idle_min = urgent_min if urgent_min is not None else idle_levels[0]["minutes"]
 
     silent_s = _elapsed_s(contact["ts"], now)
-    stale_after = STALE_FACTOR * contact["period_s"]
+    idle_s = _elapsed_s(last_activity, now)
+    case = make_case(silent_s, contact["period_s"], idle_s, idle_levels, battery, away)
+    return render(decide_case(case), case, contact, last_activity, battery, now, idle_levels, idle_min, away)
+
+
+# ---------- 결정과 문장을 나눈다 ----------
+# '어떤 위험도인가'(결정)는 규칙 엔진(Drools)이 내리고, 화면 문장은 여기서 만든다.
+# 결정에 쓰는 입력은 숫자뿐이다 — 경과 시간은 여기서 계산해 넘기므로, 두 언어가 시각을 따로
+# 계산하다 경계에서 어긋날 일이 없다. decide_python 은 Drools 가 없는 곳(Java 없는 서버)의
+# 대체 경로이자, Drools 가 같은 결정을 내리는지 대조하는 기준이다.
+
+def make_case(silent_s, period_s, idle_s, idle_levels, battery, away):
+    return {
+        "silent_s": silent_s, "period_s": float(period_s), "idle_s": idle_s,
+        "levels": [{"minutes": float(lv["minutes"]), "severity": lv["severity"]} for lv in idle_levels],
+        "battery": None if battery is None else float(battery),
+        "away": bool(away),
+    }
+
+
+def decide_python(case):
+    """판정 순서 그대로 — 반환 {'code', 'minutes'}. minutes 는 넘은 무활동 단계(없으면 None)."""
+    levels = sorted(case["levels"], key=lambda lv: lv["minutes"])
+    urgent = next((lv["minutes"] for lv in levels if lv["severity"] == URGENT), None)
+    silent, idle, batt = case["silent_s"], case["idle_s"], case["battery"]
+    if silent is None or silent > STALE_FACTOR * case["period_s"]:                      # ①
+        if not case["away"] and urgent is not None and idle is not None and idle > urgent * 60:
+            return {"code": "DEVICE_WELFARE", "minutes": urgent}                           # ①-a
+        return {"code": "DEVICE_SILENT", "minutes": None}
+    if case["away"]:                                                                       # ①-b
+        low = batt is not None and batt < BATTERY_LOW
+        return {"code": "AWAY_BATTERY" if low else "AWAY", "minutes": None}
+    passed = [lv for lv in levels if idle is not None and idle > lv["minutes"] * 60]     # ②
+    hit = next((lv for lv in passed if lv["severity"] == URGENT), passed[-1] if passed else None)
+    if hit:
+        return {"code": "IDLE_URGENT" if hit["severity"] == URGENT else "IDLE_WATCH", "minutes": hit["minutes"]}
+    if batt is not None and batt < BATTERY_LOW:                                            # ③
+        return {"code": "BATTERY", "minutes": None}
+    return {"code": "NORMAL", "minutes": None}                                             # ④
+
+
+def decide_case(case):
+    """규칙 엔진에 맡긴다. 엔진을 못 쓰면 같은 순서의 파이썬 판정으로."""
+    import rules_engine
+    return rules_engine.decide([case])[0]
+
+
+def render(decision, case, contact, last_activity, battery, now, idle_levels, idle_min, away):
+    """결정 코드를 화면 문장으로. 판정은 하지 않는다 — 코드에 따라 문구만 고른다."""
+    code, m = decision["code"], decision["minutes"]
+    silent_s, idle_s = case["silent_s"], case["idle_s"]
+    urgent_min = next((lv["minutes"] for lv in idle_levels if lv["severity"] == URGENT), None)
 
     def out(severity, reason, life, device, basis, life_known=True, idle_s=None, welfare_check=False):
         """화면이 '생활 상태'와 '기기 상태'를 따로 보여줘야 하므로 나눠서 돌려준다.
@@ -211,13 +262,13 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
     # 배터리를 보고하지 않는 장치도 있다(USB 전원 보드 등). 없으면 없다고 떠들지 말고 생략한다.
     batt_pct = None if battery is None else f"{float(battery):.0f}%"
     device_ok = "통신 정상" if batt_pct is None else f"통신 정상 · 배터리 {batt_pct}"
+    low_batt = battery is not None and float(battery) < BATTERY_LOW
 
-    # ① 기기 신뢰성 먼저
-    if silent_s is None or silent_s > stale_after:
+    # ① 기기 신뢰성 먼저 — 통신이 끊기면 생활 판정을 하지 않는다
+    if code in ("DEVICE_WELFARE", "DEVICE_SILENT"):
         gap = "데이터 없음" if silent_s is None else f"{_human(silent_s)} 미수신"
-        idle_s = _elapsed_s(last_activity, now)
         # ①-a 기기가 정상이었다면 긴급 확인이 떴을 시점이 지났다 → 원인은 기기로 둔 채 안부 확인도 요청
-        if not away and urgent_min is not None and idle_s is not None and idle_s > float(urgent_min) * 60:
+        if code == "DEVICE_WELFARE":
             return out(
                 CHECK_DEVICE,
                 f"안부 확인 필요 — {gap}, 마지막 움직임 {_human(idle_s)} 전 (긴급 기준 {human_minutes(urgent_min)} 초과)",
@@ -240,25 +291,18 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
         )
 
     # ①-b 부재 등록 기간 — 생활 판정 보류, 기기는 계속 본다
-    if away:
+    if code in ("AWAY_BATTERY", "AWAY"):
         until = away["until"][5:16].replace("-", "/").replace("T", " ")
         life = f"부재 중 ({until}까지 · {away['reason']})"
-        idle_s = _elapsed_s(last_activity, now)
-        if battery is not None and float(battery) < BATTERY_LOW:
+        if code == "AWAY_BATTERY":
             return out(WATCH, f"배터리 {batt_pct} (부재 중)", life=life, device=f"배터리 부족 ({batt_pct})",
                        basis=f"부재 등록 기간 — 무활동 판정 보류 · 배터리 {batt_pct} (기준 {BATTERY_LOW}% 미만)",
                        idle_s=idle_s)
         return out(NORMAL, life, life=life, device=device_ok,
                    basis="부재 등록 기간 — 무활동 판정 보류, 기기 점검은 계속", idle_s=idle_s)
 
-    # ② 기기가 정상일 때만 생활 판정
-    # idle_min 이 None 이면 이 세대에 걸린 무활동 규칙이 없다는 뜻 → 생활 판정을 하지 않는다.
-    # (기기 상태는 규칙과 무관하게 항상 본다 — 장치가 죽은 건 규칙이 없어도 알아야 한다)
-    idle_s = _elapsed_s(last_activity, now)
-    passed = [lv for lv in idle_levels if idle_s is not None and idle_s > float(lv["minutes"]) * 60]
-    hit = next((lv for lv in passed if lv["severity"] == URGENT), passed[-1] if passed else None)
-    if hit and hit["severity"] == URGENT:
-        m = hit["minutes"]
+    # ② 기기가 정상일 때만 생활 판정 (무활동 규칙이 없는 세대는 결정이 여기로 오지 않는다)
+    if code == "IDLE_URGENT":
         return out(
             URGENT,
             f"{_human(idle_s)} 무활동 (기준 {human_minutes(m)}, 통신 정상)",
@@ -267,15 +311,14 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
             basis=f"통신 정상 + 무활동이 적용 기준({human_minutes(m)})을 초과",
             idle_s=idle_s,
         )
-    if hit:   # 주의 단계 — 배터리 주의보다 먼저 본다 (생활 신호가 더 중요하다)
-        m = hit["minutes"]
+    if code == "IDLE_WATCH":   # 주의 단계 — 배터리 주의보다 먼저 본다 (생활 신호가 더 중요하다)
         return out(
             WATCH,
             f"{_human(idle_s)} 무활동 (주의 기준 {human_minutes(m)}, 통신 정상)",
             life=f"움직임 없음 ({_human(idle_s)}) — 주의 기준 초과",
-            device=device_ok if battery is None or float(battery) >= BATTERY_LOW else f"배터리 부족 ({batt_pct})",
+            device=f"배터리 부족 ({batt_pct})" if low_batt else device_ok,
             basis=f"통신 정상 + 무활동이 주의 기준({human_minutes(m)})을 초과"
-                  + (f" · 긴급 기준 {human_minutes(idle_min)}" if idle_min != m else ""),
+                  + (f" · 긴급 기준 {human_minutes(idle_min)}" if float(idle_min) != float(m) else ""),
             idle_s=idle_s,
         )
 
@@ -283,7 +326,7 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
                  else "활동 기록 없음")
 
     # ③ 생활은 정상, 기기에 경미한 이상
-    if battery is not None and float(battery) < BATTERY_LOW:
+    if code == "BATTERY":
         return out(WATCH, f"배터리 {batt_pct}", life=life_text,
                    device=f"배터리 부족 ({batt_pct})",
                    basis=f"통신 정상 + 활동 정상 + 배터리 {batt_pct} (기준 {BATTERY_LOW}% 미만)",
