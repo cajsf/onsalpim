@@ -13,7 +13,10 @@ care_monitor.py — 생활 이상(무활동)과 기기 이상(통신 두절)을 
 
     이 둘을 분리하는 순간 애매함이 사라진다:
       값 0이 계속 '도착'  →  장치 정상 + 사람이 안 움직임  →  무활동
-      아무것도 안 도착    →  장치 두절                     →  점검 필요 (생활 판정 불가)
+      아무것도 안 도착    →  장치 두절                     →  장치 점검 (새 생활 판정은 하지 않음)
+
+    이미 '긴급 확인'으로 확인된 세대는 두절만으로 그 건을 지우지 않는다.
+    긴급 확인은 그대로 두고, 장치 점검을 별도 상태로 병행한다.
 
     보드는 이미 2초마다 PIR 값을 0이든 1이든 무조건 올린다(board_a.ino).
     즉 '움직임이 없어도 장치가 정상임을 확인할 데이터'는 이미 플랫폼에 쌓이고 있다.
@@ -48,6 +51,7 @@ care_monitor.py — 생활 이상(무활동)과 기기 이상(통신 두절)을 
 
 from datetime import datetime, timedelta
 
+import care_patterns
 import iot_platform as iot
 from scope import SEVERITIES
 
@@ -67,7 +71,7 @@ LABEL_KO = {
     NORMAL: "정상",
     WATCH: "주의",
     URGENT: "긴급 확인",
-    CHECK_DEVICE: "점검 필요",
+    CHECK_DEVICE: "장치 점검",
 }
 
 
@@ -144,20 +148,25 @@ def read_activity(dev):
 
 # ---------- 판정 ----------
 
-def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=None, away=None):
+def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=None, away=None,
+          prior_urgent=False):
     """한 세대의 위험도를 판정한다.
 
     판정 '순서'가 이 함수의 전부다 — 기기를 먼저 보고, 기기가 믿을 만할 때만 생활을 본다.
 
-      ① 통신이 끊겼다      → 점검 필요. 생활 판정은 하지 않는다(무활동 타이머 정지)
+      ①-0 이미 긴급 확인인 채 통신이 끊겼다
+         → 긴급 확인은 유지하고 장치 점검을 병행한다. 두절만으로 긴급 건을 지우지 않는다.
+      ① 통신이 끊겼다 (긴급으로 확인된 적 없음)
+         → 장치 점검. 새 생활 판정은 하지 않는다(무활동 타이머로 긴급을 만들지 않음)
          단, 마지막 움직임이 긴급 기준을 넘으면 '안부 확인 필요'를 붙인다 (원인은 기기로 둔 채)
       ② 기기 정상 + 무활동 → 넘은 단계 중 가장 높은 위험도 (긴급 확인 / 주의)
       ③ 기기 정상 + 배터리 → 주의
       ④ 그 외              → 정상
 
-    ①에서 멈추는 게 핵심이다. 장치가 죽었는데 무활동 타이머를 계속 돌리면
+    ①에서 새 긴급을 만들지 않는 게 핵심이다. 장치가 죽었는데 무활동 타이머를 계속 돌리면
     통신 두절 세대가 전부 자동으로 '긴급' 오탐이 된다. 데이터를 못 믿는 상태에서
-    생활 이상을 단정하면 안 된다.
+    생활 이상을 새로 단정하면 안 된다.
+    다만 통신이 정상일 때 이미 긴급 확인이었던 건은 기록이 끊겼다고 사라지지 않는다.
 
     그렇다고 판정 보류가 무활동 알림을 영원히 막으면 안 된다. 두절 중에 쓰러진 사람을
     끝내 모르게 된다(노르웨이 원격 돌봄 두절 중 사망 사례). 기기가 정상이었다면 긴급 확인이
@@ -181,7 +190,7 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
 
     silent_s = _elapsed_s(contact["ts"], now)
     idle_s = _elapsed_s(last_activity, now)
-    case = make_case(silent_s, contact["period_s"], idle_s, idle_levels, battery, away)
+    case = make_case(silent_s, contact["period_s"], idle_s, idle_levels, battery, away, prior_urgent)
     return render(decide_case(case), case, contact, last_activity, battery, now, idle_levels, idle_min, away)
 
 
@@ -191,12 +200,14 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
 # 계산하다 경계에서 어긋날 일이 없다. decide_python 은 Drools 가 없는 곳(Java 없는 서버)의
 # 대체 경로이자, Drools 가 같은 결정을 내리는지 대조하는 기준이다.
 
-def make_case(silent_s, period_s, idle_s, idle_levels, battery, away):
+def make_case(silent_s, period_s, idle_s, idle_levels, battery, away, prior_urgent=False):
     return {
         "silent_s": silent_s, "period_s": float(period_s), "idle_s": idle_s,
         "levels": [{"minutes": float(lv["minutes"]), "severity": lv["severity"]} for lv in idle_levels],
         "battery": None if battery is None else float(battery),
         "away": bool(away),
+        # 통신이 정상일 때 긴급 확인으로 확정된 적 있는가. 두절이 그 건을 지우지 않게 한다.
+        "prior_urgent": bool(prior_urgent),
     }
 
 
@@ -205,7 +216,10 @@ def decide_python(case):
     levels = sorted(case["levels"], key=lambda lv: lv["minutes"])
     urgent = next((lv["minutes"] for lv in levels if lv["severity"] == URGENT), None)
     silent, idle, batt = case["silent_s"], case["idle_s"], case["battery"]
-    if silent is None or silent > STALE_FACTOR * case["period_s"]:                      # ①
+    lost = silent is None or silent > STALE_FACTOR * case["period_s"]
+    if lost and case.get("prior_urgent") and not case["away"]:                          # ①-0
+        return {"code": "URGENT_HELD", "minutes": None}
+    if lost:                                                                            # ①
         if not case["away"] and urgent is not None and idle is not None and idle > urgent * 60:
             return {"code": "DEVICE_WELFARE", "minutes": urgent}                           # ①-a
         return {"code": "DEVICE_SILENT", "minutes": None}
@@ -233,7 +247,8 @@ def render(decision, case, contact, last_activity, battery, now, idle_levels, id
     silent_s, idle_s = case["silent_s"], case["idle_s"]
     urgent_min = next((lv["minutes"] for lv in idle_levels if lv["severity"] == URGENT), None)
 
-    def out(severity, reason, life, device, basis, life_known=True, idle_s=None, welfare_check=False):
+    def out(severity, reason, life, device, basis, life_known=True, idle_s=None, welfare_check=False,
+            device_check=False, life_check=False):
         """화면이 '생활 상태'와 '기기 상태'를 따로 보여줘야 하므로 나눠서 돌려준다.
 
         이 둘을 한 문장으로 합쳐 내보내면 대시보드가 다시 쪼개야 하고,
@@ -243,6 +258,7 @@ def render(decision, case, contact, last_activity, battery, now, idle_levels, id
         판정 로직이 두 곳에 생기고, 한쪽만 고쳤을 때 화면이 거짓을 말하게 된다.
         """
         return {
+            "code": code,
             "severity": severity, "reason": reason,
             "life": life, "device": device, "basis": basis,
             "idle_s": idle_s, "silent_s": silent_s,
@@ -255,7 +271,12 @@ def render(decision, case, contact, last_activity, battery, now, idle_levels, id
             "idle_min": None if idle_min is None else float(idle_min),
             "idle_levels": [{"minutes": float(lv["minutes"]), "severity": lv["severity"]} for lv in idle_levels],
             "life_known": life_known,
-            "welfare_check": welfare_check,   # 두절이 길어져 안부 확인도 필요 (위험도는 점검 필요 그대로)
+            "welfare_check": welfare_check,   # 두절이 길어져 안부 확인도 필요 (위험도는 장치 점검 그대로)
+            # 생활 확인 우선순위와 별개인 장치 업무. 긴급 확인 중 두절이면 둘 다 참이다.
+            "device_check": device_check,
+            "life_check": life_check,   # 생활 쪽 주의 — 배터리 주의와 화면에서 구분한다
+            "patterns": [],
+            "followup": None,
             "away": away,
         }
 
@@ -264,7 +285,20 @@ def render(decision, case, contact, last_activity, battery, now, idle_levels, id
     device_ok = "통신 정상" if batt_pct is None else f"통신 정상 · 배터리 {batt_pct}"
     low_batt = battery is not None and float(battery) < BATTERY_LOW
 
-    # ① 기기 신뢰성 먼저 — 통신이 끊기면 생활 판정을 하지 않는다
+    # ①-0 이미 긴급 확인인 세대 — 두절은 그 건을 지우지 않고 장치 점검만 더한다
+    if code == "URGENT_HELD":
+        gap = "데이터 없음" if silent_s is None else f"{_human(silent_s)} 미수신"
+        return out(
+            URGENT,
+            f"긴급 확인 유지 — {gap}, 마지막 움직임 {_human(idle_s)} 전",
+            life=f"긴급 확인 유지 (마지막 움직임 {_human(idle_s)} 전)",
+            device=gap,
+            basis="기존 긴급 확인 중 통신 두절 — 긴급 확인은 유지하고 장치 점검을 병행"
+                  " (두절만으로 해제하지 않음)",
+            life_known=True, idle_s=idle_s, device_check=True,
+        )
+
+    # ① 기기 신뢰성 먼저 — 긴급으로 확인된 적 없으면 두절로 새 긴급을 만들지 않는다
     if code in ("DEVICE_WELFARE", "DEVICE_SILENT"):
         gap = "데이터 없음" if silent_s is None else f"{_human(silent_s)} 미수신"
         # ①-a 기기가 정상이었다면 긴급 확인이 떴을 시점이 지났다 → 원인은 기기로 둔 채 안부 확인도 요청
@@ -276,7 +310,7 @@ def render(decision, case, contact, last_activity, battery, now, idle_levels, id
                 device=gap,
                 basis=f"통신 두절로 생활을 확인할 수 없는데 마지막 움직임이 긴급 기준({human_minutes(urgent_min)})을 넘음"
                       " — 기기 점검과 함께 안부 확인",
-                life_known=False, idle_s=idle_s, welfare_check=True,
+                life_known=False, idle_s=idle_s, welfare_check=True, device_check=True,
             )
         return out(
             CHECK_DEVICE,
@@ -285,6 +319,7 @@ def render(decision, case, contact, last_activity, battery, now, idle_levels, id
             device=gap,
             basis="통신 두절 — 무활동 여부를 판단하지 않음",
             life_known=False,      # 생활 상태를 알 수 없다 — 단정하지 않는다
+            device_check=True,
             # 마지막 활동 '기록'은 있으니 화면에는 보여준다. 다만 판정에는 쓰지 않는다 —
             # 두절 이후에 움직였는지는 알 수 없으므로 life_known=False 로 함께 표시한다.
             idle_s=idle_s,
@@ -319,7 +354,7 @@ def render(decision, case, contact, last_activity, battery, now, idle_levels, id
             device=f"배터리 부족 ({batt_pct})" if low_batt else device_ok,
             basis=f"통신 정상 + 무활동이 주의 기준({human_minutes(m)})을 초과"
                   + (f" · 긴급 기준 {human_minutes(idle_min)}" if float(idle_min) != float(m) else ""),
-            idle_s=idle_s,
+            idle_s=idle_s, life_check=True,
         )
 
     life_text = (f"최근 활동 정상 ({_human(idle_s)} 전)" if idle_s is not None
@@ -391,6 +426,21 @@ def check_sweep_interval(sweep_s, devices):
     return warnings
 
 
+def detect_patterns(homes_state, now):
+    """세대들의 움직임·온도·알림을 모아 시간 패턴을 한 번에 판정한다.
+
+    events 가 없는 세대는 패턴에 걸리지 않는다. Java 가 없으면 파이썬 판정으로 대신한다.
+    """
+    import rules_engine
+    homes, events = [], []
+    for home, st in homes_state.items():
+        homes.append(care_patterns.home_params(home, st.get("profile"), now))
+        events += st.get("events") or []
+    if not events:
+        return []
+    return rules_engine.detect(care_patterns.ms(now), homes, events)
+
+
 class Watchdog:
     """이벤트가 없는 동안에도 경과 시간을 계산하는 주체.
 
@@ -403,6 +453,10 @@ class Watchdog:
     def __init__(self):
         self.last_severity = {}   # home → 직전 위험도
         self.last_welfare = {}    # home → 직전 '안부 확인 필요' 여부 (위험도가 같아도 이게 바뀌면 알린다)
+        self.last_device = {}     # home → 직전 장치 점검 여부
+        self.last_follow = {}     # home → 직전 재통지·이관 코드
+        # 통신이 정상일 때 긴급 확인으로 확정된 세대. 두절이 나도 이 건은 유지한다.
+        self.confirmed_urgent = {}
 
     def sweep(self, homes_state, now=None):
         """세대별 판정을 한 바퀴 돌고, 상태가 바뀐 세대만 알림 대상으로 표시한다.
@@ -412,13 +466,28 @@ class Watchdog:
         """
         now = now or datetime.now()
         results = []
+        found = detect_patterns(homes_state, now)
         for home, st in homes_state.items():
+            prior = st["prior_urgent"] if "prior_urgent" in st else self.confirmed_urgent.get(home, False)
             v = judge(st["contact"], st.get("last_activity"), st.get("idle_min"),
-                      st.get("battery"), now, st.get("idle_levels"), st.get("away"))
+                      st.get("battery"), now, st.get("idle_levels"), st.get("away"), prior)
+            care_patterns.apply(v, [f for f in found if f["home"] == home], st.get("profile"), now)
+            v["life_check"] = v["severity"] == WATCH and (
+                v.get("code") == "IDLE_WATCH"
+                or any(c in ("MORNING_NONE", "NIGHT_WANDER") for c in v.get("patterns") or []))
+            follow = (v.get("followup") or {}).get("code")
             prev = self.last_severity.get(home)
-            changed = prev != v["severity"] or self.last_welfare.get(home, False) != v["welfare_check"]
+            changed = (prev != v["severity"]
+                       or self.last_welfare.get(home, False) != v["welfare_check"]
+                       or self.last_device.get(home, False) != v["device_check"]
+                       or self.last_follow.get(home) != follow)
             self.last_severity[home] = v["severity"]
             self.last_welfare[home] = v["welfare_check"]
+            self.last_device[home] = v["device_check"]
+            self.last_follow[home] = follow
+            # 부재이거나, 통신이 정상인 판정이면 확정 긴급을 갱신한다. 두절 중에는 직전 확정을 유지한다.
+            if v.get("away") or (v["life_known"] and not v["device_check"]):
+                self.confirmed_urgent[home] = v["severity"] == URGENT
             results.append({
                 "home": home,
                 "severity": v["severity"],
@@ -437,6 +506,11 @@ class Watchdog:
                 "judged_at": v["judged_at"],
                 "life_known": v["life_known"],
                 "welfare_check": v["welfare_check"],
+                "device_check": v["device_check"],
+                "life_check": v["life_check"],
+                "patterns": v.get("patterns") or [],
+                "followup": v.get("followup"),
+                "temp": st.get("temp"),
                 "changed": changed,
                 "from": prev,
             })

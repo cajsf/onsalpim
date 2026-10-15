@@ -8,7 +8,7 @@ import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
 import MonthlyReport from './MonthlyReport.vue'
 import RulePreview from './RulePreview.vue'
-import { SEV, SEV_ORDER, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
+import { SEV, SEV_ORDER, FOLLOW_KO, sevKo, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
 
 // 통계 분석은 세대별 활동 이력이 쌓여야 의미가 있는데 아직 저장소가 없어 '준비 중'으로 둔다.
 const NAV = [
@@ -211,6 +211,11 @@ const harnessNote = computed(() => {
 })
 
 const welfareCount = computed(() => homes.value.filter((h) => h.welfare_check).length)
+const deviceIssueCount = computed(() =>
+  homes.value.filter((h) => h.severity === 'CHECK_DEVICE' || h.device_check).length)
+const heldUrgent = computed(() =>
+  homes.value.filter((h) => h.severity === 'URGENT' && h.device_check).length)
+const lifeCheckCount = computed(() => homes.value.filter((h) => h.life_check).length)
 
 const counts = computed(() => {
   const c = { NORMAL: 0, WATCH: 0, URGENT: 0, CHECK_DEVICE: 0 }
@@ -265,7 +270,8 @@ const lowBattery = computed(() =>
 const tabs = computed(() => [
   { id: 'all',     label: '전체',       n: homes.value.length },
   { id: 'urgent',  label: '긴급',       n: counts.value.URGENT },
-  { id: 'device',  label: '점검 필요',  n: counts.value.CHECK_DEVICE },
+  { id: 'life',    label: '생활 확인',  n: lifeCheckCount.value },
+  { id: 'device',  label: '장치 점검',  n: deviceIssueCount.value },
   { id: 'battery', label: '배터리 부족', n: lowBattery.value.length },
   { id: 'pending', label: '승인 대기',  n: pendingRules.value.length },
 ])
@@ -273,14 +279,17 @@ const tabs = computed(() => [
 const visibleHomes = computed(() => {
   let list = [...homes.value]
   if (filter.value === 'urgent') list = list.filter((h) => h.severity === 'URGENT')
-  else if (filter.value === 'device') list = list.filter((h) => h.severity === 'CHECK_DEVICE')
+  else if (filter.value === 'life') list = list.filter((h) => h.life_check)
+  else if (filter.value === 'device') list = list.filter((h) => h.severity === 'CHECK_DEVICE' || h.device_check)
   else if (filter.value === 'battery') list = list.filter((h) => h.battery !== null && h.battery < 20)
 
   const q = search.value.trim()
   if (q) {
     list = list.filter((h) =>
       h.home.includes(q) ||
+      sevKo(h).includes(q) ||
       (SEV[h.severity]?.ko || '').includes(q) ||
+      (h.device_check && '장치 점검'.includes(q)) ||
       (h.rules || []).some((r) => r.sentence.includes(q)))
   }
   return list.sort((a, b) => SEV_ORDER.indexOf(a.severity) - SEV_ORDER.indexOf(b.severity))
@@ -681,17 +690,19 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div>
               <p class="kpi-label">긴급 알림</p>
               <p class="kpi-value">{{ counts.URGENT }} <span>건</span></p>
-              <p class="kpi-foot">장시간 무활동 · 통신 정상</p>
+              <p class="kpi-foot">
+                확인 우선순위 · 통신 두절만으로 해제하지 않음<template v-if="heldUrgent"> · <b>장치 점검 병행 {{ heldUrgent }}</b></template>
+              </p>
             </div>
           </article>
-          <article class="kpi kpi-orange clickable" role="button" tabindex="0" title="점검 필요 세대만 보기"
+          <article class="kpi kpi-orange clickable" role="button" tabindex="0" title="장치 점검 세대만 보기"
                    @click="showHomes('device')" @keyup.enter="showHomes('device')">
             <div class="kpi-ico">🔧</div>
             <div>
-              <p class="kpi-label">기기 이상</p>
-              <p class="kpi-value">{{ counts.CHECK_DEVICE }} <span>건</span></p>
+              <p class="kpi-label">장치 점검</p>
+              <p class="kpi-value">{{ deviceIssueCount }} <span>건</span></p>
               <p class="kpi-foot">
-                통신 두절 — 생활 판정 보류<template v-if="welfareCount"> · <b class="kpi-welfare">그중 안부 확인 {{ welfareCount }}</b></template>
+                통신 두절 — 긴급 확인과 별도 업무<template v-if="welfareCount"> · <b class="kpi-welfare">그중 안부 확인 {{ welfareCount }}</b></template>
               </p>
             </div>
           </article>
@@ -787,12 +798,18 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                     {{ h.life }}
                   </td>
                   <td>
-                    <span class="dot" :class="h.severity === 'CHECK_DEVICE' ? 'device' : 'normal'"></span>
+                    <span class="dot" :class="h.severity === 'CHECK_DEVICE' || h.device_check ? 'device' : 'normal'"></span>
                     {{ h.device }}
                   </td>
                   <td>
-                    <span class="tag" :class="'tag-' + SEV[h.severity]?.cls">
-                      {{ SEV[h.severity]?.ko }}
+                    <span class="tag" :class="'tag-' + (h.life_check ? 'watch' : SEV[h.severity]?.cls)">
+                      {{ sevKo(h) }}
+                    </span>
+                    <span v-if="h.followup" class="tag tag-watch" :title="h.followup.code">
+                      {{ FOLLOW_KO[h.followup.code] || h.followup.code }}
+                    </span>
+                    <span v-if="h.device_check && h.severity !== 'CHECK_DEVICE'" class="tag tag-device" title="긴급 확인은 유지한 채 장치 점검을 병행합니다">
+                      장치 점검
                     </span>
                     <!-- 두절이 길어져 긴급 기준을 넘음 — 원인은 기기 그대로, 사람 확인도 보낸다 -->
                     <span v-if="h.welfare_check" class="tag tag-urgent welfare" title="통신 두절이 긴급 기준보다 길어졌습니다">
@@ -1134,10 +1151,11 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               @click="selectedHomeId = x.home"
             >
               <span class="home-no">{{ x.home }}호</span>
-              <span v-if="x.care" class="tag" :class="'tag-' + SEV[x.care.severity]?.cls">
-                {{ SEV[x.care.severity]?.ko }}
+              <span v-if="x.care" class="tag" :class="'tag-' + (x.care.life_check ? 'watch' : SEV[x.care.severity]?.cls)">
+                {{ sevKo(x.care) }}
               </span>
-              <span v-else class="tag tag-home">판정 대상 아님</span>
+              <span v-if="x.care?.device_check && x.care.severity !== 'CHECK_DEVICE'" class="tag tag-device">장치 점검</span>
+              <span v-if="!x.care" class="tag tag-home">판정 대상 아님</span>
               <span v-if="x.care?.away" class="tag tag-home" title="부재 등록 기간 — 무활동 판정 보류">부재</span>
               <span class="home-sub">장치 {{ x.devices.length }} · 규칙 {{ (x.care?.rules || []).length }}</span>
             </button>
@@ -1147,9 +1165,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div class="card-head">
               <div class="home-head">
                 <h2>{{ selectedHome.home }}호</h2>
-                <span v-if="selectedHome.care" class="tag" :class="'tag-' + SEV[selectedHome.care.severity]?.cls">
-                  {{ SEV[selectedHome.care.severity]?.ko }}
+                <span v-if="selectedHome.care" class="tag" :class="'tag-' + (selectedHome.care.life_check ? 'watch' : SEV[selectedHome.care.severity]?.cls)">
+                  {{ sevKo(selectedHome.care) }}
                 </span>
+                <span v-if="selectedHome.care?.device_check && selectedHome.care.severity !== 'CHECK_DEVICE'" class="tag tag-device">장치 점검</span>
               </div>
             </div>
             <HomeActions :home="selectedHome.home" :care="selectedHome.care" @changed="refresh" />

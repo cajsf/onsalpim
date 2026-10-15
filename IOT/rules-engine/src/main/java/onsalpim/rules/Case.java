@@ -8,14 +8,17 @@ public class Case {
     private final Double idleS;       // 마지막 움직임 이후 초
     private final Double battery;     // %
     private final boolean away;       // 부재 등록 중
+    private final boolean priorUrgent; // 통신 정상일 때 긴급 확인으로 확정된 적 있음
 
-    public Case(int id, Double silentS, double periodS, Double idleS, Double battery, boolean away) {
+    public Case(int id, Double silentS, double periodS, Double idleS, Double battery, boolean away,
+                boolean priorUrgent) {
         this.id = id;
         this.silentS = silentS;
         this.periodS = periodS;
         this.idleS = idleS;
         this.battery = battery;
         this.away = away;
+        this.priorUrgent = priorUrgent;
     }
 
     public int getId() { return id; }
@@ -24,4 +27,5 @@ public class Case {
     public Double getIdleS() { return idleS; }
     public Double getBattery() { return battery; }
     public boolean isAway() { return away; }
+    public boolean isPriorUrgent() { return priorUrgent; }
 }

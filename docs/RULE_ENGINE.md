@@ -46,10 +46,17 @@ cd IOT/rules-engine
 기존 시험(`test_rules`·`verify_report` 17항목·`test_history`·`test_rule_preview`)과 고장 주입(`measure_faults` — 7/7·오탐 1 대 3)도
 `ONSALPIM_JUDGE=drools` 로 모두 같은 결과.
 
-## 다음 — 복합 패턴
+## 시간 패턴
 
-- 야간 귀환 없음: 밤에 깬 뒤(직전 한동안 움직임 없음) 감지가 한 번뿐이고 N분 넘게 돌아오는 감지가 없으면 (복도·화장실 가는 길 센서)
-- 새벽 배회: 새벽 시간대에 일정 횟수 이상 감지 (치매 배회 의심)
-- 알림 미대응 재통지: 알림 뒤 N분 안에 대응이 없으면 다시 알리고 다음 사람에게
+한 시점 판정은 `judge.drl`, 시간에 걸친 패턴은 `patterns.drl` 이다. Java 가 없으면 같은 조건의 파이썬(`care_patterns.py`)이 대신한다.
 
-정책 데이터(시간대·분)는 채팅 → AI 초안 → 하네스 검사 → 승인으로 들어오고, 패턴 자체는 DRL 에 고정한다.
+| 패턴 | 결과 |
+|---|---|
+| `HOT_IDLE` 고온이 30분 넘게 이어지고 그 사이 움직임이 없음 | 긴급 확인 |
+| `MORNING_NONE` 개인 기준 시각까지 아침 첫 움직임이 없음 | 생활 확인 |
+| `NIGHT_WANDER` 야간 시간대 최근 1시간 움직임이 기준 횟수 이상 | 생활 확인 |
+| `RENOTIFY` / `ESCALATE` 알림 대응 없이 10분 / 20분 | 재통지 / 다음 담당자 |
+
+세대별 기준은 `data/care_profiles.json` 이다. 파일이 없으면 고온 기준만 30℃를 쓴다. 통신 두절·부재 중에는 패턴으로 위험도를 올리지 않고, 이미 높은 위험도를 낮추지도 않는다.
+
+대조: `python test_patterns.py`. Java 와 jar 가 있을 때만 Drools 와 파이썬을 맞춘다.

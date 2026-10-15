@@ -54,10 +54,11 @@ async function act(status) {
     <div class="ai-row">
       <!-- 안부 확인: 위험도는 '점검 필요' 그대로라 'A → A'로 보이지 않게 따로 적는다 -->
       <span v-if="a.welfare" class="tag tag-urgent">안부 확인</span>
+      <span v-else-if="a.device_check && a.from === a.to" class="tag tag-device">장치 점검</span>
       <span v-else class="tag" :class="'tag-' + SEV[a.to]?.cls">{{ SEV[a.to]?.ko }}</span>
       <span class="atext">
         <strong v-if="showHome">{{ a.home }}호 </strong>
-        <template v-if="!compact && !a.welfare">{{ a.from ? SEV[a.from]?.ko : '첫 판정' }} → {{ SEV[a.to]?.ko }} · </template>{{ a.reason }}
+        <template v-if="!compact && !a.welfare && !(a.device_check && a.from === a.to)">{{ a.from ? SEV[a.from]?.ko : '첫 판정' }} → {{ SEV[a.to]?.ko }} · </template>{{ a.reason }}
       </span>
       <span v-if="st" class="tag" :class="'tag-' + st.cls">{{ st.ko }}</span>
       <span class="atime mono">{{ compact ? timeOf(a.ts) : stampOf(a.ts) }}</span>

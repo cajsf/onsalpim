@@ -157,13 +157,13 @@ def t_judge_battery():
 def t_judge_lost():
     v = cm.judge(contact(25), NOW - timedelta(minutes=30), 480, 64, NOW)
     ok = v["severity"] == cm.CHECK_DEVICE and not v["life_known"]
-    return "점검 필요(생활 판정 보류)", f'{cm.LABEL_KO[v["severity"]]} — {v["life"]}', ok
+    return "장치 점검(생활 판정 보류)", f'{cm.LABEL_KO[v["severity"]]} — {v["life"]}', ok
 
 
 def t_judge_lost_beats_idle():
-    """통신이 끊긴 채 무활동 기준도 넘긴 경우 — 긴급이 아니라 점검 필요여야 한다."""
+    """통신이 끊긴 채 무활동 기준도 넘긴 경우 — 예전에 긴급으로 확인된 적 없으면 새 긴급을 만들지 않는다."""
     v = cm.judge(contact(600), NOW - timedelta(hours=20), 480, 64, NOW)
-    return "점검 필요(긴급 아님)", cm.LABEL_KO[v["severity"]], v["severity"] == cm.CHECK_DEVICE
+    return "장치 점검(긴급 아님)", cm.LABEL_KO[v["severity"]], v["severity"] == cm.CHECK_DEVICE
 
 
 def t_no_activity_ever():

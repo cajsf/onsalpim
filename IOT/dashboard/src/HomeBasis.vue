@@ -2,7 +2,7 @@
 // 세대 하나의 판단 근거 — 결과만 보고도 판단 과정을 따라갈 수 있어야 한다.
 // 대시보드 표의 펼침과 세대 관리 화면이 같은 모양으로 보여주도록 한 곳에 둔다.
 import { computed } from 'vue'
-import { SEV, fmtAgo, fmtMinutes, secondsSince } from './format.js'
+import { SEV, PATTERN_KO, FOLLOW_KO, sevKo, fmtAgo, fmtMinutes, secondsSince } from './format.js'
 
 const props = defineProps({ h: { type: Object, required: true } })
 
@@ -20,14 +20,15 @@ const judgedAgo = computed(() => secondsSince(props.h.judged_at))
       <dt>마지막 통신</dt>
       <dd>
         {{ fmtAgo(contactAgo) }}
-        <span v-if="h.severity === 'CHECK_DEVICE'" class="flag">두절</span>
+        <span v-if="h.severity === 'CHECK_DEVICE' || h.device_check" class="flag">두절</span>
       </dd>
     </div>
     <div>
       <dt>마지막 움직임</dt>
       <dd>
         {{ fmtAgo(activityAgo) }}
-        <span v-if="!h.life_known" class="muted">(기록 기준) · 통신 두절 이후는 확인 불가</span>
+        <span v-if="h.device_check && h.severity === 'URGENT'" class="muted">· 두절 이후는 재판단하지 않음, 기존 긴급 확인 유지</span>
+        <span v-else-if="!h.life_known" class="muted">(기록 기준) · 통신 두절 이후는 확인 불가</span>
       </dd>
     </div>
     <div v-if="h.idle_levels && h.idle_levels.length > 1">
@@ -58,7 +59,14 @@ const judgedAgo = computed(() => secondsSince(props.h.judged_at))
     </div>
     <div class="sep">
       <dt>판정</dt>
-      <dd><span class="tag" :class="'tag-' + SEV[h.severity]?.cls">{{ SEV[h.severity]?.ko }}</span></dd>
+      <dd>
+        <span class="tag" :class="'tag-' + (h.life_check ? 'watch' : SEV[h.severity]?.cls)">{{ sevKo(h) }}</span>
+        <span v-if="h.followup" class="tag tag-watch">{{ FOLLOW_KO[h.followup.code] || h.followup.code }}</span>
+      </dd>
+    </div>
+    <div v-if="h.patterns && h.patterns.length">
+      <dt>시간 패턴</dt>
+      <dd>{{ h.patterns.map((c) => PATTERN_KO[c] || c).join(' · ') }}</dd>
     </div>
     <div><dt>판단 근거</dt><dd class="basis-text">{{ h.basis }}</dd></div>
     <div v-if="judgedAgo != null">

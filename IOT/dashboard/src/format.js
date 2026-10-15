@@ -37,7 +37,7 @@ export const SEV = {
   NORMAL:       { ko: '정상',      cls: 'normal', prio: '낮음' },
   WATCH:        { ko: '주의',      cls: 'watch',  prio: '보통' },
   URGENT:       { ko: '긴급 확인', cls: 'urgent', prio: '높음' },
-  CHECK_DEVICE: { ko: '점검 필요', cls: 'device', prio: '보통' },
+  CHECK_DEVICE: { ko: '장치 점검', cls: 'device', prio: '보통' },
 }
 /* 알림 대응 상태 — 서버 engine.alerts_with_actions 의 state 와 같은 키 */
 export const ALERT_STATE = {
@@ -50,6 +50,22 @@ export const ALERT_STATE = {
   edit:     { ko: '메모 수정',        cls: 'muted' },   // 기록 줄에만 쓴다 (상태가 아님)
 }
 export const SEV_ORDER = ['URGENT', 'CHECK_DEVICE', 'WATCH', 'NORMAL']
+
+export const PATTERN_KO = {
+  HOT_IDLE: '고온 지속 + 활동 저하',
+  MORNING_NONE: '아침 활동 부재',
+  NIGHT_WANDER: '야간 활동 변화',
+}
+export const FOLLOW_KO = {
+  RENOTIFY: '재통지',
+  ESCALATE: '다음 담당자에게 이관',
+}
+
+/** 생활 패턴으로 오른 주의는 '생활 확인', 배터리 주의는 '주의'. */
+export function sevKo(h) {
+  if (h?.life_check) return '생활 확인'
+  return SEV[h?.severity]?.ko || ''
+}
 
 export const TYPE_KO = {
   motion: '움직임', temperature: '온도', humidity: '습도',

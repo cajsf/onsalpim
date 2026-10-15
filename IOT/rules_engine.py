@@ -54,13 +54,18 @@ def _start():
 
 
 def _drools(cases):
+    import care_monitor   # 상수의 정본은 파이썬 한 곳 — 요청마다 같이 보낸다
+    out = _ask({"params": {"stale_factor": care_monitor.STALE_FACTOR, "battery_low": care_monitor.BATTERY_LOW},
+                "cases": cases})
+    return None if out is None else out["decisions"]
+
+
+def _ask(req):
+    """요청 한 줄 → 응답(dict). 엔진을 못 띄우면 None."""
     global _proc
     if _proc is None or _proc.poll() is not None:
         if _start() is None:
             return None
-    import care_monitor   # 상수의 정본은 파이썬 한 곳 — 요청마다 같이 보낸다
-    req = {"params": {"stale_factor": care_monitor.STALE_FACTOR, "battery_low": care_monitor.BATTERY_LOW},
-           "cases": cases}
     try:
         _proc.stdin.write(json.dumps(req, ensure_ascii=False) + "\n")
         _proc.stdin.flush()
@@ -71,7 +76,7 @@ def _drools(cases):
         raise RuntimeError(f"규칙 엔진 응답 오류: {e}") from e
     if "error" in out:
         raise RuntimeError(f"규칙 엔진 오류: {out['error']}")
-    return out["decisions"]
+    return out
 
 
 def decide(cases):
@@ -90,6 +95,19 @@ def decide(cases):
         raise RuntimeError(f"Drools 로 판정하라고 했는데 쓸 수 없음 — {_why}")
     _used = "python"
     return [care_monitor.decide_python(c) for c in cases]
+
+
+def detect(now_ms, homes, events):
+    """시간 패턴 — Drools 를 먼저 쓰고, Java 가 없으면 care_patterns.detect_python 으로."""
+    import care_patterns
+    if MODE != "python":
+        with _lock:
+            out = _ask({"patterns": {"now": now_ms, "homes": homes, "events": events}})
+        if out is not None:
+            return out["findings"]
+        if MODE == "drools":
+            raise RuntimeError(f"Drools 로 판정하라고 했는데 쓸 수 없음 — {_why}")
+    return care_patterns.detect_python(now_ms, homes, events)
 
 
 def which():

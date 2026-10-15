@@ -1,0 +1,6 @@
+{
+  "101": {"label": "시연 공통", "hot_c": 30, "morning_by": "09:00", "wander": {"from": "00:00", "to": "05:00", "count": 8}},
+  "102": {"label": "시연 공통", "hot_c": 30, "morning_by": "09:00", "wander": {"from": "00:00", "to": "05:00", "count": 8}},
+  "104": {"label": "시연 공통", "hot_c": 30, "morning_by": "09:00", "wander": {"from": "00:00", "to": "05:00", "count": 8}},
+  "105": {"label": "시연 공통", "hot_c": 30, "morning_by": "09:00", "wander": {"from": "00:00", "to": "05:00", "count": 8}}
+}

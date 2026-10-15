@@ -1,6 +1,7 @@
 // 온살핌 세대 판정 규칙 — care_monitor.judge() 의 판정 순서를 그대로 옮겼다.
 //
-//   ① 통신이 끊겼다      → 점검 필요. 생활 판정은 하지 않는다
+//   ①-0 이미 긴급 확인인 채 끊겼다 → 긴급 확인 유지 + 장치 점검 (두절만으로 해제하지 않음)
+//   ① 통신이 끊겼다      → 장치 점검. 새 생활 판정은 하지 않는다
 //      단, 마지막 움직임이 긴급 기준을 넘으면 안부 확인도 요청한다 (원인은 기기로 둔 채)
 //   ①-b 부재 등록 중     → 무활동 판정 보류, 기기(배터리)만 본다
 //   ② 기기 정상 + 무활동 → 넘은 단계 중 긴급이 있으면 긴급, 없으면 가장 높은 단계
@@ -18,7 +19,18 @@ import onsalpim.rules.Level
 import onsalpim.rules.Params
 import onsalpim.rules.Decision
 
-rule "① 두절 + 긴급 기준 초과 → 점검 필요 + 안부 확인"
+rule "①-0 기존 긴급 확인 중 두절 → 긴급 유지 + 장치 점검"
+    salience 110
+when
+    $p : Params()
+    $c : Case( priorUrgent == true, away == false,
+               silentS == null || silentS > $p.staleFactor * periodS )
+    not Decision( caseId == $c.id )
+then
+    insert( new Decision( $c.getId(), "URGENT_HELD", null ) );
+end
+
+rule "① 두절 + 긴급 기준 초과 → 장치 점검 + 안부 확인"
     salience 100
 when
     $p : Params()

@@ -100,6 +100,25 @@ _st["103"] = {"contact": contact(0), "last_activity": NOW - timedelta(minutes=5)
 assert [x["home"] for x in _wd.sweep(_st, NOW + timedelta(hours=2))] == ["101", "102", "103"], \
     "안부 확인이 붙은 두절 세대가 일반 점검 필요보다 먼저"
 
+# ── 이미 긴급 확인인 세대는 통신 두절만으로 그 건을 지우지 않는다 ──
+_hold = cm.Watchdog()
+_hs = {"101": {"contact": contact(0), "last_activity": NOW - timedelta(hours=9), "idle_min": 480}}
+_first = _hold.sweep(_hs, NOW)[0]
+assert _first["severity"] == "URGENT" and not _first["device_check"], "통신 정상 + 무활동은 긴급 확인"
+_hs["101"]["contact"] = contact(25)
+_held = _hold.sweep(_hs, NOW)[0]
+assert _held["severity"] == "URGENT" and _held["device_check"] and _held["changed"], \
+    "긴급 확인 중 두절 → 긴급 유지 + 장치 점검"
+assert "유지" in _held["reason"] and not _held["welfare_check"]
+_fresh = cm.Watchdog().sweep(
+    {"102": {"contact": contact(25), "last_activity": NOW - timedelta(hours=9), "idle_min": 480}}, NOW)[0]
+assert _fresh["severity"] == "CHECK_DEVICE" and _fresh["welfare_check"], \
+    "긴급으로 확인된 적 없는 두절은 새 긴급을 만들지 않음"
+_hs["101"]["contact"] = contact(0)
+_hs["101"]["last_activity"] = NOW
+_back = _hold.sweep(_hs, NOW)[0]
+assert _back["severity"] == "NORMAL" and not _back["device_check"], "통신·활동이 돌아오면 긴급 확인을 해제"
+
 # ── 옛 데이터에 겹침이 남아 있으면: 더 짧은 기준 + 충돌 보고 ──
 lv, conflicts = engine.effective_idle_levels([r7, saved(8, care_rule(value="480"))], TREE)
 assert conflicts == [[7, 8]]
