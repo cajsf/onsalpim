@@ -1,7 +1,7 @@
 # 판정 규칙 엔진 — Drools
 
 세대 위험도 판정(두절·무활동 단계·부재·배터리·안부 확인 승격)을 **Drools**(Apache 2.0) 규칙으로 내린다.
-규칙은 `IOT/rules-engine/src/main/resources/onsalpim/rules/judge.drl` 에 있다.
+규칙은 `IOT/rules-engine/src/main/resources/onsalpim/rules/judge.drl` (한 시점 판정)과 `patterns.drl` (시간 패턴) 에 있다.
 
 ## 왜 이렇게 나눴나
 
@@ -46,10 +46,21 @@ cd IOT/rules-engine
 기존 시험(`test_rules`·`verify_report` 17항목·`test_history`·`test_rule_preview`)과 고장 주입(`measure_faults` — 7/7·오탐 1 대 3)도
 `ONSALPIM_JUDGE=drools` 로 모두 같은 결과.
 
-## 다음 — 복합 패턴
+## 시간 패턴 (CEP) — `patterns.drl`
 
-- 야간 귀환 없음: 밤에 깬 뒤(직전 한동안 움직임 없음) 감지가 한 번뿐이고 N분 넘게 돌아오는 감지가 없으면 (복도·화장실 가는 길 센서)
-- 새벽 배회: 새벽 시간대에 일정 횟수 이상 감지 (치매 배회 의심)
-- 알림 미대응 재통지: 알림 뒤 N분 안에 대응이 없으면 다시 알리고 다음 사람에게
+한 시점의 값이 아니라 시간에 걸친 흐름을 본다. Drools **STREAM 모드**, 모든 사실은 이벤트(`@role(event)`, `@timestamp`),
+세션 시계는 가상 시계(pseudo clock)를 요청의 '지금'에 맞춘다. 판정할 때마다 세션을 새로 만드는 원칙은 같다.
 
-정책 데이터(시간대·분)는 채팅 → AI 초안 → 하네스 검사 → 승인으로 들어오고, 패턴 자체는 DRL 에 고정한다.
+| 패턴 | 조건 (DRL 고정) | 세대별 값 (정책 데이터) | 결과 |
+|---|---|---|---|
+| `HOT_IDLE` 고온 지속 + 무활동 | 30분 전에도·지금도 기준 이상, 그 사이 내려간 적 없고 움직임 없음 (`before[25m,30m]`, `before[0s,30m]`) | 고온 기준 ℃ (기본 30) | 긴급 확인 |
+| `MORNING_NONE` 오전 첫 움직임 없음 | 05:00 이후 움직임 없이 기준 시각이 지남 | 기준 시각 (AIHub 개인 기준 추천) | 주의(생활 확인) |
+| `NIGHT_WANDER` 새벽 배회 의심 | 새벽 시간대에 `over window:time(60m)` 움직임 수가 기준 이상 | 시간대·횟수 | 주의(생활 확인) |
+| `RENOTIFY` / `ESCALATE` 알림 미대응 | 대응 없이 10분 / 20분 (`before[10m]`, `before[20m]`) | — | 재통지 / 다음 담당자 |
+
+- 세대별 값은 `data/care_profiles.json` — `{"101": {"label": "더위 취약", "hot_c": 29, "morning_by": "09:30", "wander": {"from": "00:00", "to": "05:00", "count": 10}}}`.
+  진단명 대신 시나리오 이름(`label`)만 둔다.
+- 재료: 엔진 타임라인(`care_history.json`)의 움직임·온도(1분 간격) + 지금 읽은 값 + 세대별 마지막 알림과 대응 기록.
+- 기기가 끊겼거나(생활을 모름) 부재 중이면 생활 패턴으로 위험도를 올리지 않는다. 더 높은 위험도를 낮추지도 않는다 (`care_patterns.apply`).
+- 대조: `python test_patterns.py 20000` — 경계값(5·10·20·25·30·60분 정각 ±1초)을 섞은 무작위 2만 건에서
+  Drools 와 파이썬(`care_patterns.detect_python`) **0건 다름**, 패턴 5종 모두 나옴 (2026-10-15).

@@ -1,0 +1,75 @@
+// 온살핌 시간 패턴 (CEP) — 한 시점의 값이 아니라 "시간에 걸친 흐름"을 본다.
+//
+//   고온 지속 + 무활동   30분 넘게 고온 기준 이상인데 그동안 움직임이 없다      → 긴급 확인
+//   오전 첫 움직임 없음  세대별 기준 시각이 지났는데 오늘 아침 움직임이 없다    → 생활 확인
+//   새벽 배회 의심       새벽 시간대 최근 1시간 움직임 감지가 기준 횟수 이상    → 생활 확인
+//   알림 미대응          대응 없이 10분 → 재통지, 20분 → 다음 담당자에게
+//
+// Drools STREAM 모드. 모든 사실은 이벤트(@timestamp)이고 세션 시계(가상 시계)는 요청의 '지금'에 맞춘다.
+// 'tick' 이벤트가 지금이다 — "A before[0s,30m] tick" = A 가 지금으로부터 30분 안에 있었다.
+// 패턴과 시간 길이(30분·1시간·10분·20분)는 이 파일에 고정이다. 세대마다 다른 것(고온 기준·기준 시각·횟수)은
+// Home 데이터로 들어온다 — 채팅 → AI 초안 → 검사 → 승인을 거친 정책 데이터. AI 가 이 파일을 쓰지 않는다.
+
+package onsalpim.rules
+
+import onsalpim.rules.Ev
+import onsalpim.rules.Home
+import onsalpim.rules.Finding
+
+declare Ev
+    @role( event )
+    @timestamp( ts )
+end
+
+rule "고온 지속 + 무활동 30분"
+when
+    $t : Ev( type == "tick" )
+    $h : Home( hotC != null )
+    exists Ev( home == $h.id, type == "temp", value >= $h.hotC, this before[25m, 30m] $t )     // 30분 전에도 더웠고
+    exists Ev( home == $h.id, type == "temp", value >= $h.hotC, this before[0s, 5m] $t )       // 지금도 덥고
+    not Ev( home == $h.id, type == "temp", value < $h.hotC, this before[0s, 30m] $t )          // 그 사이 내려간 적 없고
+    not Ev( home == $h.id, type == "motion", this before[0s, 30m] $t )                         // 그동안 움직임이 없다
+    not Finding( home == $h.id, code == "HOT_IDLE" )
+then
+    insert( new Finding( $h.getId(), "HOT_IDLE", $t.getTs() - 30 * 60000L, null ) );
+end
+
+rule "오전 기준 시각까지 첫 움직임 없음"
+when
+    $t : Ev( type == "tick" )
+    $h : Home( morningBy != null, morningBy <= $t.ts )
+    not Ev( home == $h.id, type == "motion", ts >= $h.morningFrom )
+then
+    insert( new Finding( $h.getId(), "MORNING_NONE", $h.getMorningBy(), null ) );
+end
+
+rule "새벽 배회 의심 — 최근 1시간 움직임 감지 횟수"
+when
+    $t : Ev( type == "tick" )
+    $h : Home( wanderCount != null, nightFrom <= $t.ts, nightTo > $t.ts )
+    accumulate( $m : Ev( home == $h.id, type == "motion", ts >= $h.nightFrom ) over window:time( 60m );
+                $n : count( $m );
+                $n >= $h.wanderCount )
+then
+    insert( new Finding( $h.getId(), "NIGHT_WANDER", null, null ) );
+end
+
+rule "알림 미대응 20분 → 다음 담당자"
+    salience 10
+when
+    $t : Ev( type == "tick" )
+    $a : Ev( type == "alert", this before[20m] $t )
+    not Ev( type == "action", ref == $a.ref )
+then
+    insert( new Finding( $a.getHome(), "ESCALATE", $a.getTs(), $a.getRef() ) );
+end
+
+rule "알림 미대응 10분 → 재통지"
+when
+    $t : Ev( type == "tick" )
+    $a : Ev( type == "alert", this before[10m] $t )
+    not Ev( type == "action", ref == $a.ref )
+    not Finding( ref == $a.ref )
+then
+    insert( new Finding( $a.getHome(), "RENOTIFY", $a.getTs(), $a.getRef() ) );
+end

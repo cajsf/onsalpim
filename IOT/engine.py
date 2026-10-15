@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 import requests
 
 import care_monitor
+import care_patterns
 import iot_platform as iot
 import llm_translator as tr
 import rules_engine
@@ -1421,6 +1422,10 @@ def append_history(results, gap_since=None, now=None):
         if not h["sev"] or h["sev"][-1][1] != r["severity"]:
             h["sev"].append([r["judged_at"], r["severity"]])
             dirty = True
+        t = r.get("temp")
+        if t and (not h.get("temp") or _gap_s(h["temp"][-1][0], t[0]) >= MOVE_GAP_S):
+            h.setdefault("temp", []).append(t)       # 고온 지속(30분)을 보려고 1분 간격으로 남긴다
+            dirty = True
         a = r.get("last_activity_at")
         if a and a != h["seen"]:
             # 처음 보는 값은 기준점일 뿐(엔진 켜기 전 기록이거나 컨테이너 생성 시각) — 움직임으로 치지 않는다
@@ -1435,6 +1440,9 @@ def append_history(results, gap_since=None, now=None):
             dirty = True
         if h["move"] and h["move"][0] < cutoff:
             h["move"] = [t for t in h["move"] if t >= cutoff]
+            dirty = True
+        if h.get("temp") and h["temp"][0][0] < cutoff:
+            h["temp"] = [t for t in h["temp"] if t[0] >= cutoff]
             dirty = True
     if dirty:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
@@ -1959,6 +1967,9 @@ def collect_home_state(devices, rules):
     """
     level_map, _ = effective_idle_levels(rules, devices)
     absences = load_absences()
+    profiles = care_patterns.load_profiles()
+    hist = load_history()
+    open_alerts = _latest_alert_events()
     state = {}
 
     for home in scope.discover_homes(devices):
@@ -1973,19 +1984,59 @@ def collect_home_state(devices, rules):
             raw = iot.get_latest_by_path(batt_dev["path"])
             batt = _num(raw)
 
+        temp = None
+        temp_dev = scope.find_sensor(home, "temperature", devices)
+        if temp_dev is not None:
+            cin = iot.get_latest_cin_full(temp_dev["path"])
+            at, val = care_monitor.parse_ct((cin or {}).get("ct")), _num((cin or {}).get("con"))
+            if at is not None and val is not None:
+                temp = [at.isoformat(timespec="seconds"), val]
+        last_activity = care_monitor.read_activity(evt) if evt else None
+
         levels = level_map.get(home) or []
         # 추적표·예외 표시는 긴급 단계를 기준으로 (없으면 첫 단계)
         applied = next((lv for lv in levels if lv["severity"] == "URGENT"), levels[0] if levels else {})
         state[home] = {
             "contact": care_monitor.read_contact(pir),
-            "last_activity": care_monitor.read_activity(evt) if evt else None,
+            "last_activity": last_activity,
             "idle_min": applied.get("minutes"),      # None 이면 무활동 규칙 없음
             "idle_levels": levels,                   # 단계 경보 (주의·긴급)
             "away": active_absence(home, items=absences),   # 부재 등록 중이면 무활동 판정 보류
             "battery": batt,
             "applied": applied,                      # 추적표용 (예외 여부·공통값)
+            "temp": temp,                            # [측정 시각, ℃] — 타임라인에 남겨 고온 지속을 본다
+            "profile": profiles.get(home),           # 세대별 시간 패턴 기준 (고온·오전 기준 시각·배회)
+            "events": _pattern_events(home, hist.get(home) or {}, last_activity, temp) + open_alerts.get(home, []),
         }
     return state
+
+
+def _ms(iso):
+    return care_patterns.ms(datetime.fromisoformat(iso))
+
+
+def _pattern_events(home, h, last_activity, temp):
+    """시간 패턴 판정 재료 — 타임라인에 남긴 움직임·온도 + 지금 읽은 값."""
+    ev = [{"home": home, "type": "motion", "ts": _ms(t)} for t in h.get("move", [])]
+    if last_activity is not None and h.get("seen") is not None:   # 처음 보는 값은 기준점일 뿐 (append_history 와 같다)
+        ev.append({"home": home, "type": "motion", "ts": care_patterns.ms(last_activity)})
+    temps = list(h.get("temp", [])) + ([temp] if temp else [])
+    ev += [{"home": home, "type": "temp", "ts": _ms(t), "value": float(v)} for t, v in temps]
+    return ev
+
+
+def _latest_alert_events():
+    """세대별 마지막 알림(대응이 필요한 것)과 그 대응 기록 — 재통지·다음 담당자 패턴의 재료."""
+    out = {}
+    for a in alerts_with_actions(ALERT_KEEP):
+        if a["home"] in out:
+            continue                                  # 최신이 앞 — 세대별 첫 번째만
+        out[a["home"]] = []
+        if a["to"] == "NORMAL" or a["state"] == "missed":
+            continue
+        out[a["home"]].append({"home": a["home"], "type": "alert", "ts": _ms(a["ts"]), "ref": a["id"]})
+        out[a["home"]] += [{"home": a["home"], "type": "action", "ts": _ms(l["at"]), "ref": a["id"]} for l in a["log"]]
+    return out
 
 
 def applied_rules(rules, devices):

@@ -48,6 +48,7 @@ care_monitor.py — 생활 이상(무활동)과 기기 이상(통신 두절)을 
 
 from datetime import datetime, timedelta
 
+import care_patterns
 import iot_platform as iot
 from scope import SEVERITIES
 
@@ -243,6 +244,7 @@ def render(decision, case, contact, last_activity, battery, now, idle_levels, id
         판정 로직이 두 곳에 생기고, 한쪽만 고쳤을 때 화면이 거짓을 말하게 된다.
         """
         return {
+            "code": code,                     # 규칙 엔진의 결정 — 시간 패턴(care_patterns)이 얹을 자리를 고를 때 본다
             "severity": severity, "reason": reason,
             "life": life, "device": device, "basis": basis,
             "idle_s": idle_s, "silent_s": silent_s,
@@ -391,6 +393,19 @@ def check_sweep_interval(sweep_s, devices):
     return warnings
 
 
+def detect_patterns(homes_state, now):
+    """세대들의 이벤트(움직임·온도·알림·대응)를 모아 시간 패턴을 한 번에 판정한다.
+    homes_state[home]['events'] 가 없는 세대(옛 호출)는 고온 기준만 있어도 이벤트가 없어 걸리지 않는다."""
+    import rules_engine
+    homes, events = [], []
+    for home, st in homes_state.items():
+        homes.append(care_patterns.home_params(home, st.get("profile"), now))
+        events += st.get("events") or []
+    if not events:
+        return []
+    return rules_engine.detect(care_patterns.ms(now), homes, events)
+
+
 class Watchdog:
     """이벤트가 없는 동안에도 경과 시간을 계산하는 주체.
 
@@ -412,9 +427,11 @@ class Watchdog:
         """
         now = now or datetime.now()
         results = []
+        found = detect_patterns(homes_state, now)
         for home, st in homes_state.items():
             v = judge(st["contact"], st.get("last_activity"), st.get("idle_min"),
                       st.get("battery"), now, st.get("idle_levels"), st.get("away"))
+            care_patterns.apply(v, [f for f in found if f["home"] == home], st.get("profile"), now)
             prev = self.last_severity.get(home)
             changed = prev != v["severity"] or self.last_welfare.get(home, False) != v["welfare_check"]
             self.last_severity[home] = v["severity"]
@@ -437,6 +454,9 @@ class Watchdog:
                 "judged_at": v["judged_at"],
                 "life_known": v["life_known"],
                 "welfare_check": v["welfare_check"],
+                "temp": st.get("temp"),            # 타임라인에 남길 온도 [시각, ℃]
+                "patterns": v["patterns"],         # 걸린 시간 패턴 (HOT_IDLE 등) — 위험도를 올렸든 아니든
+                "followup": v["followup"],         # 대응 없는 알림의 재통지·다음 담당자 (없으면 None)
                 "changed": changed,
                 "from": prev,
             })
