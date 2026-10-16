@@ -35,3 +35,14 @@ IOT/rules-engine/target/
 IOT/data/baseline_reviews.json
 # AIHub 가구별 10분 기록 (aihub_export.py) — 로컬에만 둔다
 IOT/data/aihub_replay/
+
+# AIHub 가구별 산출물 — 재식별 위험이 있어 저장소에 올리지 않는다 (로컬 보관). 집계표·보고서·스크립트만 올린다
+analysis_outputs/daily_coverage.csv
+analysis_outputs/household_coverage.csv
+analysis_outputs/hourly_patterns.csv
+analysis_outputs/missing_intervals.csv
+analysis_outputs/household_labels.csv
+analysis_outputs/label_quality.csv
+analysis_outputs/five_household_profiles.json
+analysis_outputs/five_household_comparison.csv
+analysis_outputs/recommendation_example.json

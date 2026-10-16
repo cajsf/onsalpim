@@ -20,6 +20,7 @@ IOT/                      파이썬 백엔드 (규칙 엔진·판정·검증·AP
   ├─ scope.py             세대 발견·범위·예외
   ├─ validator.py         장치·값 검증
   ├─ llm_translator.py    문장 → 규칙 (Gemini)
+  ├─ kakao_notify.py      카카오 나에게 보내기 (알림톡 아님)
   ├─ api_server.py        대시보드용 API (:5001)
   ├─ virtual_home.py      개발용 가상 세대
   ├─ run_live.py          실물 보드로 돌릴 때 (가짜값 안 씀)
@@ -27,6 +28,7 @@ IOT/                      파이썬 백엔드 (규칙 엔진·판정·검증·AP
   ├─ test_history.py      타임라인·집계·알림 대응 점검
   ├─ test_rules.py        규칙 충돌·예외·부재 점검
   ├─ test_patterns.py     시간 패턴 점검
+  ├─ test_kakao.py        나에게 보내기 문장 점검 (실제 호출 없음)
   ├─ test_rules_engine.py Drools 와 파이썬 판정 대조 (Java·jar 가 있을 때)
   ├─ dashboard/           Vue 3 대시보드 (:5173)
   └─ data/                규칙·시연 프로필과 돌면서 쌓이는 기록
@@ -39,6 +41,8 @@ arduino/                  세대 노드 펌웨어
   ├─ BOARD_WIRING.svg     회로도
   ├─ home_node/           보드 4대가 쓰는 스케치 하나 (BOARD 번호만 바꿔 굽는다)
   └─ archive/             구버전 스케치 (세대 구분 없던 시절·단품 시험)
+
+analysis_outputs/         AIHub 연구 기록. 서비스 판정·화면은 이 기준을 쓰지 않는다
 
 docs/                     문서
   ├─ CODEX_인수인계_0917.md  설계 결정·실측·할 일
@@ -121,6 +125,15 @@ npm run dev --prefix dashboard                          # 대시보드 :5173
 2. **확인** → **방문·연락 중** → **조치 완료**
 3. 조치 완료는 결과 하나(외출 · 정상 확인 · 장치 문제 · 방문 필요)가 있어야 한다. 메모는 덧붙일 수 있다
 4. 한 번 맡은 알림은 그 이름만 확인·완료할 수 있다. 현장 앱의 담당자 이름은 더보기 화면에 저장되며 기본값은 복지사다
+
+### 카카오톡
+
+비즈니스 채널 알림톡이 아니다. 대시보드에서 **카카오 연결**을 하면, 그 계정의 나와의 채팅으로만 보낸다.
+
+- 위험도가 바뀌거나, 망 점검이 시작되거나, 10분 재통지·20분 이관이 생길 때 한 번씩 보낸다. 이미 쌓여 있던 알림은 다시 보내지 않는다.
+- 연결 뒤에는 상단 버튼이 **카카오 시험**으로 바뀌고, 누르면 확인 문장을 나와의 채팅으로 보낸다.
+- 로컬 키는 `IOT/secrets_local.py` 의 `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`. 리다이렉트 기본값은 `http://127.0.0.1:5001/api/kakao/callback`.
+- 배포 환경 변수와 주소는 [deploy/paas/README.md](deploy/paas/README.md). 로그인 기록 `IOT/data/kakao_token.json` 은 저장소에 올리지 않는다. Render 무료 디스크는 재시작되면 비므로, 그때는 다시 연결한다.
 
 ## 배포
 

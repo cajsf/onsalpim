@@ -55,7 +55,7 @@ Mobius·Gemini는 **어떤 방식이든** 별도(수업 서버·API 키).
 ### C. 주의 (Free)
 
 - **15분 무요청 시 슬립** → 첫 접속 30초~1분 걸릴 수 있음  
-- **디스크 비영구** → 규칙·알림은 재배포/재시작에 날아갈 수 있음 (데모·시연용)  
+- **디스크 비영구** → 규칙·알림·카카오 로그인 기록(`kakao_token.json`)은 재배포/재시작에 날아갈 수 있음. 연결이 풀리면 대시보드에서 다시 **카카오 연결**을 누른다 (데모·시연용)  
 - 영구 디스크·Always-on 은 **유료 플랜**
 
 ---
@@ -64,7 +64,7 @@ Mobius·Gemini는 **어떤 방식이든** 별도(수업 서버·API 키).
 
 1. [Railway](https://railway.app) → **New Project** → GitHub `onsalpim`  
 2. **Settings** → **Root Directory**: `IOT`  
-3. **Variables**: `GEMINI_API_KEY`, `PLATFORM_API_KEY`  
+3. **Variables**: `GEMINI_API_KEY`, `PLATFORM_API_KEY`, 그리고 나에게 보내기를 쓸 때는 `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REDIRECT_URI`, `KAKAO_DASHBOARD_URL`  
 4. **Deploy** → Start command: `bash start_paas.sh` (`railway.toml` 참고)  
 5. **Networking** → **Generate Domain** → `https://xxx.up.railway.app`  
 6. 대시보드는 **로컬에서**:
