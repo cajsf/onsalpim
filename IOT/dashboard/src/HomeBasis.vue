@@ -3,6 +3,7 @@
 // 대시보드 표의 펼침과 세대 관리 화면이 같은 모양으로 보여주도록 한 곳에 둔다.
 import { computed } from 'vue'
 import { SEV, PATTERN_KO, FOLLOW_KO, sevKo, sevClass, fmtAgo, fmtMinutes, secondsSince, tempStatus } from './format.js'
+import IdleMeter from './IdleMeter.vue'
 
 const props = defineProps({ h: { type: Object, required: true } })
 
@@ -16,6 +17,8 @@ const temp = computed(() => tempStatus(props.h.temp, props.h.temp_limit_s))
 </script>
 
 <template>
+  <div>
+  <IdleMeter :h="h" />
   <dl class="basis">
     <div>
       <dt>마지막 통신</dt>
@@ -85,6 +88,7 @@ const temp = computed(() => tempStatus(props.h.temp, props.h.temp_limit_s))
       </dd>
     </div>
   </dl>
+  </div>
 </template>
 
 <style scoped>

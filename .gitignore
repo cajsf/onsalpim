@@ -17,6 +17,7 @@ IOT/data/care_stats.json
 IOT/data/alerts.json
 IOT/data/alert_actions.json
 IOT/data/absences.json
+IOT/data/contacts.json
 IOT/data/approved_baselines.json
 IOT/data/engine_heartbeat.json
 IOT/data/kakao_token.json

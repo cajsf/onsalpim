@@ -3,11 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HomeAbsencePanel } from '@/components/HomeAbsencePanel';
+import { HomeContacts } from '@/components/HomeContacts';
 import { HomeTags } from '@/components/HomeTags';
 import { HomeTimeline } from '@/components/HomeTimeline';
 import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
-import { PATTERN_KO, SEV, fmtAgo, fmtMinutes, secondsSince, tempStatus } from '@/lib/format';
+import { PATTERN_KO, SEV, fmtAgo, fmtMinutes, idleBar, secondsSince, tempStatus } from '@/lib/format';
 import type { CareHome } from '@/lib/types';
 import { useNow } from '@/hooks/useNow';
 
@@ -64,6 +65,10 @@ export default function HomeDetailScreen() {
   const activity = secondsSince(h.last_activity_at, nowMs) ?? h.idle_s ?? null;
   const judged = secondsSince(h.judged_at, nowMs);
   const temp = tempStatus(h.temp, h.temp_limit_s, nowMs);
+  const idle = idleBar(activity, h.idle_min, h.idle_levels, {
+    away: !!h.away,
+    lifeKnown: h.life_known !== false,
+  });
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
@@ -72,6 +77,37 @@ export default function HomeDetailScreen() {
         <HomeTags home={h} />
       </View>
       {h.basis ? <Text style={styles.reason}>{h.basis}</Text> : h.reason ? <Text style={styles.reason}>{h.reason}</Text> : null}
+      {idle ? (
+        <View style={styles.idle}>
+          <Text style={styles.idleBig}>{idle.big}</Text>
+          <Text style={styles.idleCap}>{idle.text}</Text>
+          <View
+            style={styles.track}
+            accessibilityRole="progressbar"
+            accessibilityLabel={idle.text}
+            accessibilityValue={{
+              min: 0,
+              max: idle.limitMin,
+              now: idle.elapsed == null ? undefined : Math.round(idle.elapsed / 60),
+            }}
+          >
+            <View
+              style={[
+                styles.fill,
+                idle.tone === 'urgent'
+                  ? styles.fillUrgent
+                  : idle.tone === 'watch'
+                    ? styles.fillWatch
+                    : idle.tone === 'held'
+                      ? styles.fillHeld
+                      : styles.fillOk,
+                { width: idle.ratio == null ? '0%' : `${idle.ratio * 100}%` },
+              ]}
+            />
+          </View>
+        </View>
+      ) : null}
+      <HomeContacts home={h.home} />
 
       <View style={styles.card}>
         <Row
@@ -161,6 +197,23 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   title: { fontSize: 24, fontWeight: '700', color: theme.text },
   reason: { marginBottom: 16, lineHeight: 22, color: theme.text2 },
+  idle: {
+    backgroundColor: theme.surface,
+    borderRadius: theme.radius,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    gap: 6,
+  },
+  idleBig: { fontSize: 28, fontWeight: '700', color: theme.text, letterSpacing: -0.4 },
+  idleCap: { fontSize: 14, lineHeight: 20, color: theme.text2 },
+  track: { height: 10, borderRadius: 999, backgroundColor: theme.surface2, overflow: 'hidden', marginTop: 4 },
+  fill: { height: '100%', borderRadius: 999 },
+  fillOk: { backgroundColor: theme.normal },
+  fillWatch: { backgroundColor: theme.watch },
+  fillUrgent: { backgroundColor: theme.urgent },
+  fillHeld: { backgroundColor: theme.muted },
   card: {
     backgroundColor: theme.surface,
     borderRadius: theme.radius,

@@ -121,6 +121,15 @@ export const api = {
   deleteOverride: (id, home) => request(`/rules/${id}/override/${encodeURIComponent(home)}`, { method: 'DELETE' }),
   // 부재 등록 — 그 기간엔 무활동 판정 보류, 기기 점검은 계속
   getAbsences: (home) => request(`/absences?home=${encodeURIComponent(home)}`),
+  getContacts: (home) => request(`/contacts/${encodeURIComponent(home)}`),
+  async saveContacts(home, body) {
+    const res = await fetch(`${BASE}/contacts/${encodeURIComponent(home)}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    })
+    return noteAuth(res).json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+  },
   async addAbsence(body) {
     const res = await fetch(`${BASE}/absences`, {
       method: 'POST',

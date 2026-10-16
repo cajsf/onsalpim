@@ -45,6 +45,7 @@ HISTORY_FILE = os.path.join(DATA_DIR, "care_history.json")
 STATS_FILE = os.path.join(DATA_DIR, "care_stats.json")
 ACTIONS_FILE = os.path.join(DATA_DIR, "alert_actions.json")
 ABSENCES_FILE = os.path.join(DATA_DIR, "absences.json")
+CONTACTS_FILE = os.path.join(DATA_DIR, "contacts.json")
 RESET_BACKUP_DIR = os.path.join(DATA_DIR, "reset_backup")   # 시연 초기화가 비운 기록을 옮겨 두는 곳
 
 # 규칙 상태 — 전시 계획안 ③ "AI가 만든 규칙을 즉시 실행하지 않고 담당자가 확인한 후 적용"
@@ -1862,6 +1863,117 @@ def end_absence(absence_id, by="복지사", now=None):
         with open(ABSENCES_FILE, "w", encoding="utf-8") as f:
             json.dump(items, f, ensure_ascii=False, indent=1)
     return {"ok": True, "errors": [], "absence": a}
+
+
+# ---------- 세대 연락처 ----------
+# 긴급 때 세대 상세에서 보호자·담당자에게 바로 전화한다.
+# 번호는 여기 적힌 것만 쓴다. 비어 있으면 비어 있는 채로 두고, 화면이 번호를 만들지 않는다.
+# 시연 초기화로 지우지 않는다. 알림 기록과 달리 세대에 붙여 두는 연락처다.
+
+CONTACT_ROLES = (("guardian", "보호자"), ("staff", "담당자"))
+CONTACT_NAME_MAX = 30
+_contact_lock = threading.Lock()
+
+
+def load_contacts():
+    if not os.path.exists(CONTACTS_FILE):
+        return {}
+    try:
+        with open(CONTACTS_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _phone_digits(text):
+    return "".join(ch for ch in str(text or "") if ch.isdigit())
+
+
+def _phone_display(digits):
+    if len(digits) == 11:
+        return f"{digits[:3]}-{digits[3:7]}-{digits[7:]}"
+    if len(digits) == 10 and digits.startswith("02"):
+        return f"{digits[:2]}-{digits[2:6]}-{digits[6:]}"
+    if len(digits) == 10:
+        return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
+    if len(digits) == 9 and digits.startswith("02"):
+        return f"{digits[:2]}-{digits[2:5]}-{digits[5:]}"
+    if len(digits) == 8:
+        return f"{digits[:4]}-{digits[4:]}"
+    return digits
+
+
+def public_contacts(home, data=None):
+    """화면이 읽는 형태. 번호가 없는 역할은 null."""
+    entry = (data if data is not None else load_contacts()).get(str(home)) or {}
+    out = {"home": str(home), "guardian": None, "staff": None}
+    if not isinstance(entry, dict):
+        return out
+    for role, _label in CONTACT_ROLES:
+        item = entry.get(role) or {}
+        if not isinstance(item, dict):
+            continue
+        digits = _phone_digits(item.get("phone"))
+        if not digits:
+            continue
+        out[role] = {"name": str(item.get("name") or "").strip(), "phone": _phone_display(digits)}
+    return out
+
+
+def _write_contacts(data):
+    os.makedirs(os.path.dirname(CONTACTS_FILE), exist_ok=True)
+    with open(CONTACTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+
+
+def save_home_contacts(home, body, homes=None):
+    """역할별로 바꾸거나 지운다. body 에 없는 역할은 그대로 둔다. 번호를 비우면 그 역할을 지운다."""
+    home = str(home or "").strip()
+    body = body if isinstance(body, dict) else {}
+    errors = []
+    if not home:
+        errors.append("세대를 지정해 주세요.")
+    elif homes is not None and home not in homes:
+        errors.append(f"트리에 없는 세대입니다: {home}호")
+    updates = {}
+    for role, label in CONTACT_ROLES:
+        if role not in body:
+            continue
+        raw = body.get(role) or {}
+        if not isinstance(raw, dict):
+            errors.append(f"{label} 형식이 올바르지 않습니다.")
+            continue
+        name = str(raw.get("name") or "").strip()
+        digits = _phone_digits(raw.get("phone"))
+        if not name and not digits:
+            updates[role] = None
+            continue
+        if len(name) > CONTACT_NAME_MAX:
+            errors.append(f"{label} 이름은 {CONTACT_NAME_MAX}자까지입니다.")
+        if not digits:
+            errors.append(f"{label} 전화번호를 적어 주세요.")
+        elif not digits.startswith("0") or not (8 <= len(digits) <= 11):
+            errors.append(f"{label} 전화번호는 0으로 시작하는 8~11자리로 적어 주세요.")
+        else:
+            updates[role] = {"name": name, "phone": digits}
+    if errors:
+        return {"ok": False, "errors": errors}
+    with _contact_lock:
+        data = load_contacts()
+        entry = dict(data.get(home) or {})
+        for role, value in updates.items():
+            if value is None:
+                entry.pop(role, None)
+            else:
+                entry[role] = value
+        if entry:
+            data[home] = entry
+        else:
+            data.pop(home, None)
+        _write_contacts(data)
+        saved = public_contacts(home, data)
+    return {"ok": True, "errors": [], "contacts": saved}
 
 
 # ---------- 월간 보고 초안 ----------

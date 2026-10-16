@@ -2,6 +2,8 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { api, setStaffToken, staffToken } from './api.js'
 import HomeBasis from './HomeBasis.vue'
+import HomeContacts from './HomeContacts.vue'
+import IdleMeter from './IdleMeter.vue'
 import HomeTimeline from './HomeTimeline.vue'
 import HomeActions from './HomeActions.vue'
 import AlertItem from './AlertItem.vue'
@@ -1035,6 +1037,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   <td>
                     <span class="dot" :class="h.welfare_check ? 'urgent' : h.life_known ? SEV[h.severity]?.cls : 'unknown'"></span>
                     {{ h.life }}
+                    <IdleMeter v-if="!expanded.has(h.home)" :h="h" size="sm" />
                   </td>
                   <td>
                     <span class="dot" :class="h.severity === 'CHECK_DEVICE' || h.device_check ? 'device' : 'normal'"></span>
@@ -1076,7 +1079,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 
                 <!-- 판단 근거 — 결과만 보고도 판단 과정을 따라갈 수 있어야 한다 -->
                 <tr v-if="expanded.has(h.home)" class="detail">
-                  <td colspan="5"><HomeBasis :h="h" /></td>
+                  <td colspan="5">
+                    <HomeBasis :h="h" />
+                    <HomeContacts :home="h.home" :editor="false" />
+                  </td>
                 </tr>
                 </template>
                 <tr v-if="!visibleHomes.length"><td colspan="5" class="empty">해당 조건의 세대가 없습니다.</td></tr>
@@ -1414,6 +1420,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               </div>
             </div>
             <HomeActions :home="selectedHome.home" :care="selectedHome.care" @changed="refresh" />
+            <HomeContacts :home="selectedHome.home" />
 
             <p class="sec-title">현재 상태</p>
             <HomeBasis v-if="selectedHome.care" :h="selectedHome.care" />

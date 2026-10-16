@@ -137,6 +137,86 @@ export function fmtMinutes(v: number | string | null | undefined): string {
   return mm ? `${h}시간 ${mm}분` : `${h}시간`;
 }
 
+/** 경과 시간. '전'을 붙이지 않는다. 1분 미만만 초를 남긴다. */
+export function fmtSpan(sec: number | null | undefined): string {
+  if (sec == null || !Number.isFinite(sec)) return '';
+  const s = Math.max(0, Math.floor(sec));
+  if (s < 60) return `${s}초`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return s % 60 ? `${m}분 ${s % 60}초` : `${m}분`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return m % 60 ? `${h}시간 ${m % 60}분` : `${h}시간`;
+  const d = Math.floor(h / 24);
+  return h % 24 ? `${d}일 ${h % 24}시간` : `${d}일`;
+}
+
+export type IdleBar = {
+  limitMin: number;
+  elapsed: number | null;
+  ratio: number | null;
+  over: boolean;
+  tone: 'ok' | 'watch' | 'urgent' | 'held' | 'unknown';
+  text: string;
+  ticks: { at: number; title: string }[];
+  big: string;
+};
+
+/** 무활동 진행. 기준이 없으면 null. 움직임 시각이 없으면 막대를 0으로 채우지 않는다. */
+export function idleBar(
+  elapsedS: number | null | undefined,
+  idleMin: number | null | undefined,
+  idleLevels: { minutes: number; severity: string }[] | null | undefined,
+  opts: { away?: boolean; lifeKnown?: boolean } = {},
+): IdleBar | null {
+  const levels = (Array.isArray(idleLevels) ? idleLevels : [])
+    .map((lv) => ({ minutes: Number(lv.minutes), severity: lv.severity }))
+    .filter((lv) => Number.isFinite(lv.minutes) && lv.minutes > 0);
+  let limitMin = Number(idleMin);
+  if (!Number.isFinite(limitMin) || limitMin <= 0) {
+    const urgent = levels.find((lv) => lv.severity === 'URGENT');
+    limitMin = urgent ? urgent.minutes : levels[0] ? levels[0].minutes : NaN;
+  }
+  if (!Number.isFinite(limitMin) || limitMin <= 0) return null;
+
+  const away = !!opts.away;
+  const silent = opts.lifeKnown === false;
+  const known = elapsedS != null && Number.isFinite(Number(elapsedS));
+  const elapsed = known ? Math.max(0, Number(elapsedS)) : null;
+  const limitS = limitMin * 60;
+  const ratio = known && elapsed != null ? Math.min(1, elapsed / limitS) : null;
+  const over = known && elapsed != null && elapsed > limitS;
+  const passedWatch =
+    known &&
+    elapsed != null &&
+    levels.some((lv) => lv.severity === 'WATCH' && elapsed > lv.minutes * 60 && elapsed <= limitS);
+  const tone = away || silent ? 'held' : !known ? 'unknown' : over ? 'urgent' : passedWatch ? 'watch' : 'ok';
+  const limitText = fmtMinutes(limitMin);
+  const ticks = levels
+    .filter((lv) => lv.minutes < limitMin)
+    .map((lv) => ({
+      at: lv.minutes / limitMin,
+      title: `${fmtMinutes(lv.minutes)} ${SEV[lv.severity as keyof typeof SEV]?.ko || ''}`.trim(),
+    }));
+
+  let text: string;
+  if (!known) text = `${limitText} 기준 · 움직임 기록 없음`;
+  else if (away) text = `${limitText} 기준 중 ${fmtSpan(elapsed)} 경과 · 부재 중 판정 보류`;
+  else if (over) text = `${limitText} 기준을 ${fmtSpan((elapsed ?? 0) - limitS)} 넘김`;
+  else text = `${limitText} 기준 중 ${fmtSpan(elapsed)} 경과`;
+  if (silent && known) text += ' · 통신 두절 이후는 확인 불가';
+
+  return {
+    limitMin,
+    elapsed,
+    ratio,
+    over,
+    tone,
+    text,
+    ticks,
+    big: !known ? '—' : over && !away && !silent ? `${fmtSpan((elapsed ?? 0) - limitS)} 초과` : fmtSpan(elapsed),
+  };
+}
+
 export function timeOf(iso: string | null | undefined): string {
   return iso ? iso.slice(11, 16) : '—';
 }

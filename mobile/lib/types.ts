@@ -79,6 +79,14 @@ export type RuleRecord = {
   }[];
 };
 
+export type HomeContact = { name: string; phone: string };
+
+export type HomeContacts = {
+  home: string;
+  guardian: HomeContact | null;
+  staff: HomeContact | null;
+};
+
 export type AbsenceRecord = {
   id: number;
   home: string;

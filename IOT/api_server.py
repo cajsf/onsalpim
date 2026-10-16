@@ -194,6 +194,21 @@ def end_absence(absence_id):
     return jsonify(result), (200 if result["ok"] else 409)
 
 
+@app.route("/api/contacts/<home>")
+def home_contacts(home):
+    """세대 보호자·담당자 연락처. 없으면 빈 칸이다."""
+    return jsonify(engine.public_contacts(home))
+
+
+@app.route("/api/contacts/<home>", methods=["PUT"])
+def save_home_contacts(home):
+    """보호자·담당자 이름과 전화. 번호를 비우면 그 역할은 지운다."""
+    body = request.get_json(silent=True) or {}
+    homes = scope.discover_homes(iot.read_tree(AE))
+    result = engine.save_home_contacts(home, body, homes=homes)
+    return jsonify(result), (200 if result["ok"] else 422)
+
+
 @app.route("/api/rules/<int:rule_id>/keep", methods=["POST"])
 def keep_rule(rule_id):
     """겹친 규칙 중 이 규칙을 쓰고 나머지를 끈다 (지우지 않고 대체 기록을 남긴다)."""

@@ -5,6 +5,7 @@ import type {
   CareResponse,
   DeviceTree,
   EngineStatus,
+  HomeContacts,
   MonthlyReportRow,
   PreviewResult,
   RuleRecord,
@@ -120,6 +121,26 @@ export function createApi(base: string, token = '', onUnauthorized?: () => void)
       ),
     getAbsences: (home: string) =>
       request<AbsenceRecord[]>(`/absences?home=${encodeURIComponent(home)}`),
+    getContacts: (home: string) =>
+      request<HomeContacts>(`/contacts/${encodeURIComponent(home)}`),
+    async saveContacts(
+      home: string,
+      body: {
+        guardian?: { name: string; phone: string };
+        staff?: { name: string; phone: string };
+      },
+    ) {
+      const res = await fetch(`${BASE}/contacts/${encodeURIComponent(home)}`, {
+        method: 'PUT',
+        headers: jsonHeaders(),
+        body: JSON.stringify(body),
+      });
+      return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] })) as Promise<{
+        ok: boolean;
+        errors?: string[];
+        contacts?: HomeContacts;
+      }>;
+    },
     async addAbsence(body: { home: string; start: string; end: string; reason: string }) {
       const res = await fetch(`${BASE}/absences`, {
         method: 'POST',
