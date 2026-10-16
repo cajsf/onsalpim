@@ -1,0 +1,100 @@
+environment A Training 1 RSS_MB 80
+environment A Training 2 RSS_MB 80
+environment A Training 3 RSS_MB 80
+environment A Training 4 RSS_MB 80
+environment A Training 5 RSS_MB 80
+environment A Training 6 RSS_MB 80
+environment A Training 7 RSS_MB 80
+environment A Training 8 RSS_MB 80
+environment A Training 9 RSS_MB 80
+environment A Training 10 RSS_MB 80
+environment A Training 11 RSS_MB 80
+environment A Training 12 RSS_MB 80
+environment A Training 13 RSS_MB 81
+environment A Training 14 RSS_MB 81
+environment A Training 15 RSS_MB 81
+environment A Training 16 RSS_MB 81
+environment A Training 17 RSS_MB 81
+environment A Training 18 RSS_MB 81
+environment A Training 19 RSS_MB 81
+environment A Training 20 RSS_MB 81
+environment A Training 21 RSS_MB 81
+environment A Training 22 RSS_MB 81
+environment A Training 23 RSS_MB 81
+environment A Training 24 RSS_MB 81
+environment B Training 100 RSS_MB 118
+environment B Training 200 RSS_MB 139
+environment B Training 300 RSS_MB 159
+environment B Training 400 RSS_MB 174
+environment B Training 500 RSS_MB 192
+environment B Training 600 RSS_MB 203
+environment B Training 700 RSS_MB 210
+environment B Training 800 RSS_MB 225
+environment A Validation 1 RSS_MB 225
+environment A Validation 2 RSS_MB 225
+environment A Validation 3 RSS_MB 225
+environment B Validation 100 RSS_MB 245
+labels A TL_A 1 elapsed_s 88 RSS_MB 245
+labels A TL_A 2 elapsed_s 88 RSS_MB 245
+labels A TL_A 3 elapsed_s 88 RSS_MB 245
+labels A TL_A 4 elapsed_s 88 RSS_MB 245
+labels A TL_A 5 elapsed_s 88 RSS_MB 245
+labels A TL_A 6 elapsed_s 88 RSS_MB 245
+labels A TL_A 7 elapsed_s 88 RSS_MB 245
+labels A TL_A 8 elapsed_s 88 RSS_MB 245
+labels A TL_A 9 elapsed_s 89 RSS_MB 245
+labels A TL_A 10 elapsed_s 89 RSS_MB 245
+labels A TL_A 11 elapsed_s 89 RSS_MB 245
+labels A TL_A 12 elapsed_s 89 RSS_MB 245
+labels A TL_A 13 elapsed_s 89 RSS_MB 245
+labels A TL_A 14 elapsed_s 89 RSS_MB 245
+labels A TL_A 15 elapsed_s 89 RSS_MB 245
+labels A TL_A 16 elapsed_s 89 RSS_MB 245
+labels A TL_A 17 elapsed_s 89 RSS_MB 245
+labels A TL_A 18 elapsed_s 89 RSS_MB 245
+labels A TL_A 19 elapsed_s 89 RSS_MB 245
+labels A TL_A 20 elapsed_s 90 RSS_MB 245
+labels A TL_A 21 elapsed_s 90 RSS_MB 245
+labels A TL_A 22 elapsed_s 90 RSS_MB 245
+labels A TL_A 23 elapsed_s 90 RSS_MB 245
+labels A TL_A 24 elapsed_s 90 RSS_MB 245
+labels B TL_B 25 elapsed_s 105 RSS_MB 291
+labels B TL_B 50 elapsed_s 119 RSS_MB 293
+labels B TL_B 75 elapsed_s 134 RSS_MB 293
+labels B TL_B 100 elapsed_s 148 RSS_MB 293
+labels B TL_B 125 elapsed_s 163 RSS_MB 293
+labels B TL_B 150 elapsed_s 179 RSS_MB 294
+labels B TL_B 175 elapsed_s 193 RSS_MB 294
+labels B TL_B 200 elapsed_s 207 RSS_MB 295
+labels B TL_B 225 elapsed_s 223 RSS_MB 295
+labels B TL_B 250 elapsed_s 237 RSS_MB 295
+labels B TL_B 275 elapsed_s 252 RSS_MB 295
+labels B TL_B 300 elapsed_s 268 RSS_MB 295
+labels B TL_B 325 elapsed_s 283 RSS_MB 295
+labels B TL_B 350 elapsed_s 298 RSS_MB 295
+labels B TL_B 375 elapsed_s 312 RSS_MB 295
+labels B TL_B 400 elapsed_s 324 RSS_MB 295
+labels B TL_B 425 elapsed_s 336 RSS_MB 295
+labels B TL_B 450 elapsed_s 349 RSS_MB 295
+labels B TL_B 475 elapsed_s 364 RSS_MB 295
+labels B TL_B 500 elapsed_s 378 RSS_MB 295
+labels B TL_B 525 elapsed_s 393 RSS_MB 296
+labels B TL_B 550 elapsed_s 404 RSS_MB 296
+labels B TL_B 575 elapsed_s 416 RSS_MB 296
+labels B TL_B 600 elapsed_s 425 RSS_MB 296
+labels B TL_B 625 elapsed_s 433 RSS_MB 296
+labels B TL_B 650 elapsed_s 442 RSS_MB 296
+labels B TL_B 675 elapsed_s 451 RSS_MB 296
+labels B TL_B 700 elapsed_s 458 RSS_MB 296
+labels B TL_B 725 elapsed_s 466 RSS_MB 296
+labels B TL_B 750 elapsed_s 473 RSS_MB 296
+labels B TL_B 775 elapsed_s 480 RSS_MB 296
+labels B TL_B 800 elapsed_s 489 RSS_MB 296
+labels A VL_A 1 elapsed_s 489 RSS_MB 296
+labels A VL_A 2 elapsed_s 489 RSS_MB 296
+labels A VL_A 3 elapsed_s 489 RSS_MB 296
+labels B VL_B 25 elapsed_s 499 RSS_MB 296
+labels B VL_B 50 elapsed_s 513 RSS_MB 296
+labels B VL_B 75 elapsed_s 528 RSS_MB 296
+labels B VL_B 100 elapsed_s 544 RSS_MB 296
+DONE {"archives": 47, "compressed_bytes": 2241070869, "expanded_bytes": 38937765128, "members": 113608, "households": 927, "cohorts": {"A": 27, "B": 900}, "rows": 49058881, "label_records": 49058881, "sampled_peak_rss_bytes": 310050816, "elapsed_seconds": 543.7597093582153}

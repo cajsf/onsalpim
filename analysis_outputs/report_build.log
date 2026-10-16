@@ -1,0 +1,35 @@
+{"archives": 47, "compressed_bytes": 2241070869, "expanded_bytes": 38937765128, "members": 113608, "households": 927, "cohorts": {"A": 27, "B": 900}, "rows": 49058881, "label_records": 49058881, "sampled_peak_rss_bytes": 310050816, "elapsed_seconds": 543.7597093582153}
+집단  가구  연속14일_기록존재  연속14일_일별90퍼센트  연속14일_완전한달력일  연속2016개_유효관측  최근14일_완전
+기존 900         899            894           889           890       648
+신규  27          21             11             3             3         0
+전체 927         920            905           892           893       648
+cohort       field        n  minimum  p01  p25  p50  p75   p99  maximum      mean       std    zero_rate  missing_or_non_numeric  infinite  plausibility_flagged  iqr_outliers
+     A Activity_IR   109819      0.0  0.0  0.0  0.0 24.0 300.0    560.0 26.499986 58.016673 5.504694e-01                       0         0                     0         14323
+     A Temperature   109819     12.8 19.0 23.0 24.5 25.9  29.7     32.7 24.502433  2.104575 0.000000e+00                       0         0                     0          1331
+     A    Humidity   109819     16.0 27.0 42.0 48.0 53.0  66.0     78.0 47.427103  8.540232 0.000000e+00                       0         0                     0           950
+     B Activity_IR 48949062      0.0  0.0  0.0  0.0 17.0 237.0    587.0 19.612791 46.791469 6.029888e-01                       0         0                     0       6680569
+     B Temperature 48949062     -0.6 13.5 23.7 26.6 29.2  33.3     53.2 26.080086  4.171415 2.247234e-07                       0         0                     0        927540
+     B    Humidity 48949062      0.0 20.0 43.0 53.0 64.0  83.0     95.0 53.256039 14.692567 5.127780e-06                       0         0                     0         18320
+cohort      component      field label    count    share
+     A      EM_Sensor      Label    기타    58171 0.529699
+     A      EM_Sensor      Label    수면    36876 0.335789
+     A      EM_Sensor      Label    식사     1933 0.017602
+     A      EM_Sensor      Label    외출    12839 0.116911
+     A      ER_Sensor      Label    위험      374 0.003406
+     A      ER_Sensor      Label    일상   109445 0.996594
+     A      SM_Sensor      Label    위험       22 0.000200
+     A      SM_Sensor      Label    일상   109112 0.993562
+     A      SM_Sensor      Label    주의      685 0.006238
+     A Total_Labeling Estimation    기타    55913 0.509138
+     A Total_Labeling Estimation    수면    17607 0.160327
+     A Total_Labeling Estimation    식사     1770 0.016117
+     A Total_Labeling Estimation    외출    10491 0.095530
+     A Total_Labeling Estimation    위험     3782 0.034438
+     A Total_Labeling Estimation    주의    20256 0.184449
+     B      EM_Sensor      Label    기타 21087197 0.430799
+     B      EM_Sensor      Label    수면 17610491 0.359772
+     B      EM_Sensor      Label    식사   644654 0.013170
+     B      EM_Sensor      Label    외출  9606720 0.196260
+집단  타임스탬프결측  중복시각  값충돌시각  역순  격자외  완전누락일  라벨중복시각  라벨원본시각불일치  라벨원본값불일치  원본중라벨누락
+기존        0     0      0  31    0  17307       0          0         0        0
+신규        0     0      0   0    0    120       0          0         0        0

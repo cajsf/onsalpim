@@ -1,0 +1,33 @@
+{
+  "independent_csv_checks": [
+    {
+      "household": "N013",
+      "rows": 4975,
+      "checks": 7,
+      "result": "passed"
+    },
+    {
+      "household": "E105",
+      "rows": 65921,
+      "checks": 7,
+      "result": "passed"
+    },
+    {
+      "household": "N010",
+      "rows": 4212,
+      "checks": 7,
+      "result": "passed"
+    },
+    {
+      "household": "E017",
+      "rows": 9292,
+      "checks": 7,
+      "result": "passed"
+    }
+  ],
+  "total_rows": 49058881,
+  "sensor_denominator_reconciliation": "passed",
+  "label_denominator_reconciliation": "passed",
+  "unique_household_check": "passed",
+  "timestamp_units": "explicit datetime64[ns]; independent datetime comparison passed"
+}

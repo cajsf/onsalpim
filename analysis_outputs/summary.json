@@ -1,0 +1,21 @@
+{
+  "archives": 47,
+  "compressed_bytes": 2241070869,
+  "expanded_bytes": 38937765128,
+  "members": 113608,
+  "households": 927,
+  "cohorts": {
+    "A": 27,
+    "B": 900
+  },
+  "rows": 49058881,
+  "label_records": 49058881,
+  "sampled_peak_rss_bytes": 310050816,
+  "elapsed_seconds": 543.7597093582153,
+  "coverage_recalculation": {
+    "timestamp_resolution": "datetime64[ns]",
+    "sampled_peak_rss_bytes": 256163840,
+    "elapsed_seconds": 73.09780883789062,
+    "independent_validation": "validation.json"
+  }
+}
