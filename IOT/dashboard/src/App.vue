@@ -32,7 +32,7 @@ const rules = ref([])
 const alerts = ref([])
 const alertFilter = ref('todo')      // 알림 이력: 미완료만 / 전체
 const search = ref('')
-const kakao = ref({ configured: false, connected: false, nickname: '', redirect_uri: '' })
+const kakao = ref({ known: false, configured: false, connected: false, nickname: '', redirect_uri: '', error: '' })
 const kakaoNotice = ref('')
 autoClear(kakaoNotice)
 // open = 아무도 안 본 알림 (배지·팝업). 확인·방문 중도 조치 완료 전까지는 끝난 게 아니다 (미완료 탭).
@@ -234,8 +234,13 @@ async function loadDashboard() {
     const [c, r, a, eng] = await Promise.all([
       api.getCare(), api.getRules(), api.getAlerts(100), api.getEngineStatus(),
     ])
-    api.getKakao().then((k) => { kakao.value = k }).catch(() => {
-      kakao.value = { ...kakao.value, configured: false, error: '배포된 API가 카카오 연결을 아직 제공하지 않습니다. API를 다시 배포한 뒤 키 환경 변수를 넣으세요.' }
+    api.getKakao().then((k) => {
+      if (typeof k?.configured !== 'boolean') return
+      kakao.value = { ...k, known: true, error: '' }
+    }).catch(() => {
+      // 확인 전에 키가 없다고 단정하지 않는다. 한 번 확인한 상태는 다음 실패로 지우지 않는다.
+      if (kakao.value.known) return
+      kakao.value = { ...kakao.value, error: '카카오 연결 상태를 확인하지 못했습니다.' }
     })
     care.value = c
     rules.value = r
@@ -259,10 +264,18 @@ function tickClock() {
     `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+const kakaoTitle = computed(() => {
+  if (!kakao.value.known) return '카카오 연결 상태를 확인하는 중…'
+  if (kakao.value.configured) return '로그인한 카카오 계정의 나와의 채팅으로 알림을 보냅니다.'
+  return '카카오 키가 API에 없습니다. 리다이렉트 URI: ' + (kakao.value.redirect_uri || '')
+})
 function connectKakao() {
+  if (!kakao.value.known) {
+    kakaoNotice.value = kakao.value.error || '카카오 연결 상태를 확인하는 중입니다.'
+    return
+  }
   if (!kakao.value.configured) {
-    kakaoNotice.value = kakao.value.error
-      || `API에 카카오 키가 없습니다. 카카오 리다이렉트 URI에 ${kakao.value.redirect_uri || 'API 주소/api/kakao/callback'} 를 등록하세요.`
+    kakaoNotice.value = `API에 카카오 키가 없습니다. 카카오 리다이렉트 URI에 ${kakao.value.redirect_uri || 'API 주소/api/kakao/callback'} 를 등록하세요.`
     return
   }
   window.location.href = api.kakaoLoginUrl()
@@ -809,9 +822,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <input v-model="search" type="text" :placeholder="searchPlaceholder" />
           </div>
           <button v-if="!kakao.connected" class="btn sm ghost"
-                  :title="kakao.configured
-                    ? '로그인한 카카오 계정의 나와의 채팅으로 알림을 보냅니다.'
-                    : ('카카오 키가 API에 없습니다. 리다이렉트 URI: ' + (kakao.redirect_uri || ''))"
+                  :title="kakaoTitle"
+                  :disabled="!kakao.known"
                   @click="connectKakao">
             카카오 연결
           </button>
