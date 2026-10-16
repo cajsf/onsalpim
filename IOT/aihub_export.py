@@ -11,7 +11,8 @@ AIHub 원본(Dataset)이 있는 PC 에서 한 번 실행한다. 결과는 가구
   가명   파일명의 (I_|L_|IR_)[AB]숫자4 를 집단별로 정렬한 순번 (A→N001…, B→E001…)
   유효   Time 이 10분 정각, Activity_IR·Temperature·Humidity 가 수치이고 유한, Activity_IR≥0,
          온도 -40~85, 습도 0~100. 같은 시각이 여럿이면 첫 행
-  기간   five_household_profiles.json 의 기간 (없으면 하루 130/144칸 이상이 28일 이어지는 첫 구간)
+  기간   하루 130/144칸 이상이 28일 이어지는 첫 구간 (분석의 가구 선정 규칙과 같다.
+         로컬에 five_household_profiles.json 이 있으면 그 기간을 쓴다 — 저장소에는 없다)
 """
 import argparse
 import json
@@ -31,6 +32,14 @@ OUT = HERE / "data" / "aihub_replay"
 ANALYSIS = HERE.parent / "analysis_outputs"          # 저장소에 있는 분석 산출물 — 기간과 대조값
 FIELDS = ["Activity_IR", "Temperature", "Humidity"]
 DEFAULT = ["E001", "E002", "E016", "E007", "E012", "E004"]
+# 분석 결과(five_household_analysis_report.md) — 개인 θ(08·09·10·11시)와 뒤 14일 후보 일수 (개인, 공통)
+EXPECTED = {
+    "E002": ([1 / 3, 5 / 12, 5 / 12, 1 / 2], 1, 0),
+    "E016": ([0, 0, 0, 0], 0, 14),
+    "E007": ([1 / 6, 1 / 6, 1 / 8, 1 / 8], 10, 12),
+    "E012": ([5 / 12, 5 / 12, 3 / 8, 1 / 4], 8, 8),
+    "E004": ([1 / 3, 1 / 4, 1 / 4, 5 / 24], 11, 11),
+}
 
 
 def aliases(data):
@@ -100,23 +109,19 @@ def export(data, alias, table):
 
 
 def check(alias):
-    """분석 산출물과 대조 — 같은 정의로 다시 계산해 θ·후보 일수가 같은지."""
-    prof = ANALYSIS / "five_household_profiles.json"
-    if not prof.exists():
-        return "분석 산출물 없음 — 대조 건너뜀"
-    want = next((p for p in json.loads(prof.read_text(encoding="utf-8"))["profiles"] if p["household"] == alias), None)
-    if want is None:
+    """분석 결과와 대조 — 같은 정의로 다시 계산해 θ·후보 일수가 같은지."""
+    if alias not in EXPECTED:
         return "분석 대상 아님 — 대조 건너뜀"
+    theta_want, personal_want, common_want = EXPECTED[alias]
     rep = baseline.load_replay(alias)
     rec = baseline.recommend(rep["slots"], rep["baseline_days"])
     errs = []
-    for h in baseline.HOURS:
-        a, b = rec["theta"][h], want["thresholds"]["personal"][str(h - 1)]
+    for h, b in zip(baseline.HOURS, theta_want):
+        a = rec["theta"][h]
         if a is None or abs(a - b) > 1e-9:
-            errs.append(f"{h:02d}시 θ {a} ≠ 분석 {b}")
-    for kind, theta in (("personal", rec["theta"]), ("common", baseline.COMMON_THETA)):
+            errs.append(f"{h:02d}시 θ {a} ≠ 분석 {b:.6f}")
+    for kind, theta, exp in (("개인", rec["theta"], personal_want), ("공통", baseline.COMMON_THETA, common_want)):
         got = baseline.preview(rep["slots"], rep["validation_days"], theta)["candidate_days"]
-        exp = want["results"][kind]["candidate_days"]
         if got != exp:
             errs.append(f"{kind} 후보 일수 {got} ≠ 분석 {exp}")
     return "분석값과 일치" if not errs else "불일치: " + "; ".join(errs)
