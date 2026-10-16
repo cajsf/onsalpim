@@ -5,7 +5,7 @@ AIHub 원본(Dataset)이 있는 PC 에서 한 번 실행한다. 결과는 가구
     python aihub_export.py                    # 분석에 쓴 6가구 (E001·E002·E016·E007·E012·E004)
     python aihub_export.py E002 E016          # 지정 가구만
     python aihub_export.py --check            # 뽑은 뒤 analysis_outputs 의 분석값과 대조 (θ·후보 일수)
-    python aihub_export.py --root D:/onsalpim  # Dataset·analysis_outputs 가 있는 폴더 (기본: 저장소 최상위)
+    python aihub_export.py --dataset D:/aihub/Dataset   # 원본 폴더 위치 (기본: 저장소 최상위의 Dataset)
 
 칸·가명 규칙은 analysis_outputs/analyze_dataset.py 와 같다:
   가명   파일명의 (I_|L_|IR_)[AB]숫자4 를 집단별로 정렬한 순번 (A→N001…, B→E001…)
@@ -28,6 +28,7 @@ import baseline
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "data" / "aihub_replay"
+ANALYSIS = HERE.parent / "analysis_outputs"          # 저장소에 있는 분석 산출물 — 기간과 대조값
 FIELDS = ["Activity_IR", "Temperature", "Humidity"]
 DEFAULT = ["E001", "E002", "E016", "E007", "E012", "E004"]
 
@@ -64,8 +65,8 @@ def load(data, key):
     return None
 
 
-def period(root, alias, d):
-    prof = root / "analysis_outputs" / "five_household_profiles.json"
+def period(alias, d):
+    prof = ANALYSIS / "five_household_profiles.json"
     if prof.exists():
         for p in json.loads(prof.read_text(encoding="utf-8")).get("profiles", []):
             if p["household"] == alias:
@@ -80,11 +81,11 @@ def period(root, alias, d):
     return None
 
 
-def export(root, alias, table):
-    d = load(root / "Dataset", table[alias])
+def export(data, alias, table):
+    d = load(data, table[alias])
     if d is None:
         return None
-    per = period(root, alias, d)
+    per = period(alias, d)
     if per is None:
         return None
     lo, hi = pd.Timestamp(per["start"]), pd.Timestamp(per["end"]) + pd.Timedelta(days=1)
@@ -98,9 +99,9 @@ def export(root, alias, table):
     return out
 
 
-def check(root, alias):
+def check(alias):
     """분석 산출물과 대조 — 같은 정의로 다시 계산해 θ·후보 일수가 같은지."""
-    prof = root / "analysis_outputs" / "five_household_profiles.json"
+    prof = ANALYSIS / "five_household_profiles.json"
     if not prof.exists():
         return "분석 산출물 없음 — 대조 건너뜀"
     want = next((p for p in json.loads(prof.read_text(encoding="utf-8"))["profiles"] if p["household"] == alias), None)
@@ -124,23 +125,23 @@ def check(root, alias):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("households", nargs="*")
-    ap.add_argument("--root", default=str(HERE.parent))
+    ap.add_argument("--dataset", default=str(HERE.parent / "Dataset"))
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
-    root = Path(a.root)
-    if not (root / "Dataset").exists():
-        sys.exit(f"{root / 'Dataset'} 가 없습니다 — AIHub 원본이 있는 폴더를 --root 로 주세요")
-    table = aliases(root / "Dataset")
+    data = Path(a.dataset)
+    if not data.exists() or not any(data.rglob("*.zip")):
+        sys.exit(f"{data} 에 AIHub ZIP 이 없습니다 — 원본 폴더를 --dataset 으로 주세요")
+    table = aliases(data)
     for alias in a.households or DEFAULT:
         if alias not in table:
             print(f"{alias}: 없는 가명")
             continue
-        r = export(root, alias, table)
+        r = export(data, alias, table)
         if r is None:
             print(f"{alias}: 기록 또는 28일 구간을 찾지 못함")
             continue
         print(f"{alias}: {r['period']['start']}~{r['period']['end']} 유효 칸 {len(r['slots'])}/4032"
-              + (f" — {check(root, alias)}" if a.check else ""))
+              + (f" — {check(alias)}" if a.check else ""))
     print(f"저장: {OUT} (저장소에 올리지 않음)")
 
 
