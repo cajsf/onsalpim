@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import requests
 from flask import Flask, jsonify, redirect, request
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 
 import care_monitor
 import engine
@@ -24,6 +25,21 @@ ENGINE_STALE_SEC = 30   # 이 시간 안에 하트비트 없으면 미실행으�
 
 app = Flask(__name__)
 CORS(app)
+
+
+@app.errorhandler(Exception)
+def _unhandled(err):
+    """처리하지 못한 오류도 JSON 으로 돌려준다.
+
+    HTML 500 에 CORS 가 없으면 브라우저는 상태 코드를 숨기고 'Failed to fetch' 만 보여 준다.
+    """
+    if isinstance(err, HTTPException):
+        return err
+    app.logger.exception("요청 처리 실패")
+    resp = jsonify(error=f"{type(err).__name__}: {err}")
+    resp.status_code = 500
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 
 @app.route("/api/devices")
@@ -279,10 +295,14 @@ def monthly_report():
     """월간 보고 초안 — month=YYYY-MM, min_s=최소 지속 초 (기본 5일. 시연은 짧게)."""
     month = request.args.get("month") or care_monitor.now_kst().strftime("%Y-%m")
     try:
-        min_s = max(int(request.args.get("min_s", engine.REPORT_MIN_S)), 0)
-        rows = engine.monthly_report(month, min_s)
+        datetime.strptime(month, "%Y-%m")
     except ValueError:
-        return jsonify({"error": "month 는 YYYY-MM, min_s 는 정수(초)여야 합니다."}), 400
+        return jsonify({"error": "month 는 YYYY-MM 이어야 합니다."}), 400
+    try:
+        min_s = max(int(request.args.get("min_s", engine.REPORT_MIN_S)), 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "min_s 는 정수(초)여야 합니다."}), 400
+    rows = engine.monthly_report(month, min_s)
     return jsonify({"month": month, "min_s": min_s, "rows": rows})
 
 

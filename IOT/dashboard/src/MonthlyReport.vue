@@ -18,16 +18,32 @@ const rows = ref([])
 const error = ref('')
 const loading = ref(false)
 
+function networkFailure(message) {
+  return message === 'Failed to fetch'
+    || message.includes('NetworkError')
+    || message.includes('HTTP 502')
+    || message.includes('HTTP 503')
+}
+
 async function load() {
   loading.value = true
-  try {
-    rows.value = (await api.getMonthlyReport(month.value, minS.value)).rows
-    error.value = ''
-  } catch (e) {
-    error.value = `불러오지 못했습니다: ${e.message}`
-  } finally {
-    loading.value = false
+  error.value = ''
+  let last = ''
+  for (let i = 0; i < 3; i++) {
+    try {
+      rows.value = (await api.getMonthlyReport(month.value, minS.value)).rows
+      error.value = ''
+      loading.value = false
+      return
+    } catch (e) {
+      last = e.message || 'Failed to fetch'
+      if (!networkFailure(last) || i === 2) break
+      error.value = '서버에 다시 연결하는 중…'
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1)))
+    }
   }
+  error.value = `불러오지 못했습니다: ${last}`
+  loading.value = false
 }
 onMounted(load)
 watch([month, minS], load)

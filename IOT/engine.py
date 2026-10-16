@@ -1882,7 +1882,8 @@ def _report_notes(home, a, b, alerts, actions):
     """구간 [a, b] 안에 이 세대에 난 알림의 대응 메모 — 복지사가 확인한 사유."""
     notes = []
     for al in alerts:
-        if al["home"] != home or not (a <= al["ts"] <= b):
+        ts = al.get("ts")
+        if al.get("home") != home or not ts or not (a <= ts <= b):
             continue
         for l in (actions.get(alert_id(al)) or {}).get("log", []):
             if l.get("memo"):
@@ -1916,10 +1917,16 @@ def monthly_report(month, min_s=REPORT_MIN_S, now=None):
                 continue
             nxt = sev[i + 1][0] if i + 1 < len(sev) else None
             b = nxt or last_run
-            if _gap_s(a, b) < min_s or not (a < hi and b > lo):
+            # 시각 하나가 깨져 있어도 나머지 세대 보고는 나와야 한다
+            try:
+                if not isinstance(a, str) or not isinstance(b, str):
+                    continue
+                if _gap_s(a, b) < min_s or not (a < hi and b > lo):
+                    continue
+            except (TypeError, ValueError):
                 continue
             kind, draft = REPORT_KINDS[s]
-            hit = [al for al in alerts if al["home"] == home and a <= al["ts"] <= b]
+            hit = [al for al in alerts if al.get("home") == home and a <= (al.get("ts") or "") <= b]
             # welfare 표시는 10/2부터 남는다 — 그 전 알림은 사유 문구로 본다
             if s == "CHECK_DEVICE" and any(al.get("welfare") or "안부 확인" in (al.get("reason") or "") for al in hit):
                 draft += " · 두절 중 긴급 기준을 넘어 안부 확인을 요청함"
@@ -1930,11 +1937,18 @@ def monthly_report(month, min_s=REPORT_MIN_S, now=None):
 
     # 부재 등록 기간 — 엔진은 그동안 무활동을 판정하지 않지만, 국가 장비라면 활동미감지로 올라갈 기간이다
     for ab in load_absences():
-        a = ab["start"]
-        b = min(ab.get("ended_at") or ab["end"], ab["end"])
-        live = b > now.isoformat(timespec="seconds")
-        b_eff = now.isoformat(timespec="seconds") if live else b
-        if b_eff <= a or _gap_s(a, b_eff) < min_s or not (a < hi and b_eff > lo):
+        a = ab.get("start")
+        end = ab.get("end")
+        if not ab.get("home") or not isinstance(a, str) or not isinstance(end, str):
+            continue
+        stopped = ab.get("ended_at") if isinstance(ab.get("ended_at"), str) else end
+        b = min(stopped, end)
+        try:
+            live = b > now.isoformat(timespec="seconds")
+            b_eff = now.isoformat(timespec="seconds") if live else b
+            if b_eff <= a or _gap_s(a, b_eff) < min_s or not (a < hi and b_eff > lo):
+                continue
+        except (TypeError, ValueError):
             continue
         rows.append({"home": ab["home"], "kind": "부재", "start": a, "end": None if live else b, "cut": False,
                      "duration_s": _gap_s(a, b_eff),
