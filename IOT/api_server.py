@@ -255,7 +255,9 @@ def get_alerts():
 def alert_action(alert_id):
     """알림 대응 기록 — 확인 / 방문·연락 중 / 조치 완료(메모 필수)."""
     body = request.get_json(silent=True) or {}
-    result = engine.record_action(alert_id, str(body.get("status", "")), str(body.get("memo", "")))
+    result = engine.record_action(
+        alert_id, str(body.get("status", "")), str(body.get("memo", "")),
+        by=str(body.get("by") or "복지사"), outcome=body.get("outcome") or None)
     return jsonify(result), (200 if result["ok"] else 400)
 
 

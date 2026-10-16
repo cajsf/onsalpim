@@ -36,6 +36,8 @@
   --normal-soft: #eafaf0;
   --watch: #c2870a;
   --watch-soft: #fdf5e3;
+  --life: #0f766e;
+  --life-soft: #e7f6f3;
   --urgent: #dc2626;
   --urgent-soft: #fdeeee;
   --device: #5b5bd6;        /* 기기 이상 — 생활 신호와 다른 계열 */
@@ -97,6 +99,7 @@ button {
 }
 .tag-normal { background: var(--normal-soft); color: var(--normal); }
 .tag-watch { background: var(--watch-soft); color: var(--watch); }
+.tag-life { background: var(--life-soft); color: var(--life); }
 .tag-urgent { background: var(--urgent-soft); color: var(--urgent); }
 .tag-device { background: var(--device-soft); color: var(--device); }
 .tag-muted { background: var(--surface-2); color: var(--muted); border: 1px dashed var(--border-strong); }

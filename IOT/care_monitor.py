@@ -350,7 +350,7 @@ def render(decision, case, contact, last_activity, battery, now, idle_levels, id
         return out(
             WATCH,
             f"{_human(idle_s)} 무활동 (주의 기준 {human_minutes(m)}, 통신 정상)",
-            life=f"움직임 없음 ({_human(idle_s)}) — 주의 기준 초과",
+            life=f"생활 확인 — 움직임 없음 ({_human(idle_s)})",
             device=f"배터리 부족 ({batt_pct})" if low_batt else device_ok,
             basis=f"통신 정상 + 무활동이 주의 기준({human_minutes(m)})을 초과"
                   + (f" · 긴급 기준 {human_minutes(idle_min)}" if float(idle_min) != float(m) else ""),

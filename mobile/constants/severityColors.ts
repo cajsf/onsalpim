@@ -17,6 +17,13 @@ export const SEV_COLORS: Record<
   },
 };
 
+export const LIFE_COLORS = {
+  bg: '#e7f6f3',
+  text: '#0f766e',
+  border: '#e7f6f3',
+  bar: '#0f766e',
+};
+
 export const STATE_COLORS: Record<string, { bg: string; text: string }> = {
   urgent: { bg: theme.urgentSoft, text: theme.urgent },
   watch: { bg: theme.watchSoft, text: theme.watch },

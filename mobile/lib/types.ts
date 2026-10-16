@@ -5,6 +5,7 @@ export type CareHome = {
   severity: Severity;
   reason?: string;
   welfare_check?: boolean;
+  life_check?: boolean;
   life_known?: boolean;
   last_contact_at?: string;
   last_activity_at?: string;
@@ -41,11 +42,14 @@ export type AlertRecord = {
   reason: string;
   welfare?: boolean;
   state: string | null;
-  log: { at: string; status: string; by: string; memo?: string }[];
+  assignee?: string | null;
+  outcome?: string | null;
+  life_check?: boolean;
+  log: { at: string; status: string; by: string; memo?: string; outcome?: string }[];
   first_response_s?: number | null;
 };
 
-export type ActionStatus = 'ack' | 'progress' | 'done' | 'late' | 'edit';
+export type ActionStatus = 'assign' | 'ack' | 'progress' | 'done' | 'late' | 'edit';
 
 export type RuleRecord = {
   id: number;

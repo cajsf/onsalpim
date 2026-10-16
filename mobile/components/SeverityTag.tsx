@@ -1,12 +1,20 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { SEV_COLORS } from '@/constants/severityColors';
+import { LIFE_COLORS, SEV_COLORS } from '@/constants/severityColors';
 import { theme } from '@/constants/theme';
 import { SEV } from '@/lib/format';
 import type { Severity } from '@/lib/types';
 
-export function SeverityTag({ severity, label }: { severity: Severity; label?: string }) {
-  const c = SEV_COLORS[severity] ?? SEV_COLORS.NORMAL;
+export function SeverityTag({
+  severity,
+  label,
+  tone,
+}: {
+  severity: Severity;
+  label?: string;
+  tone?: 'life';
+}) {
+  const c = tone === 'life' ? LIFE_COLORS : (SEV_COLORS[severity] ?? SEV_COLORS.NORMAL);
   const ko = label ?? SEV[severity]?.ko ?? severity;
   return (
     <View style={[styles.tag, { backgroundColor: c.bg, borderColor: c.border }]}>

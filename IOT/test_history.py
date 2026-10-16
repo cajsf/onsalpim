@@ -109,23 +109,28 @@ assert by_id["101URGENT"]["state"] == "missed", "대응 전에 회복된 알림�
 assert by_id["101NORMAL"]["state"] is None, "회복 기록은 대응 대상 아님"
 
 a102 = by_id["102URGENT"]["id"]
-assert not engine.record_action(a102, "done")["ok"], "조치 완료는 메모 필수"
+assert not engine.record_action(a102, "done")["ok"], "조치 완료는 결과 코드가 필요"
+assert not engine.record_action(a102, "done", outcome="nope")["ok"], "없는 결과는 거부"
 assert not engine.record_action(a102, "hack")["ok"], "없는 상태 거부"
 assert not engine.record_action(a102, "ack", "x" * 201)["ok"], "메모 길이 제한"
 assert not engine.record_action("없음|999", "ack")["ok"], "없는 알림 거부"
 assert not engine.record_action(by_id["101NORMAL"]["id"], "ack")["ok"], "회복 기록엔 대응 불가"
 
-assert engine.record_action(a102, "ack", now=T0 + timedelta(seconds=372))["ok"]
+assert engine.record_action(a102, "assign", now=T0 + timedelta(seconds=372))["ok"]
+assert engine.load_actions()[a102]["assignee"] == "복지사"
+assert not engine.record_action(a102, "ack", by="김담당")["ok"], "다른 사람은 맡은 건을 받을 수 없음"
+assert engine.record_action(a102, "ack")["ok"]
 assert engine.record_action(a102, "ack")["ok"]      # 같은 상태 연타
-assert len(engine.load_actions()[a102]["log"]) == 1, "같은 상태를 연달아 누르면 한 번만 기록"
-assert engine.record_action(a102, "done", "전화 통화, 이상 없음")["ok"]
+assert [l["status"] for l in engine.load_actions()[a102]["log"]] == ["assign", "ack"]
+assert engine.record_action(a102, "done", "전화 통화, 이상 없음", outcome="ok")["ok"]
 assert not engine.record_action(a102, "ack")["ok"], "조치 완료 뒤에는 더 기록하지 않음"
 assert not engine.record_action(a102, "edit", "")["ok"], "수정 메모도 비울 수 없음"
 assert engine.record_action(a102, "edit", "전화 통화, 이상 없음 — 보호자에게도 알림")["ok"]
 assert engine.record_action(a102, "edit", "전화 통화, 이상 없음 — 보호자에게도 알림")["ok"]   # 같은 내용 연타
 log = engine.load_actions()[a102]["log"]
-assert [l["status"] for l in log] == ["ack", "done", "edit"], "수정은 덧붙이고, 같은 내용 연타는 한 번"
-assert log[1]["memo"] == "전화 통화, 이상 없음", "원래 메모는 지우지 않음"
+assert [l["status"] for l in log] == ["assign", "ack", "done", "edit"], "수정은 덧붙이고, 같은 내용 연타는 한 번"
+assert log[2]["outcome"] == "ok"
+assert log[2]["memo"] == "전화 통화, 이상 없음", "원래 메모는 지우지 않음"
 x = next(a for a in engine.alerts_with_actions() if a["id"] == a102)
 assert x["state"] == "done" and x["first_response_s"] == 72, "첫 대응까지 걸린 시간 (메모 수정은 상태를 안 바꿈)"
 

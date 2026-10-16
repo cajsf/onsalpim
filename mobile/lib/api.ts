@@ -74,11 +74,16 @@ export function createApi(base: string) {
       request<{ sev: [string, string, string][]; move: unknown[] }>(
         `/history/${encodeURIComponent(home)}`,
       ),
-    async actAlert(id: string, status: ActionStatus, memo = '') {
+    async actAlert(
+      id: string,
+      status: ActionStatus,
+      memo = '',
+      extra: { by?: string; outcome?: string } = {},
+    ) {
       const res = await fetch(`${BASE}/alerts/${encodeURIComponent(id)}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, memo }),
+        body: JSON.stringify({ status, memo, by: extra.by || '복지사', outcome: extra.outcome || '' }),
       });
       return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] })) as Promise<{
         ok: boolean;

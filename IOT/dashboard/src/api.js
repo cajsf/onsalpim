@@ -52,11 +52,11 @@ export const api = {
   },
   rejectRule: (id) => request(`/rules/${id}/reject`, { method: 'POST' }),
   // 알림 대응 기록 — status: ack | progress | done(메모 필수). 실패하면 errors 가 온다
-  async actAlert(id, status, memo = '') {
+  async actAlert(id, status, memo = '', extra = {}) {
     const res = await fetch(`${BASE}/alerts/${encodeURIComponent(id)}/action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, memo }),
+      body: JSON.stringify({ status, memo, by: extra.by || '', outcome: extra.outcome || '' }),
     })
     return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
   },

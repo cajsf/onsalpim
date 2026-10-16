@@ -2,7 +2,7 @@
 // 세대 하나의 판단 근거 — 결과만 보고도 판단 과정을 따라갈 수 있어야 한다.
 // 대시보드 표의 펼침과 세대 관리 화면이 같은 모양으로 보여주도록 한 곳에 둔다.
 import { computed } from 'vue'
-import { SEV, PATTERN_KO, FOLLOW_KO, sevKo, fmtAgo, fmtMinutes, secondsSince } from './format.js'
+import { SEV, PATTERN_KO, FOLLOW_KO, sevKo, sevClass, fmtAgo, fmtMinutes, secondsSince } from './format.js'
 
 const props = defineProps({ h: { type: Object, required: true } })
 
@@ -60,7 +60,7 @@ const judgedAgo = computed(() => secondsSince(props.h.judged_at))
     <div class="sep">
       <dt>판정</dt>
       <dd>
-        <span class="tag" :class="'tag-' + (h.life_check ? 'watch' : SEV[h.severity]?.cls)">{{ sevKo(h) }}</span>
+        <span class="tag" :class="'tag-' + sevClass(h)">{{ sevKo(h) }}</span>
         <span v-if="h.followup" class="tag tag-watch">{{ FOLLOW_KO[h.followup.code] || h.followup.code }}</span>
       </dd>
     </div>

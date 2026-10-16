@@ -10,7 +10,7 @@ import MonthlyReport from './MonthlyReport.vue'
 import RulePreview from './RulePreview.vue'
 import BaselineReview from './BaselineReview.vue'
 import { loadDecisions, pendingCount } from './baselineRecommendations.js'
-import { SEV, SEV_ORDER, FOLLOW_KO, sevKo, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
+import { SEV, SEV_ORDER, FOLLOW_KO, sevKo, sevClass, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
 
 const NAV = [
   { id: 'dashboard', label: '대시보드', icon: 'home', ready: true },
@@ -23,6 +23,8 @@ const NAV = [
 ]
 
 const activeView = ref('dashboard')
+const worker = ref(localStorage.getItem('onsalpim.worker') || '복지사')
+watch(worker, (v) => localStorage.setItem('onsalpim.worker', (v || '').trim() || '복지사'))
 const baselineDecisions = ref(loadDecisions())
 const baselinePending = computed(() => pendingCount(baselineDecisions.value))
 function onBaselineChanged(next) { baselineDecisions.value = next }
@@ -65,7 +67,8 @@ function onAlertChanged(p) {
     // 메모 수정(edit)은 상태가 아니다 — 마지막 '상태' 기록을 쓴다
     const status = [...p.log].reverse().find((l) => l.status !== 'edit')?.status
     alerts.value = alerts.value.map((a) => a.id === p.id
-      ? { ...a, log: p.log, state: status,
+      ? { ...a, log: p.log, state: status, assignee: p.assignee || a.assignee,
+          outcome: [...p.log].reverse().find((l) => l.outcome)?.outcome || a.outcome,
           first_response_s: (Date.parse(p.log[0].at) - Date.parse(a.ts)) / 1000 }
       : a)
   }
@@ -300,13 +303,24 @@ const visibleHomes = computed(() => {
 })
 
 /* 도넛 — 위험도 분포 */
+const dist = computed(() => {
+  const life = lifeCheckCount.value
+  return [
+    { key: 'URGENT', ko: '긴급 확인', cls: 'urgent', n: counts.value.URGENT },
+    { key: 'LIFE', ko: '생활 확인', cls: 'life', n: life },
+    { key: 'WATCH', ko: '주의', cls: 'watch', n: Math.max(0, counts.value.WATCH - life) },
+    { key: 'CHECK_DEVICE', ko: '장치 점검', cls: 'device', n: counts.value.CHECK_DEVICE },
+    { key: 'NORMAL', ko: '정상', cls: 'normal', n: counts.value.NORMAL },
+  ]
+})
+
 const donut = computed(() => {
   const total = homes.value.length || 1
   const R = 52, C = 2 * Math.PI * R
   let offset = 0
-  return SEV_ORDER.filter((k) => counts.value[k] > 0).map((k) => {
-    const len = (counts.value[k] / total) * C
-    const seg = { key: k, len, gap: C - len, offset: -offset, cls: SEV[k].cls, n: counts.value[k] }
+  return dist.value.filter((s) => s.n > 0).map((s) => {
+    const len = (s.n / total) * C
+    const seg = { key: s.key, len, gap: C - len, offset: -offset, cls: s.cls, n: s.n }
     offset += len
     return seg
   })
@@ -646,7 +660,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           <div class="who">
             <div class="avatar">복</div>
             <div>
-              <p class="who-name">복지사님</p>
+              <input v-model="worker" class="who-name who-input" maxlength="40" title="알림을 맡는 이름. 다른 이름은 같은 건을 받을 수 없습니다." />
               <p class="who-org">세종대학교</p>
             </div>
           </div>
@@ -813,7 +827,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                     {{ h.device }}
                   </td>
                   <td>
-                    <span class="tag" :class="'tag-' + (h.life_check ? 'watch' : SEV[h.severity]?.cls)">
+                    <span class="tag" :class="'tag-' + sevClass(h)">
                       {{ sevKo(h) }}
                     </span>
                     <span v-if="h.followup" class="tag tag-watch" :title="h.followup.code">
@@ -1002,12 +1016,12 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 <text x="70" y="86" class="dl">세대</text>
               </svg>
               <ul class="legend">
-                <li v-for="k in SEV_ORDER" :key="k">
-                  <span class="dot" :class="SEV[k].cls"></span>
-                  {{ SEV[k].ko }}
-                  <strong>{{ counts[k] }}</strong>
+                <li v-for="s in dist" :key="s.key">
+                  <span class="dot" :class="s.cls"></span>
+                  {{ s.ko }}
+                  <strong>{{ s.n }}</strong>
                   <span class="muted">
-                    ({{ homes.length ? Math.round((counts[k] / homes.length) * 100) : 0 }}%)
+                    ({{ homes.length ? Math.round((s.n / homes.length) * 100) : 0 }}%)
                   </span>
                 </li>
               </ul>
@@ -1022,7 +1036,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             </div>
             <p v-if="!alerts.length" class="empty">아직 기록된 알림이 없습니다. 위험도가 바뀔 때만 남습니다.</p>
             <ul v-else class="alerts">
-              <AlertItem v-for="a in alerts.slice(0, 5)" :key="a.id" :a="a" compact />
+              <AlertItem v-for="a in alerts.slice(0, 5)" :key="a.id" :a="a" :worker="worker" compact />
             </ul>
           </section>
         </div>
@@ -1162,7 +1176,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               @click="selectedHomeId = x.home"
             >
               <span class="home-no">{{ x.home }}호</span>
-              <span v-if="x.care" class="tag" :class="'tag-' + (x.care.life_check ? 'watch' : SEV[x.care.severity]?.cls)">
+              <span v-if="x.care" class="tag" :class="'tag-' + sevClass(x.care)">
                 {{ sevKo(x.care) }}
               </span>
               <span v-if="x.care?.device_check && x.care.severity !== 'CHECK_DEVICE'" class="tag tag-device">장치 점검</span>
@@ -1176,7 +1190,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div class="card-head">
               <div class="home-head">
                 <h2>{{ selectedHome.home }}호</h2>
-                <span v-if="selectedHome.care" class="tag" :class="'tag-' + (selectedHome.care.life_check ? 'watch' : SEV[selectedHome.care.severity]?.cls)">
+                <span v-if="selectedHome.care" class="tag" :class="'tag-' + sevClass(selectedHome.care)">
                   {{ sevKo(selectedHome.care) }}
                 </span>
                 <span v-if="selectedHome.care?.device_check && selectedHome.care.severity !== 'CHECK_DEVICE'" class="tag tag-device">장치 점검</span>
@@ -1227,7 +1241,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <p class="sec-title">알림 이력 (최근 {{ alertsOfHome(selectedHome.home).length }}건)</p>
             <p v-if="!alertsOfHome(selectedHome.home).length" class="muted home-note">기록된 알림이 없습니다.</p>
             <ul v-else class="alerts">
-              <AlertItem v-for="a in alertsOfHome(selectedHome.home)" :key="a.id" :a="a"
+              <AlertItem v-for="a in alertsOfHome(selectedHome.home)" :key="a.id" :a="a" :worker="worker"
                          :show-home="false" @changed="onAlertChanged" />
             </ul>
           </section>
@@ -1266,7 +1280,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             {{ alertFilter === 'todo' ? '조치할 알림이 없습니다.' : '아직 기록된 알림이 없습니다.' }}
           </p>
           <ul v-else class="alerts big">
-            <AlertItem v-for="a in shownAlerts" :key="a.id" :a="a" :focused="a.id === focusAlertId"
+            <AlertItem v-for="a in shownAlerts" :key="a.id" :a="a" :worker="worker" :focused="a.id === focusAlertId"
                        @changed="onAlertChanged" />
           </ul>
         </section>
@@ -1324,7 +1338,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
     </div>
 
     <!-- 새 알림 팝업 — 화면이 바뀌어도 떠 있어야 해서 최상위에 둔다 -->
-    <AlertToasts :alerts="alerts" :sound="soundOn" @open-home="openHome" @open-alert="openAlert"
+    <AlertToasts :alerts="alerts" :sound="soundOn" :worker="worker" @open-home="openHome" @open-alert="openAlert"
                  @open-alerts="activeView = 'alerts'; alertFilter = 'todo'" @changed="onAlertChanged" />
   </div>
 </template>
@@ -1400,6 +1414,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
   color: var(--brand-dim); display: grid; place-items: center; font-weight: 700; font-size: 0.82rem;
 }
 .who-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.who-input { width: 5.5rem; border: 0; background: transparent; color: var(--text); font-family: inherit; padding: 0; }
+.who-input:focus { outline: 1px solid var(--brand); border-radius: 4px; }
 .who-org { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
 
 .stamp { padding: 0.7rem 1.75rem 0; font-size: 0.75rem; color: var(--muted); }
@@ -1494,6 +1510,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.38rem; vertical-align: 1px; }
 .dot.normal { background: var(--normal); }
 .dot.watch { background: var(--watch); }
+.dot.life { background: var(--life); }
 .dot.urgent { background: var(--urgent); }
 .dot.device { background: var(--device); }
 .dot.unknown { background: var(--muted); }
@@ -1576,6 +1593,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .donut .seg { fill: none; stroke-width: 18; transform: rotate(-90deg); transform-origin: 70px 70px; }
 .donut .seg.normal { stroke: var(--normal); }
 .donut .seg.watch { stroke: var(--watch); }
+.donut .seg.life { stroke: var(--life); }
 .donut .seg.urgent { stroke: var(--urgent); }
 .donut .seg.device { stroke: var(--device); }
 .donut .dn { text-anchor: middle; font-size: 1.5rem; font-weight: 700; fill: var(--text); }

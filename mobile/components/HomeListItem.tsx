@@ -23,6 +23,8 @@ export function HomeListItem({ home, nowMs }: Props) {
           <Text style={styles.title}>{home.home}호</Text>
           {home.welfare_check ? (
             <SeverityTag severity="CHECK_DEVICE" label="안부 확인" />
+          ) : home.life_check ? (
+            <SeverityTag severity="WATCH" label="생활 확인" tone="life" />
           ) : (
             <SeverityTag severity={home.severity} />
           )}

@@ -4,7 +4,7 @@ export const SEV = {
   NORMAL: { ko: '정상', cls: 'normal' as const },
   WATCH: { ko: '주의', cls: 'watch' as const },
   URGENT: { ko: '긴급 확인', cls: 'urgent' as const },
-  CHECK_DEVICE: { ko: '점검 필요', cls: 'device' as const },
+  CHECK_DEVICE: { ko: '장치 점검', cls: 'device' as const },
 };
 
 export const ALERT_STATE: Record<
@@ -13,6 +13,7 @@ export const ALERT_STATE: Record<
 > = {
   open: { ko: '대응 필요', cls: 'urgent' },
   missed: { ko: '응답 없이 지나감', cls: 'muted' },
+  assign: { ko: '배정', cls: 'watch' },
   ack: { ko: '확인', cls: 'watch' },
   progress: { ko: '방문·연락 중', cls: 'watch' },
   done: { ko: '조치 완료', cls: 'normal' },

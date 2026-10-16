@@ -4,11 +4,12 @@
 // 닫기(×)는 팝업만 치우는 것 — 알림은 '대응 필요'로 남는다.
 import { ref, computed, watch } from 'vue'
 import { api } from './api.js'
-import { SEV, timeOf } from './format.js'
+import { alertKo, alertClass, timeOf } from './format.js'
 
 const props = defineProps({
   alerts: { type: Array, required: true },
   sound: { type: Boolean, default: true },
+  worker: { type: String, default: '복지사' },
 })
 const emit = defineEmits(['open-home', 'open-alerts', 'open-alert', 'changed'])
 const MAX = 3                   // 한꺼번에 여러 세대가 끊기면 화면을 덮는다 — 나머지는 한 줄로
@@ -37,10 +38,10 @@ function dismiss(id) { shown.value = shown.value.filter((x) => x !== id) }
 async function ack(a) {
   if (busy.value) return
   busy.value = a.id
-  const r = await api.actAlert(a.id, 'ack')
+  const r = await api.actAlert(a.id, 'assign', '', { by: props.worker || '복지사' })
   busy.value = ''
   dismiss(a.id)
-  if (r.ok) emit('changed', { id: a.id, log: r.log })
+  if (r.ok) emit('changed', { id: a.id, log: r.log, assignee: r.assignee })
   emit('open-alert', a.id)          // 확인했으면 바로 대응 화면으로 — 방문·조치 기록을 이어서 남기게
 }
 
@@ -65,17 +66,16 @@ function beep(urgent) {
 
 <template>
   <div class="toasts" aria-live="assertive">
-    <div v-for="a in toasts.slice(0, MAX)" :key="a.id" class="toast" :class="'t-' + (a.welfare ? 'urgent' : SEV[a.to]?.cls)" role="alert">
+    <div v-for="a in toasts.slice(0, MAX)" :key="a.id" class="toast" :class="'t-' + alertClass(a)" role="alert">
       <div class="t-head">
-        <span v-if="a.welfare" class="tag tag-urgent">안부 확인</span>
-        <span v-else class="tag" :class="'tag-' + SEV[a.to]?.cls">{{ SEV[a.to]?.ko }}</span>
+        <span class="tag" :class="'tag-' + alertClass(a)">{{ alertKo(a) }}</span>
         <strong>{{ a.home }}호</strong>
         <span class="mono t-time">{{ timeOf(a.ts) }}</span>
         <button class="t-x" title="팝업 닫기 (알림은 '대응 필요'로 남습니다)" @click="dismiss(a.id)">×</button>
       </div>
       <p class="t-reason">{{ a.reason }}</p>
       <div class="t-acts">
-        <button class="btn sm primary" :disabled="busy === a.id" @click="ack(a)">확인</button>
+        <button class="btn sm primary" :disabled="busy === a.id" @click="ack(a)">맡기</button>
         <button class="btn sm" @click="emit('open-home', a.home); dismiss(a.id)">세대 보기</button>
       </div>
     </div>
@@ -90,6 +90,7 @@ function beep(urgent) {
 .toast { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--urgent); border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16); padding: 0.75rem 0.85rem; display: grid; gap: 0.4rem; animation: in 0.25s ease-out; }
 .t-device { border-left-color: var(--device); }
 .t-watch { border-left-color: var(--watch); }
+.t-life { border-left-color: var(--life); }
 .t-head { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
 .t-time { color: var(--muted); font-size: 0.72rem; margin-left: auto; }
 .t-x { border: 0; background: none; font-size: 1.1rem; line-height: 1; color: var(--muted); cursor: pointer; padding: 0 0.2rem; }

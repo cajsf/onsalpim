@@ -1383,7 +1383,8 @@ def append_alerts(results):
     # welfare: 위험도는 '점검 필요' 그대로인데 두절이 길어져 안부 확인도 필요해진 알림 — 화면이 긴급처럼 띄운다
     new = [{"ts": now, "home": r["home"], "from": r["from"],
             "to": r["severity"], "reason": r["reason"], "welfare": bool(r.get("welfare_check")),
-            "device_check": bool(r.get("device_check"))} for r in changed]
+            "device_check": bool(r.get("device_check")),
+            "life_check": bool(r.get("life_check"))} for r in changed]
     log = (new + log)[:ALERT_KEEP]     # 최신이 앞
     with open(ALERTS_FILE, "w", encoding="utf-8") as f:
         json.dump(log, f, ensure_ascii=False, indent=2)
@@ -1536,10 +1537,14 @@ def _last_heartbeat():
 # 원문이 밀려나도 "무엇에 대응했나"가 남아야 한다.
 #   { 알림 id: {"alert": {...원문}, "log": [{"status", "memo", "by", "at"}, ...]} }
 
-ACTION_STATUSES = {"ack": "확인", "progress": "방문·연락 중", "done": "조치 완료",
+ACTION_STATUSES = {"assign": "배정", "ack": "확인", "progress": "방문·연락 중", "done": "조치 완료",
                    "late": "뒤늦게 확인",   # 응답 없이 지나간 알림을 나중에 봤다는 기록 — 이걸로 끝난다
                    "edit": "메모 수정"}     # 조치 완료 메모를 고친 기록 — 원래 메모는 지우지 않는다
+# 조치 완료의 결과. 자유 메모와 따로 두어 외출·정상·장치·방문을 집계할 수 있게 한다.
+OUTCOMES = {"outing": "외출", "ok": "정상 확인", "device": "장치 문제", "visit": "방문 필요"}
+CLAIM = ("assign", "ack", "progress", "done", "late")
 CLOSED = ("done", "late")
+BY_MAX = 40
 
 
 def _effective_status(log):
@@ -1576,7 +1581,8 @@ def alerts_with_actions(limit=100):
         aid = alert_id(a)
         is_latest = a["home"] not in latest_of_home
         latest_of_home.setdefault(a["home"], aid)
-        log = (actions.get(aid) or {}).get("log", [])
+        entry = actions.get(aid) or {}
+        log = entry.get("log", [])
         if log:
             state = _effective_status(log)
         elif a["to"] == "NORMAL":
@@ -1584,19 +1590,30 @@ def alerts_with_actions(limit=100):
         else:
             state = "open" if is_latest else "missed"
         first = (datetime.fromisoformat(log[0]["at"]) - datetime.fromisoformat(a["ts"])).total_seconds() if log else None
-        out.append({**a, "id": aid, "state": state, "log": log, "first_response_s": first})
+        outcome = next((l.get("outcome") for l in reversed(log) if l.get("outcome")), None)
+        out.append({**a, "id": aid, "state": state, "log": log, "first_response_s": first,
+                    "assignee": entry.get("assignee"), "outcome": outcome})
     return out[:limit]
 
 
-def record_action(aid, status, memo="", by="복지사", now=None):
-    """알림에 대응을 기록한다. 반환 {'ok', 'errors', 'alert'}."""
+def record_action(aid, status, memo="", by="복지사", now=None, outcome=None):
+    """알림에 대응을 기록한다. 반환 {'ok', 'errors', 'log', 'assignee'}.
+
+    처음 맡은 사람이 담당자가 된다. 다른 사람은 같은 건을 배정·확인·완료할 수 없다.
+    조치 완료는 결과 코드(외출·정상 확인·장치 문제·방문 필요)가 있어야 한다.
+    """
     memo = (memo or "").strip()
+    by = (by or "").strip() or "복지사"
     if status not in ACTION_STATUSES:
         return {"ok": False, "errors": [f"알 수 없는 대응 상태: {status}"]}
+    if len(by) > BY_MAX:
+        return {"ok": False, "errors": [f"담당자 이름은 {BY_MAX}자까지입니다."]}
     if len(memo) > MEMO_MAX:
         return {"ok": False, "errors": [f"메모는 {MEMO_MAX}자까지입니다."]}
-    if status in ("done", "edit") and not memo:
-        return {"ok": False, "errors": ["조치 완료는 무엇을 했는지 메모가 필요합니다."]}
+    if status == "edit" and not memo:
+        return {"ok": False, "errors": ["메모를 적어 주세요."]}
+    if status == "done" and outcome not in OUTCOMES:
+        return {"ok": False, "errors": ["조치 결과는 외출, 정상 확인, 장치 문제, 방문 필요 중 하나입니다."]}
     with _actions_lock:
         alert = next((a for a in load_alerts() if alert_id(a) == aid), None)
         actions = load_actions()
@@ -1605,6 +1622,9 @@ def record_action(aid, status, memo="", by="복지사", now=None):
         entry = actions.setdefault(aid, {"alert": alert, "log": []})
         if (entry["alert"] or {}).get("to") == "NORMAL":
             return {"ok": False, "errors": ["회복 기록에는 대응할 것이 없습니다."]}
+        owner = entry.get("assignee")
+        if owner and owner != by:
+            return {"ok": False, "errors": [f"이미 {owner}가 맡은 알림입니다."]}
         current = _effective_status(entry["log"])
         if status == "edit":
             # 잘못 적은 조치 메모는 고칠 수 있게 — 단 덮어쓰지 않고 수정 기록을 덧붙인다 (감사 기록)
@@ -1612,19 +1632,24 @@ def record_action(aid, status, memo="", by="복지사", now=None):
                 return {"ok": False, "errors": ["조치 완료된 알림만 메모를 고칠 수 있습니다."]}
             last_memo = next(l["memo"] for l in reversed(entry["log"]) if l["status"] in ("done", "edit"))
             if memo == last_memo:
-                return {"ok": True, "errors": [], "log": entry["log"]}
+                return {"ok": True, "errors": [], "log": entry["log"], "assignee": owner}
         elif current in CLOSED:
             return {"ok": False, "errors": ["이미 끝난 알림입니다."]}
         elif status == "late" and entry["log"]:
             return {"ok": False, "errors": ["이미 대응 기록이 있는 알림입니다."]}
-        elif entry["log"] and entry["log"][-1]["status"] == status:
+        elif entry["log"] and entry["log"][-1]["status"] == status and not outcome:
             # 같은 상태를 연달아 누른 것 (응답이 늦어 여러 번 누르는 경우) — 한 번만 남긴다
-            return {"ok": True, "errors": [], "log": entry["log"]}
-        entry["log"].append({"status": status, "memo": memo, "by": by,
-                             "at": (now or datetime.now()).isoformat(timespec="seconds")})
+            return {"ok": True, "errors": [], "log": entry["log"], "assignee": owner}
+        row = {"status": status, "memo": memo, "by": by,
+               "at": (now or datetime.now()).isoformat(timespec="seconds")}
+        if outcome:
+            row["outcome"] = outcome
+        entry["log"].append(row)
+        if status in CLAIM and not entry.get("assignee"):
+            entry["assignee"] = by
         with open(ACTIONS_FILE, "w", encoding="utf-8") as f:
             json.dump(actions, f, ensure_ascii=False, indent=1)
-    return {"ok": True, "errors": [], "log": entry["log"]}
+    return {"ok": True, "errors": [], "log": entry["log"], "assignee": entry.get("assignee")}
 
 
 # ---------- 부재 등록 ----------

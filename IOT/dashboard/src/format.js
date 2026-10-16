@@ -43,12 +43,21 @@ export const SEV = {
 export const ALERT_STATE = {
   open:     { ko: '대응 필요',       cls: 'urgent' },
   missed:   { ko: '응답 없이 지나감', cls: 'muted' },
+  assign:   { ko: '배정',            cls: 'life' },
   ack:      { ko: '확인',            cls: 'watch' },
   progress: { ko: '방문·연락 중',     cls: 'watch' },
   done:     { ko: '조치 완료',        cls: 'normal' },
   late:     { ko: '뒤늦게 확인',      cls: 'muted' },
   edit:     { ko: '메모 수정',        cls: 'muted' },   // 기록 줄에만 쓴다 (상태가 아님)
 }
+/** 조치 완료 때 고르는 결과 — 서버 engine.OUTCOMES 와 같은 키 */
+export const OUTCOMES = [
+  { id: 'outing', ko: '외출' },
+  { id: 'ok', ko: '정상 확인' },
+  { id: 'device', ko: '장치 문제' },
+  { id: 'visit', ko: '방문 필요' },
+]
+export const outcomeKo = (id) => OUTCOMES.find((o) => o.id === id)?.ko || ''
 export const SEV_ORDER = ['URGENT', 'CHECK_DEVICE', 'WATCH', 'NORMAL']
 
 export const PATTERN_KO = {
@@ -61,10 +70,30 @@ export const FOLLOW_KO = {
   ESCALATE: '다음 담당자에게 이관',
 }
 
-/** 생활 패턴으로 오른 주의는 '생활 확인', 배터리 주의는 '주의'. */
+/** 생활 쪽 낮은 위험은 '생활 확인'. 배터리 주의·장치 점검·긴급 확인은 각자 이름과 색을 쓴다. */
 export function sevKo(h) {
   if (h?.life_check) return '생활 확인'
   return SEV[h?.severity]?.ko || ''
+}
+
+export function sevClass(h) {
+  if (h?.life_check) return 'life'
+  return SEV[h?.severity]?.cls || 'normal'
+}
+
+/** 알림 한 줄의 위험 이름. 생활 확인은 배터리 주의와 같은 '주의'로 적지 않는다. */
+export function alertKo(a) {
+  if (a?.welfare) return '안부 확인'
+  if (a?.device_check && a?.from === a?.to) return '장치 점검'
+  if (a?.life_check && a?.to === 'WATCH') return '생활 확인'
+  return SEV[a?.to]?.ko || ''
+}
+
+export function alertClass(a) {
+  if (a?.welfare) return 'urgent'
+  if (a?.device_check && a?.from === a?.to) return 'device'
+  if (a?.life_check && a?.to === 'WATCH') return 'life'
+  return SEV[a?.to]?.cls || 'normal'
 }
 
 export const TYPE_KO = {
