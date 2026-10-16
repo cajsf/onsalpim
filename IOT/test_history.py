@@ -161,6 +161,58 @@ assert not engine.record_action(m["id"], "ack")["ok"], "뒤늦게 확인으로 �
 assert not engine.record_action(m["id"], "edit", "메모")["ok"], "조치 완료가 아니면 메모 수정 불가"
 assert next(a for a in engine.alerts_with_actions() if a["id"] == m["id"])["state"] == "late"
 
+# 재통지·이관은 알림함에 한 번씩 남고, 원래 알림을 '지나감'으로 만들지 않는다.
+src = {"ts": at(1000), "home": "108", "from": "NORMAL", "to": "URGENT", "reason": "8시간 무활동",
+       "welfare": False, "device_check": False, "life_check": False}
+with open(engine.ALERTS_FILE, "w", encoding="utf-8") as f:
+    json.dump([src], f)
+sid = engine.alert_id(src)
+base = {"home": "108", "severity": "URGENT", "reason": "8시간 무활동",
+        "welfare_check": False, "device_check": False, "life_check": False}
+ren_row = dict(base, followup={"code": "RENOTIFY", "ref": sid})
+made = engine.record_followups([ren_row], now=T0 + timedelta(seconds=1700))
+assert len(made) == 1 and made[0]["follow"] == "RENOTIFY" and "재통지" in made[0]["reason"]
+assert "8시간 무활동" in made[0]["reason"]
+assert engine.record_followups([ren_row], now=T0 + timedelta(seconds=1700)) == [], "같은 재통지는 한 번"
+shown = {a["id"]: a for a in engine.alerts_with_actions()}
+assert shown[sid]["state"] == "open", "재통지가 원래 알림을 밀어내지 않음"
+ren = next(a for a in shown.values() if a.get("follow") == "RENOTIFY")
+assert ren["state"] == "open" and ren["ref"] == sid and ren["assignee"] is None
+
+esc = engine.record_followups([dict(base, followup={"code": "ESCALATE", "ref": sid})],
+                              now=T0 + timedelta(seconds=2300))
+assert len(esc) == 1 and esc[0]["follow"] == "ESCALATE" and "다음 담당자" in esc[0]["reason"]
+eid = engine.alert_id(esc[0])
+assert engine.record_action(eid, "assign", by="다음복지사", now=T0 + timedelta(seconds=2400))["ok"]
+handed = next(a for a in engine.alerts_with_actions() if a["id"] == eid)
+assert handed["state"] == "assign" and handed["assignee"] == "다음복지사"
+still = next(a for a in engine.alerts_with_actions() if a["id"] == sid)
+assert still["state"] == "open" and still["assignee"] is None
+ev = engine._latest_alert_events()["108"]
+assert any(e["type"] == "alert" and e["ref"] == sid for e in ev)
+assert any(e["type"] == "action" and e["ref"] == sid for e in ev)
+import care_patterns as cp
+later = cp.ms(T0 + timedelta(seconds=4000))
+assert [f["code"] for f in cp.detect_python(later, [], ev) if f["home"] == "108"] == [], \
+    "이관 알림을 맡으면 원래 알림의 재통지 시계가 멈춘다"
+
+kept = engine.load_alerts()
+with open(engine.ALERTS_FILE, "w", encoding="utf-8") as f:
+    json.dump([alert(3000, "108", "URGENT", "NORMAL")] + kept, f)
+after = {a["id"]: a for a in engine.alerts_with_actions()}
+assert after[ren["id"]]["state"] == "missed", "상황이 바뀌면 손대지 않은 재통지는 지나감"
+assert after[eid]["state"] == "assign", "이미 맡은 이관은 그 담당이 유지된다"
+
+src9 = {"ts": at(5000), "home": "109", "from": "NORMAL", "to": "WATCH", "reason": "아침 활동 부재",
+        "welfare": False, "device_check": False, "life_check": True}
+with open(engine.ALERTS_FILE, "w", encoding="utf-8") as f:
+    json.dump([src9], f)
+sid9 = engine.alert_id(src9)
+assert engine.record_action(sid9, "done", "전화로 확인", outcome="ok")["ok"]
+assert engine.record_followups(
+    [{"home": "109", "severity": "WATCH", "life_check": True, "followup": {"code": "RENOTIFY", "ref": sid9}}],
+    now=T0 + timedelta(seconds=5600)) == [], "이미 대응한 알림은 재통지하지 않음"
+
 print("알림 대응 점검 통과")
 
 

@@ -52,6 +52,8 @@ export type AlertRecord = {
   assignee?: string | null;
   outcome?: string | null;
   life_check?: boolean;
+  follow?: 'RENOTIFY' | 'ESCALATE';
+  ref?: string;
   log: { at: string; status: string; by: string; memo?: string; outcome?: string }[];
   first_response_s?: number | null;
 };

@@ -436,9 +436,9 @@ def detect_patterns(homes_state, now):
     for home, st in homes_state.items():
         homes.append(care_patterns.home_params(home, st.get("profile"), now))
         events += st.get("events") or []
-    if not events:
-        return []
-    return rules_engine.detect(care_patterns.ms(now), homes, events)
+    found = rules_engine.detect(care_patterns.ms(now), homes, events) if events else []
+    import baseline_judge
+    return found + baseline_judge.findings(homes_state, now)
 
 
 class Watchdog:
@@ -454,7 +454,6 @@ class Watchdog:
         self.last_severity = {}   # home → 직전 위험도
         self.last_welfare = {}    # home → 직전 '안부 확인 필요' 여부 (위험도가 같아도 이게 바뀌면 알린다)
         self.last_device = {}     # home → 직전 장치 점검 여부
-        self.last_follow = {}     # home → 직전 재통지·이관 코드
         # 통신이 정상일 때 긴급 확인으로 확정된 세대. 두절이 나도 이 건은 유지한다.
         self.confirmed_urgent = {}
 
@@ -474,17 +473,16 @@ class Watchdog:
             care_patterns.apply(v, [f for f in found if f["home"] == home], st.get("profile"), now)
             v["life_check"] = v["severity"] == WATCH and (
                 v.get("code") == "IDLE_WATCH"
-                or any(c in ("MORNING_NONE", "NIGHT_WANDER") for c in v.get("patterns") or []))
-            follow = (v.get("followup") or {}).get("code")
+                or any(c in ("MORNING_NONE", "NIGHT_WANDER", "MORNING_RATIO") for c in v.get("patterns") or []))
             prev = self.last_severity.get(home)
+            # 재통지·이관은 위험도가 바뀐 알림이 아니다. 같은 건을 다시 쓰면 대응 시계가 되감긴다.
+            # 알림함 항목은 engine.record_followups 가 원래 알림당 한 번씩 남긴다.
             changed = (prev != v["severity"]
                        or self.last_welfare.get(home, False) != v["welfare_check"]
-                       or self.last_device.get(home, False) != v["device_check"]
-                       or self.last_follow.get(home) != follow)
+                       or self.last_device.get(home, False) != v["device_check"])
             self.last_severity[home] = v["severity"]
             self.last_welfare[home] = v["welfare_check"]
             self.last_device[home] = v["device_check"]
-            self.last_follow[home] = follow
             # 부재이거나, 통신이 정상인 판정이면 확정 긴급을 갱신한다. 두절 중에는 직전 확정을 유지한다.
             if v.get("away") or (v["life_known"] and not v["device_check"]):
                 self.confirmed_urgent[home] = v["severity"] == URGENT

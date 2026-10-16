@@ -38,6 +38,7 @@ export function outcomeKo(id: string | null | undefined): string {
 export const PATTERN_KO: Record<string, string> = {
   HOT_IDLE: '고온 지속 + 활동 저하',
   MORNING_NONE: '아침 활동 부재',
+  MORNING_RATIO: '승인된 아침 활동 비율',
   NIGHT_WANDER: '야간 활동 변화',
 };
 
@@ -58,12 +59,14 @@ type SevAlert = {
   welfare?: boolean;
   device_check?: boolean;
   life_check?: boolean;
+  follow?: string | null;
   from?: keyof typeof SEV | null;
   to?: keyof typeof SEV;
 };
 
 /** 알림 한 줄의 위험 이름. 생활 확인은 배터리 주의와 같은 주의로 적지 않는다. */
 export function alertKo(a: SevAlert | null | undefined): string {
+  if (a?.follow && FOLLOW_KO[a.follow]) return FOLLOW_KO[a.follow];
   if (a?.welfare) return '안부 확인';
   if (a?.device_check && a.from === a.to) return '장치 점검';
   if (a?.life_check && a.to === 'WATCH') return '생활 확인';

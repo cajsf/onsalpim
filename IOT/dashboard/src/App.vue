@@ -1262,7 +1262,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div>
               <h2>알림 이력</h2>
               <p class="hint">
-                위험도가 바뀐 순간만 기록합니다. 이상 알림은 복지사가 대응해야 끝나고, 누가·언제·무엇을 했는지 남습니다.
+                위험도가 바뀐 순간과, 대응 없이 10분·20분이 지난 재통지·이관을 기록합니다. 이상 알림은 복지사가 대응해야 끝나고, 누가·언제·무엇을 했는지 남습니다.
               </p>
             </div>
             <span class="count">{{ alerts.length }}건</span>

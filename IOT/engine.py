@@ -1391,6 +1391,65 @@ def append_alerts(results):
     return new
 
 
+FOLLOW_REASON = {
+    "RENOTIFY": "대응 없이 10분 — 재통지",
+    "ESCALATE": "대응 없이 20분 — 다음 담당자에게 이관",
+}
+
+
+def record_followups(results, now=None):
+    """미대응 알림의 재통지·이관을 알림함에 한 번씩 남긴다.
+
+    위험도 알림과 시각을 공유하지 않는다. 같은 세대의 최신 알림이 바뀌면
+    10분·20분 시계가 처음부터 다시 세기 때문이다. 원래 알림이 없거나
+    이미 대응이 있으면 넣지 않는다. 이관 항목은 담당자가 비어 있어
+    다음 사람이 맡는다.
+    """
+    now = now or datetime.now()
+    due = []
+    for r in results:
+        f = r.get("followup") or {}
+        code, ref = f.get("code"), f.get("ref")
+        if code not in FOLLOW_REASON or not ref:
+            continue
+        due.append((r, code, ref))
+    if not due:
+        return []
+    log = load_alerts()
+    actions = load_actions()
+    have = {(a.get("ref"), a.get("follow")) for a in log if a.get("follow")}
+    by_id = {}
+    for a in log:
+        if not a.get("follow"):
+            by_id.setdefault(alert_id(a), a)
+    new = []
+    for r, code, ref in due:
+        if (ref, code) in have or ref not in by_id:
+            continue
+        if (actions.get(ref) or {}).get("log"):
+            continue
+        src = by_id[ref]
+        item = {
+            "ts": now.isoformat(timespec="seconds"),
+            "home": r["home"],
+            "from": r.get("severity") or src.get("to"),
+            "to": r.get("severity") or src.get("to"),
+            "reason": f'{FOLLOW_REASON[code]} ({src.get("reason") or r.get("reason") or ""})',
+            "welfare": bool(r.get("welfare_check")),
+            "device_check": bool(r.get("device_check")),
+            "life_check": bool(r.get("life_check")),
+            "follow": code,
+            "ref": ref,
+        }
+        new.append(item)
+        have.add((ref, code))
+    if not new:
+        return []
+    with open(ALERTS_FILE, "w", encoding="utf-8") as f:
+        json.dump((new + log)[:ALERT_KEEP], f, ensure_ascii=False, indent=2)
+    return new
+
+
 # ---------- 세대 타임라인 ----------
 # 플랫폼에서 이력을 되짚을 수 없다: 게이트웨이의 CIN 목록 조회는 최대 2000건·오래된 순이고
 # 9초가 걸린다(09-18 실측). 그래서 엔진이 판정하면서 직접 남긴다.
@@ -1555,7 +1614,9 @@ _actions_lock = threading.Lock()   # API 는 요청마다 스레드 — 동시 �
 
 
 def alert_id(a):
-    return f'{a["ts"]}|{a["home"]}'
+    """상황 알림은 '시각|세대'. 재통지·이관은 같은 초에 생겨도 겹치지 않게 코드를 붙인다."""
+    base = f'{a["ts"]}|{a["home"]}'
+    return f'{base}|{a["follow"]}' if a.get("follow") else base
 
 
 def load_actions():
@@ -1575,20 +1636,36 @@ def alerts_with_actions(limit=100):
       None    회복 기록 (정상으로 돌아옴) — 대응 대상 아님
     """
     actions = load_actions()
-    latest_of_home = {}
+    alerts = load_alerts()
+    # 재통지·이관은 상황 알림을 밀어내지 않는다. 세대의 '지금'은 상황 알림의 최신이다.
+    latest_situation = {}
+    for a in alerts:
+        if not a.get("follow"):
+            latest_situation.setdefault(a["home"], alert_id(a))
     out = []
-    for a in load_alerts():                       # 최신이 앞 → 세대별 첫 번째가 현재 상태
+    for a in alerts:                              # 최신이 앞
         aid = alert_id(a)
-        is_latest = a["home"] not in latest_of_home
-        latest_of_home.setdefault(a["home"], aid)
         entry = actions.get(aid) or {}
         log = entry.get("log", [])
-        if log:
-            state = _effective_status(log)
-        elif a["to"] == "NORMAL":
-            state = None
+        if a.get("follow"):
+            source_id = a.get("ref")
+            source_log = (actions.get(source_id) or {}).get("log") or []
+            if log:
+                state = _effective_status(log)
+            elif latest_situation.get(a["home"]) != source_id:
+                state = "missed"
+            elif _effective_status(source_log) in CLOSED:
+                state = None
+            else:
+                state = "open"
         else:
-            state = "open" if is_latest else "missed"
+            is_latest = latest_situation.get(a["home"]) == aid
+            if log:
+                state = _effective_status(log)
+            elif a["to"] == "NORMAL":
+                state = None
+            else:
+                state = "open" if is_latest else "missed"
         first = (datetime.fromisoformat(log[0]["at"]) - datetime.fromisoformat(a["ts"])).total_seconds() if log else None
         outcome = next((l.get("outcome") for l in reversed(log) if l.get("outcome")), None)
         out.append({**a, "id": aid, "state": state, "log": log, "first_response_s": first,
@@ -2052,17 +2129,27 @@ def _pattern_events(home, h, last_activity, temp):
 
 
 def _latest_alert_events():
-    """세대별 마지막 알림과 대응 — 재통지·다음 담당자 패턴의 재료."""
+    """세대별 마지막 상황 알림과 대응 — 재통지·다음 담당자 패턴의 재료.
+
+    재통지·이관 항목은 상황 알림을 바꾸지 않는다. 그 항목에 한 대응도
+    원래 알림에 대한 대응으로 센다. 그래야 10분 뒤에 이관이 한 번 더 생기지 않는다.
+    """
+    rows = alerts_with_actions(ALERT_KEEP)
+    follows = [a for a in rows if a.get("follow")]
     out = {}
-    for a in alerts_with_actions(ALERT_KEEP):
-        if a["home"] in out:
+    for a in rows:
+        if a.get("follow") or a["home"] in out:
             continue
         out[a["home"]] = []
         if a["to"] == "NORMAL" or a["state"] == "missed":
             continue
         out[a["home"]].append({"home": a["home"], "type": "alert", "ts": _ms(a["ts"]), "ref": a["id"]})
+        acted = list(a["log"])
+        for f in follows:
+            if f.get("ref") == a["id"]:
+                acted += f["log"]
         out[a["home"]] += [{"home": a["home"], "type": "action", "ts": _ms(l["at"]), "ref": a["id"]}
-                           for l in a["log"]]
+                           for l in acted]
     return out
 
 
@@ -2162,6 +2249,8 @@ def loop(interval=3):
                 for a in append_alerts(results):   # 상태가 바뀐 세대만 기록/출력
                     print(f'  [{a["home"]}호] {care_monitor.LABEL_KO.get(a["from"], "첫 판정")} '
                           f'→ {care_monitor.LABEL_KO[a["to"]]}  ({a["reason"]})')
+                for a in record_followups(results):
+                    print(f'  [{a["home"]}호] {FOLLOW_REASON[a["follow"]]}')
 
             write_heartbeat()
             time.sleep(interval)

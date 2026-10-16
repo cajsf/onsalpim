@@ -1,7 +1,7 @@
 // AIHub 5가구 앞 14일 통계로 만든 오전 활동 비율 추천.
 // 출처: five_household_analysis_report.md, five_household_comparison.csv (2026-10-14).
 // 임계값은 해당 시간창 활동 비율 중앙값의 0.5배. 0.5와 연속 0 30분은 실험값이다.
-// 이 모듈은 화면 검토용이다. care_profiles.json 과 판정 엔진은 읽지 않는다.
+// 화면 숫자. 승인한 값은 서버 approved_baselines.json 에 그 가구 번호로만 저장된다.
 
 export const HOURS = ['08:00', '09:00', '10:00', '11:00']
 

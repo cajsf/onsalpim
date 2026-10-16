@@ -95,6 +95,26 @@ def sweep_check():
     print("엔진 한 바퀴 통과 —", "고온 지속 → 긴급 확인")
 
 
+def follow_sweep_check():
+    """재통지·이관은 세대 카드에만 남고, 위험도 변경 알림으로 다시 쓰이지 않는다."""
+    from datetime import timedelta
+    import care_monitor
+    now = datetime(2026, 10, 16, 10, 12)
+    st = {"contact": {"ts": now - timedelta(seconds=3), "value": "0", "period_s": 60},
+          "last_activity": now - timedelta(minutes=5), "idle_min": 480,
+          "idle_levels": [{"minutes": 480, "severity": "URGENT"}], "battery": 80, "away": None,
+          "profile": {}, "events": [{"home": "102", "type": "alert", "ts": cp.ms(now - timedelta(minutes=12)),
+                                     "ref": "t|102"}]}
+    wd = care_monitor.Watchdog()
+    wd.last_severity["102"] = "NORMAL"
+    r = wd.sweep({"102": st}, now)[0]
+    assert r["changed"] is False and (r["followup"] or {}).get("code") == "RENOTIFY", r
+    st["events"][0]["ts"] = cp.ms(now - timedelta(minutes=25))
+    r = wd.sweep({"102": st}, now)[0]
+    assert r["changed"] is False and (r["followup"] or {}).get("code") == "ESCALATE", r
+    print("재통지·이관은 위험도 알림을 다시 쓰지 않음")
+
+
 def random_case(rng):
     """경계값(5·10·20·25·30·60분 정각)을 자주 섞은 무작위 입력."""
     edges = [0, 5, 10, 20, 25, 30, 60]
@@ -154,6 +174,7 @@ if __name__ == "__main__":
     apply_checks()
     scenes(cp.detect_python)
     sweep_check()
+    follow_sweep_check()
     if os.environ.get("ONSALPIM_JUDGE") == "python" or not os.path.exists(rules_engine.JAR):
         print("Drools 없음 — 대조 건너뜀")
         sys.exit(0)

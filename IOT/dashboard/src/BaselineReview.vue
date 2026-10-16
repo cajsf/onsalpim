@@ -1,8 +1,9 @@
 <script setup>
-// 14일 개인 기준 추천 검토. 승인·수정·거부는 이 브라우저에만 남고 판정에는 넣지 않는다.
-import { ref, computed } from 'vue'
+// 14일 개인 기준 추천. 승인한 임계값은 서버에 그 가구 번호로 저장되고, 그 가구 판정만 읽는다.
+import { ref, computed, onMounted } from 'vue'
+import { api } from './api.js'
 import {
-  HOURS, COMMON_THETA, HOUSEHOLDS, loadDecisions, saveDecisions, pct,
+  HOURS, COMMON_THETA, HOUSEHOLDS, freshDecisions, loadDecisions, saveDecisions, pct,
 } from './baselineRecommendations.js'
 
 const props = defineProps({
@@ -15,20 +16,56 @@ const openId = ref(props.compact ? '' : 'E002')
 const editing = ref('')
 const draft = ref(['', '', '', ''])
 const editError = ref('')
+const saveError = ref('')
 
 const STATUS = {
   pending: '승인 대기',
   modified: '수정됨 · 승인 대기',
-  approved: '승인됨 · 판정 미적용',
+  approved: '승인됨 · 이 세대 판정에 적용',
   rejected: '거부',
   held: '추천 보류',
 }
 
+onMounted(async () => {
+  try {
+    const remote = await api.getBaselines()
+    const base = freshDecisions()
+    for (const h of HOUSEHOLDS) {
+      if (h.hold) continue
+      const saved = remote.decisions?.[h.id]
+      if (!saved) continue
+      const theta = Array.isArray(saved.theta) && saved.theta.length === 4
+        ? saved.theta.map(Number)
+        : h.theta.slice()
+      if (theta.some((n) => !Number.isFinite(n) || n < 0 || n > 1)) continue
+      if (!['pending', 'modified', 'approved', 'rejected'].includes(saved.status)) continue
+      base[h.id] = { status: saved.status, theta }
+    }
+    decisions.value = base
+    saveDecisions(base)
+    emit('changed', base)
+  } catch {
+    /* 서버가 없으면 브라우저에 남은 검토 상태를 보여 준다 */
+  }
+})
+
 const rows = computed(() => HOUSEHOLDS.map((h) => ({ ...h, decision: decisions.value[h.id] })))
 
-function persist() {
-  saveDecisions(decisions.value)
-  emit('changed', decisions.value)
+async function commit(id) {
+  const row = decisions.value[id]
+  saveError.value = ''
+  try {
+    const saved = await api.saveBaseline(id, row)
+    decisions.value = {
+      ...decisions.value,
+      [id]: { status: saved.status, theta: saved.theta },
+    }
+    saveDecisions(decisions.value)
+    emit('changed', decisions.value)
+  } catch (e) {
+    decisions.value = loadDecisions()
+    saveError.value = e instanceof Error ? e.message : String(e)
+  }
 }
 
 function toggle(id) {
@@ -52,46 +89,50 @@ function cancelEdit() {
 
 function saveEdit(h) {
   const theta = draft.value.map((s) => Number(String(s).trim()) / 100)
-  if (theta.some((n) => !Number.isFinite(n) || n < 0 || n > 1)) {
-    editError.value = '0에서 100 사이의 비율(%)을 네 칸 모두 입력해 주세요.'
+  if (theta.some((n) => !Number.isFinite(n) || n <= 0 || n > 1)) {
+    editError.value = '0보다 크고 100 이하인 비율(%)을 네 칸 모두 입력해 주세요.'
     return
   }
   const same = theta.every((n, i) => Math.abs(n - h.theta[i]) < 1e-9)
+  const prev = decisions.value
   decisions.value = {
     ...decisions.value,
     [h.id]: { status: same ? 'pending' : 'modified', theta },
   }
   editing.value = ''
   editError.value = ''
-  persist()
+  commit(h.id).catch(() => { decisions.value = prev })
 }
 
 function approve(h) {
   if (h.hold) return
+  const prev = decisions.value
   decisions.value = {
     ...decisions.value,
     [h.id]: { ...decisions.value[h.id], status: 'approved' },
   }
-  persist()
+  commit(h.id).catch(() => { decisions.value = prev })
 }
 
 function reject(h) {
   if (h.hold) return
+  const prev = decisions.value
   decisions.value = {
     ...decisions.value,
     [h.id]: { ...decisions.value[h.id], status: 'rejected' },
   }
   editing.value = ''
-  persist()
+  commit(h.id).catch(() => { decisions.value = prev })
 }
 
 function reset(h) {
+  const prev = decisions.value
   decisions.value = {
     ...decisions.value,
     [h.id]: { status: 'pending', theta: h.theta.slice() },
   }
   editing.value = ''
-  persist()
+  commit(h.id).catch(() => { decisions.value = prev })
 }
 
 function delta(h) {
@@ -123,9 +164,11 @@ function tagClass(status) {
 
     <p class="msg info">
       공통 임계값은 08·09시 {{ pct(COMMON_THETA[0]) }}, 10·11시 {{ pct(COMMON_THETA[2]) }}입니다.
-      승인·수정·거부는 이 화면에만 남고, 시연 세대 프로필과 실시간 판정에는 들어가지 않습니다.
-      원본 시각의 시간대는 확정되지 않았습니다.
+      승인한 08·09·10·11시 임계값은 그 가구의 아침 생활 확인에만 들어갑니다.
+      시연 세대 101·102·104·105는 공통 프로필을 그대로 씁니다.
+      관측이 빠진 10분 칸은 0으로 채우지 않습니다. 원본 시각의 시간대는 확정되지 않았습니다.
     </p>
+    <p v-if="saveError" class="msg err">{{ saveError }}</p>
 
     <div class="table-wrap">
       <table class="grid">
