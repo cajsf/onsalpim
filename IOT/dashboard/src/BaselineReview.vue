@@ -3,6 +3,7 @@
 // 계산·검사·저장은 모두 서버(baseline.py)가 한다. 화면은 보여 주고 결정만 보낸다.
 import { ref, computed, watch } from 'vue'
 import { api } from './api.js'
+import RoutineReview from './RoutineReview.vue'
 
 const props = defineProps({
   homes: { type: Array, default: () => [] },
@@ -185,6 +186,8 @@ async function saveEdit() {
         </ul>
       </details>
     </template>
+
+    <RoutineReview v-if="home" :home="home" :worker="worker" />
   </section>
 </template>
 

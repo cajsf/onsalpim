@@ -217,7 +217,8 @@ def review(home):
     """세대의 개인 기준 검토 화면 재료 — 연결된 기록, 추천, 안전성 검토, 미리보기(개인 vs 공통), 승인 상태."""
     r = load_reviews().get(home) or {}
     out = {"home": home, "source": r.get("source"), "status": r.get("status"), "approved_theta": r.get("theta"),
-           "history": r.get("history", []), "replays": replays(), "common": _keys(COMMON_THETA)}
+           "history": [h for h in r.get("history", []) if not h["action"].startswith("routine")],
+           "replays": replays(), "common": _keys(COMMON_THETA)}
     if not r.get("source"):
         return out
     rep = load_replay(r["source"])
@@ -284,6 +285,118 @@ def _set_profile_theta(home, theta):
 
 def _now(now):
     return (now or datetime.now()).isoformat(timespec="seconds")
+
+
+# ---------- 생활 일정 (외출·수면) ----------
+# 담당자가 등록 → 승인 대기 → 승인 전 안전성 검토(하루 12시간 상한) → 승인한 일정만 care_profiles.json 의
+# routines 에 들어가 판정(ROUTINE_HOLD·ROUTINE_OVERDUE)에 쓰인다. 등록·승인·거절·삭제 모두 이력에 남는다.
+#   baseline_reviews.json[세대]["routines_pending"] = [{"id", "routine", "by", "at"}]
+
+KINDS = {"outing": "외출", "sleep": "수면"}
+LABEL_MAX = 20
+
+
+def _hhmm(t):
+    try:
+        h, m = str(t).split(":")
+        return 0 <= int(h) <= 23 and 0 <= int(m) <= 59 and len(h) == 2 and len(m) == 2
+    except ValueError:
+        return False
+
+
+def clean_routine(r):
+    """입력 일정을 검사해 정리한다. 반환 (일정, 오류 목록)."""
+    errs = []
+    label = str((r or {}).get("label") or "").strip()[:LABEL_MAX]
+    kind = (r or {}).get("kind")
+    if not label:
+        errs.append("일정 이름이 필요합니다 (예: 복지관)")
+    if kind not in KINDS:
+        errs.append("종류는 외출(outing) 또는 수면(sleep)입니다")
+    a, b = (r or {}).get("from"), (r or {}).get("to")
+    if not _hhmm(a) or not _hhmm(b):
+        errs.append("시작·끝 시각은 HH:MM 입니다 (예: 10:00)")
+    elif a == b:
+        errs.append("시작과 끝이 같습니다")
+    days = (r or {}).get("days")
+    if days is not None:
+        if not isinstance(days, list) or not days or any(not isinstance(d, int) or isinstance(d, bool)
+                                                         or not 0 <= d <= 6 for d in days):
+            errs.append("요일은 0(월)~6(일) 목록입니다 — 매일이면 비워 두세요")
+        else:
+            days = sorted(set(days))
+    out = {"label": label, "kind": kind, "from": a, "to": b}
+    if days is not None:
+        out["days"] = days
+    return out, errs
+
+
+def routines(home):
+    """세대의 생활 일정 — 판정에 쓰이는 승인된 일정, 승인 대기, 이력."""
+    r = load_reviews().get(home) or {}
+    approved = (care_patterns.load_profiles().get(home) or {}).get("routines") or []
+    pending = []
+    for p in r.get("routines_pending", []):
+        c = check({"routines": approved + [p["routine"]]})
+        pending.append({**p, "check": c, "hours": _routine_hours(p["routine"])})
+    return {"home": home, "approved": [{**x, "hours": _routine_hours(x)} for x in approved], "pending": pending,
+            "history": [h for h in r.get("history", []) if h["action"].startswith("routine")]}
+
+
+def propose_routine(home, routine, by="복지사", now=None):
+    clean, errs = clean_routine(routine)
+    if errs:
+        return {"ok": False, "errors": errs}
+    import uuid
+    item = {"id": uuid.uuid4().hex[:8], "routine": clean, "by": by, "at": _now(now)}
+    with _lock:
+        data = load_reviews()
+        r = data.setdefault(home, {"history": []})
+        r.setdefault("routines_pending", []).append(item)
+        r.setdefault("history", []).append({"action": "routine_propose", "routine": clean, "by": by, "at": item["at"]})
+        _save(REVIEWS_FILE, data)
+    return {"ok": True, "errors": [], "id": item["id"]}
+
+
+def decide_routine(home, rid, action, by="복지사", memo="", now=None):
+    """승인(approve)·거절(reject). 승인은 이미 승인된 일정과 합쳐 안전성 검토를 통과해야 판정에 들어간다."""
+    if action not in ("approve", "reject"):
+        return {"ok": False, "errors": [f"알 수 없는 결정: {action}"]}
+    with _lock:
+        data = load_reviews()
+        r = data.get(home) or {}
+        item = next((p for p in r.get("routines_pending", []) if p["id"] == rid), None)
+        if item is None:
+            return {"ok": False, "errors": ["없는 승인 대기 일정입니다"]}
+        profiles = care_patterns.load_profiles()
+        prof = profiles.setdefault(home, {})
+        if action == "approve":
+            c = check({"routines": (prof.get("routines") or []) + [item["routine"]]})
+            if not c["ok"]:
+                return {"ok": False, "errors": c["blocks"], "check": c}
+            prof.setdefault("routines", []).append(item["routine"])
+            _save(care_patterns.PROFILES_FILE, profiles)
+        r["routines_pending"] = [p for p in r["routines_pending"] if p["id"] != rid]
+        r.setdefault("history", []).append({"action": f"routine_{action}", "routine": item["routine"], "by": by,
+                                            "at": _now(now), "memo": (memo or "")[:200]})
+        _save(REVIEWS_FILE, data)
+    return {"ok": True, "errors": []}
+
+
+def remove_routine(home, index, by="복지사", memo="", now=None):
+    """승인된 일정을 판정에서 뺀다 (이력은 남는다)."""
+    with _lock:
+        profiles = care_patterns.load_profiles()
+        rs = (profiles.get(home) or {}).get("routines") or []
+        if not isinstance(index, int) or not 0 <= index < len(rs):
+            return {"ok": False, "errors": ["없는 일정입니다"]}
+        gone = rs.pop(index)
+        _save(care_patterns.PROFILES_FILE, profiles)
+        data = load_reviews()
+        data.setdefault(home, {"history": []}).setdefault("history", []).append(
+            {"action": "routine_remove", "routine": gone, "by": by, "at": _now(now), "memo": (memo or "")[:200]})
+        _save(REVIEWS_FILE, data)
+    return {"ok": True, "errors": []}
 
 
 if __name__ == "__main__":

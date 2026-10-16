@@ -41,6 +41,14 @@ export const api = {
     { method: 'POST', body: JSON.stringify({ source, by }) }),
   decideBaseline: (home, body) => request(`/baseline/${encodeURIComponent(home)}/decide`,
     { method: 'POST', body: JSON.stringify(body) }),
+  // 생활 일정(외출·수면) — 등록하면 승인 대기, 승인해야 판정에 들어간다
+  getRoutines: (home) => request(`/routines/${encodeURIComponent(home)}`),
+  proposeRoutine: (home, routine, by) => request(`/routines/${encodeURIComponent(home)}`,
+    { method: 'POST', body: JSON.stringify({ routine, by }) }),
+  decideRoutine: (home, id, body) => request(`/routines/${encodeURIComponent(home)}/${id}/decide`,
+    { method: 'POST', body: JSON.stringify(body) }),
+  removeRoutine: (home, index, by, memo) => request(`/routines/${encodeURIComponent(home)}/${index}`,
+    { method: 'DELETE', body: JSON.stringify({ by, memo }) }),
   // 월간 보고 초안 — month 'YYYY-MM', minS = 최소 지속 초 (보고 기준 5일, 시연은 짧게)
   getMonthlyReport: (month, minS) => request(`/report/monthly?month=${month}&min_s=${minS}`),
   // value 를 같이 보내면 비어 있던 기준값을 채우면서 승인한다

@@ -70,6 +70,41 @@ def main():
     assert not baseline.decide("102", "approve")["ok"], "θ 0 추천은 승인할 수 없다 (E016 사례)"
     assert [x["action"] for x in baseline.review("102")["history"]] == ["link", "approve", "approve", "reject", "link"]
     print("개인 기준 승인 흐름 통과 — 추천·미리보기·안전성 검토·승인/수정/거절·이력, θ 0 차단")
+    routine_flow()
+
+
+def routine_flow():
+    """생활 일정 — 등록 → 승인 대기 → 안전성 검토 → 승인/거절 → 판정 반영 → 삭제. (main() 의 임시 폴더를 그대로 쓴다)"""
+    bad = baseline.propose_routine("102", {"label": "", "kind": "nap", "from": "25:00", "to": "10:00", "days": [7]})
+    assert not bad["ok"] and len(bad["errors"]) == 4, bad
+    sleep = {"label": "수면", "kind": "sleep", "from": "22:00", "to": "07:00"}
+    club = {"label": "복지관", "kind": "outing", "from": "10:00", "to": "14:00", "days": [3, 1, 1]}
+    a = baseline.propose_routine("102", sleep, by="김복지")["id"]
+    b = baseline.propose_routine("102", club, by="김복지")["id"]
+    r = baseline.routines("102")
+    assert [p["routine"]["label"] for p in r["pending"]] == ["수면", "복지관"] and r["approved"] == []
+    assert r["pending"][1]["routine"]["days"] == [1, 3], "요일은 정렬·중복 제거"
+    assert "routines" not in care_patterns.load_profiles()["102"], "승인 전에는 판정에 들어가지 않는다"
+
+    assert baseline.decide_routine("102", a, "approve", by="이팀장")["ok"]
+    assert care_patterns.load_profiles()["102"]["routines"] == [sleep]
+    blocked = baseline.decide_routine("102", b, "approve", by="이팀장")
+    assert not blocked["ok"] and "13시간" in blocked["errors"][0], "수면 9시간 + 화·목 복지관 4시간 = 13시간 — 막는다"
+    assert [p["id"] for p in baseline.routines("102")["pending"]] == [b], "막힌 일정은 승인 대기에 남는다"
+    assert baseline.decide_routine("102", b, "reject", by="이팀장", memo="시간 줄여 다시 등록")["ok"]
+    c = baseline.propose_routine("102", dict(club, to="12:00"))["id"]
+    assert baseline.decide_routine("102", c, "approve")["ok"]
+    assert len(care_patterns.load_profiles()["102"]["routines"]) == 2
+    assert baseline.decide_routine("102", c, "approve")["ok"] is False, "이미 처리된 건"
+
+    assert not baseline.remove_routine("102", 5)["ok"]
+    assert baseline.remove_routine("102", 0, by="이팀장", memo="수면 일정 해제")["ok"]
+    assert [x["label"] for x in care_patterns.load_profiles()["102"]["routines"]] == ["복지관"]
+    acts = [h["action"] for h in baseline.routines("102")["history"]]
+    assert acts == ["routine_propose", "routine_propose", "routine_approve", "routine_reject", "routine_propose",
+                    "routine_approve", "routine_remove"], acts
+    assert all(not h["action"].startswith("routine") for h in baseline.review("102")["history"]), "개인 기준 이력과 섞지 않는다"
+    print("생활 일정 승인 흐름 통과 — 형식 검사·승인 대기·하루 12시간 상한 차단·거절·삭제·이력")
 
 
 if __name__ == "__main__":

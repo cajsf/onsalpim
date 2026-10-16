@@ -288,6 +288,34 @@ def baseline_decide(home):
     return jsonify(result), (200 if result["ok"] else 400)
 
 
+@app.route("/api/routines/<home>")
+def routines_view(home):
+    """생활 일정 — 승인된 일정(판정에 쓰임), 승인 대기(안전성 검토 결과 포함), 이력."""
+    return jsonify(baseline.routines(home))
+
+
+@app.route("/api/routines/<home>", methods=["POST"])
+def routines_propose(home):
+    body = request.get_json(silent=True) or {}
+    result = baseline.propose_routine(home, body.get("routine") or {}, by=str(body.get("by") or "복지사"))
+    return jsonify(result), (200 if result["ok"] else 400)
+
+
+@app.route("/api/routines/<home>/<rid>/decide", methods=["POST"])
+def routines_decide(home, rid):
+    body = request.get_json(silent=True) or {}
+    result = baseline.decide_routine(home, rid, str(body.get("action", "")), by=str(body.get("by") or "복지사"),
+                                     memo=str(body.get("memo") or ""))
+    return jsonify(result), (200 if result["ok"] else 400)
+
+
+@app.route("/api/routines/<home>/<int:index>", methods=["DELETE"])
+def routines_remove(home, index):
+    body = request.get_json(silent=True) or {}
+    result = baseline.remove_routine(home, index, by=str(body.get("by") or "복지사"), memo=str(body.get("memo") or ""))
+    return jsonify(result), (200 if result["ok"] else 400)
+
+
 @app.route("/api/history/<home>")
 def home_history(home):
     """세대 타임라인 — 엔진이 판정하며 남긴 위험도 변화와 움직임 (최근 24시간)."""
