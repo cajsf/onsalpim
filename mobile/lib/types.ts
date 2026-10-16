@@ -22,6 +22,8 @@ export type CareHome = {
   idle_levels?: { minutes: number; severity: Severity }[];
   away?: { until: string; reason: string };
   battery?: number | null;
+  temp?: [string, number] | null;
+  temp_limit_s?: number | null;
   applied?: { source?: string; common?: number; rule_id?: number; minutes?: number };
 };
 

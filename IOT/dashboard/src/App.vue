@@ -8,7 +8,7 @@ import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
 import MonthlyReport from './MonthlyReport.vue'
 import RulePreview from './RulePreview.vue'
-import { SEV, SEV_ORDER, ALERT_STATE, FOLLOW_KO, sevKo, sevClass, alertKo, alertChange, outcomeKo, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
+import { SEV, SEV_ORDER, ALERT_STATE, FOLLOW_KO, sevKo, sevClass, alertKo, alertChange, outcomeKo, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName, tempStatus } from './format.js'
 
 const NAV = [
   { id: 'dashboard', label: '대시보드', icon: 'home', ready: true },
@@ -730,6 +730,7 @@ async function toggleRule(id) {
   } finally { ruleBusy.value = null }
 }
 function useExample(ex) { sentence.value = ex; inputTab.value = 'nl' }
+function tempOf(h) { return tempStatus(h?.temp, h?.temp_limit_s) }
 function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '⋯', pending: '○', warn: '!' })[s] || '○' }
 
 </script>
@@ -1038,6 +1039,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   <td>
                     <span class="dot" :class="h.severity === 'CHECK_DEVICE' || h.device_check ? 'device' : 'normal'"></span>
                     {{ h.device }}
+                    <span v-if="tempOf(h)?.silent" class="flag" :title="tempOf(h).when ? ('마지막 ' + tempOf(h).when) : ''">센서 응답 없음</span>
                   </td>
                   <td>
                     <span class="tag" :class="'tag-' + sevClass(h)">

@@ -2,7 +2,7 @@
 // 세대 하나의 판단 근거 — 결과만 보고도 판단 과정을 따라갈 수 있어야 한다.
 // 대시보드 표의 펼침과 세대 관리 화면이 같은 모양으로 보여주도록 한 곳에 둔다.
 import { computed } from 'vue'
-import { SEV, PATTERN_KO, FOLLOW_KO, sevKo, sevClass, fmtAgo, fmtMinutes, secondsSince } from './format.js'
+import { SEV, PATTERN_KO, FOLLOW_KO, sevKo, sevClass, fmtAgo, fmtMinutes, secondsSince, tempStatus } from './format.js'
 
 const props = defineProps({ h: { type: Object, required: true } })
 
@@ -12,6 +12,7 @@ const contactAgo = computed(() =>
 const activityAgo = computed(() =>
   props.h.last_activity_at !== undefined ? secondsSince(props.h.last_activity_at) : props.h.idle_s)
 const judgedAgo = computed(() => secondsSince(props.h.judged_at))
+const temp = computed(() => tempStatus(props.h.temp, props.h.temp_limit_s))
 </script>
 
 <template>
@@ -56,6 +57,13 @@ const judgedAgo = computed(() => secondsSince(props.h.judged_at))
     </div>
     <div v-if="h.battery != null">
       <dt>배터리</dt><dd>{{ Math.round(h.battery) }}%</dd>
+    </div>
+    <div v-if="temp">
+      <dt>온도</dt>
+      <dd>
+        {{ temp.text }}
+        <span v-if="temp.silent && temp.when" class="muted"> · 마지막 {{ temp.when }}</span>
+      </dd>
     </div>
     <div class="sep">
       <dt>판정</dt>

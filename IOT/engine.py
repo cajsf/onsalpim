@@ -2142,12 +2142,14 @@ def collect_home_state(devices, rules):
             batt = _num(raw)
 
         temp = None
+        temp_limit_s = None
         temp_dev = scope.find_sensor(home, "temperature", devices)
         if temp_dev is not None:
             cin = iot.get_latest_cin_full(temp_dev["path"])
             at, val = care_monitor.parse_ct((cin or {}).get("ct")), _num((cin or {}).get("con"))
             if at is not None and val is not None:
                 temp = [at.isoformat(timespec="seconds"), val]
+            temp_limit_s = care_monitor.sensor_limit_s(temp_dev.get("meta"))
         last_activity = care_monitor.read_activity(evt) if evt else None
 
         levels = level_map.get(home) or []
@@ -2162,6 +2164,7 @@ def collect_home_state(devices, rules):
             "battery": batt,
             "applied": applied,                      # 추적표용 (예외 여부·공통값)
             "temp": temp,
+            "temp_limit_s": temp_limit_s,
             "profile": profiles.get(home),
             "events": _pattern_events(home, hist.get(home) or {}, last_activity, temp) + open_alerts.get(home, []),
         }

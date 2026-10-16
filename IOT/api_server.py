@@ -385,10 +385,21 @@ def care_state():
     # 겹친 규칙은 규칙 파일로 바로 계산한다 — 복지사가 하나를 고르면 엔진 한 바퀴를 기다리지 않고 사라져야 한다
     try:
         # 장치 목록은 거의 안 바뀐다 — 3초마다 오는 화면 요청이 공용 서버를 기다리지 않게 5분 캐시를 쓴다
-        data["rule_conflicts"] = engine.rule_conflict_groups(engine.load_rules(), iot.read_tree(AE, max_age=300))
+        devices = iot.read_tree(AE, max_age=300)
+        data["rule_conflicts"] = engine.rule_conflict_groups(engine.load_rules(), devices)
+        _fill_temp_limits(data.get("homes") or [], devices)
     except requests.RequestException:
         data["rule_conflicts"] = []
     return jsonify(data)
+
+
+def _fill_temp_limits(homes, devices):
+    """옛 판정 파일에도 온도 센서의 두절 한계를 붙인다. 주기를 모르면 비워 둔다."""
+    for h in homes:
+        if h.get("temp_limit_s") is not None or not h.get("temp"):
+            continue
+        dev = scope.find_sensor(str(h.get("home") or ""), "temperature", devices)
+        h["temp_limit_s"] = care_monitor.sensor_limit_s((dev or {}).get("meta"))
 
 
 @app.route("/api/demo/reset", methods=["POST"])

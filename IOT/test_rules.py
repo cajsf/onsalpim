@@ -349,6 +349,9 @@ try:
     _reading["M/temp"] = ("31", 1)
     ok, why = engine.eval_rule({"when": {"path": "M/temp", "op": ">", "value": "30"}, "and": []}, _DEVS, _NOW)
     assert ok is None and "report_s" in why, "보고 주기를 모르면 추측하지 않고 보류"
+    assert engine.care_monitor.sensor_limit_s({"report_s": "5"}) == 15
+    assert engine.care_monitor.sensor_limit_s({}) is None
+    assert engine.care_monitor.sensor_limit_s({"report_s": "0"}) is None
 
     both = {"when": {"path": "M/h101_temp", "op": ">", "value": "30"},
             "and": [{"path": "system/hour", "op": ">=", "value": "22"}]}

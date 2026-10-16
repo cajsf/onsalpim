@@ -145,6 +145,23 @@ export function stampOf(iso: string | null | undefined): string {
   return iso ? `${iso.slice(5, 7)}/${iso.slice(8, 10)} ${iso.slice(11, 16)}` : '';
 }
 
+/** 온도 한 칸. 보고 주기 × 3 을 넘기면 숫자를 두지 않는다. 주기를 모르면 시각을 붙인다. */
+export function tempStatus(
+  temp: unknown,
+  limitS: number | null | undefined,
+  nowMs: number,
+): { silent: boolean; text: string; when: string } | null {
+  if (!Array.isArray(temp) || temp.length < 2 || temp[1] == null || temp[1] === '') return null;
+  const age = secondsSince(String(temp[0] ?? ''), nowMs);
+  const n = Number(temp[1]);
+  const value = Number.isFinite(n) ? `${n}°C` : String(temp[1]);
+  const when = stampOf(typeof temp[0] === 'string' ? temp[0] : '');
+  const known = typeof limitS === 'number' && limitS > 0 && age != null;
+  if (known && age > limitS) return { silent: true, text: '센서 응답 없음', when };
+  if (known) return { silent: false, text: value, when: '' };
+  return { silent: false, text: when ? `${value} · ${when}` : value, when: '' };
+}
+
 export function fmtDurationSec(s: number): string {
   const m = Math.floor(s / 60);
   const h = Math.floor(m / 60);

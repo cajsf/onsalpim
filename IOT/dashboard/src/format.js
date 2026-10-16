@@ -138,6 +138,22 @@ export function fmtMinutes(v) {
 
 export function timeOf(iso) { return iso ? iso.slice(11, 16) : '—' }
 
+/**
+ * 온도 한 칸. 보고 주기 × 3 을 넘긴 값은 숫자로 두지 않는다.
+ * 주기를 모르면 두절이라고 단정하지 않고, 값 옆에 시각을 붙인다.
+ */
+export function tempStatus(temp, limitS) {
+  if (!Array.isArray(temp) || temp.length < 2 || temp[1] == null || temp[1] === '') return null
+  const age = secondsSince(temp[0])
+  const n = Number(temp[1])
+  const value = Number.isFinite(n) ? `${n}°C` : String(temp[1])
+  const when = stampOf(temp[0])
+  const known = typeof limitS === 'number' && limitS > 0 && age != null
+  if (known && age > limitS) return { silent: true, text: '센서 응답 없음', when }
+  if (known) return { silent: false, text: value, when: '' }
+  return { silent: false, text: when ? `${value} · ${when}` : value, when: '' }
+}
+
 /** '2026-09-16T14:31:05' → '09/16 14:31' */
 export function stampOf(iso) {
   return iso ? `${iso.slice(5, 7)}/${iso.slice(8, 10)} ${iso.slice(11, 16)}` : ''

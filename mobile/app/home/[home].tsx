@@ -7,7 +7,7 @@ import { HomeTags } from '@/components/HomeTags';
 import { HomeTimeline } from '@/components/HomeTimeline';
 import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
-import { PATTERN_KO, SEV, fmtAgo, fmtMinutes, secondsSince } from '@/lib/format';
+import { PATTERN_KO, SEV, fmtAgo, fmtMinutes, secondsSince, tempStatus } from '@/lib/format';
 import type { CareHome } from '@/lib/types';
 import { useNow } from '@/hooks/useNow';
 
@@ -63,6 +63,7 @@ export default function HomeDetailScreen() {
   const contact = secondsSince(h.last_contact_at, nowMs) ?? h.silent_s ?? null;
   const activity = secondsSince(h.last_activity_at, nowMs) ?? h.idle_s ?? null;
   const judged = secondsSince(h.judged_at, nowMs);
+  const temp = tempStatus(h.temp, h.temp_limit_s, nowMs);
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
@@ -106,6 +107,13 @@ export default function HomeDetailScreen() {
           />
         ) : null}
         {h.battery != null ? <Row label="배터리" value={`${Math.round(h.battery)}%`} /> : null}
+        {temp ? (
+          <Row
+            label="온도"
+            value={temp.text}
+            note={temp.silent && temp.when ? `· 마지막 ${temp.when}` : undefined}
+          />
+        ) : null}
         {h.patterns && h.patterns.length ? (
           <Row label="시간 패턴" value={h.patterns.map((c) => PATTERN_KO[c] || c).join(' · ')} />
         ) : null}

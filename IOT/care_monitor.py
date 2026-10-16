@@ -137,6 +137,23 @@ def _report_period(meta, default=2):
         return default
 
 
+def sensor_limit_s(meta):
+    """이 센서를 두절로 볼 한계(초). report_s × STALE_FACTOR.
+
+    라벨에 주기가 없으면 None. 짧은 기본값으로 추측하면 살아있는 센서가 두절이 되고,
+    긴 기본값으로 추측하면 죽은 센서의 마지막 값을 믿게 된다.
+    """
+    if not meta or "report_s" not in meta:
+        return None
+    try:
+        period = float(meta["report_s"])
+    except (TypeError, ValueError):
+        return None
+    if period <= 0:
+        return None
+    return STALE_FACTOR * period
+
+
 def read_contact(dev):
     """주기 보고 컨테이너에서 '마지막으로 데이터가 도착한 시각'과 현재값을 읽는다.
 
@@ -536,6 +553,7 @@ class Watchdog:
                 "patterns": v.get("patterns") or [],
                 "followup": v.get("followup"),
                 "temp": st.get("temp"),
+                "temp_limit_s": st.get("temp_limit_s"),
                 "changed": changed,
                 "from": prev,
             })
