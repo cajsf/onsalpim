@@ -13,8 +13,18 @@ AIHub 분석(analysis_outputs/five_household_analysis_report.md)과 같은 정�
 
 칸 기록 형식: [{'ts': datetime(10분 정각, 칸 시작), 'active': True|False}] — 관측되지 않은 칸은 넣지 않는다.
 """
+import json
+import os
 import statistics
+import threading
 from datetime import datetime, timedelta
+
+import care_patterns
+
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+REPLAY_DIR = os.path.join(DATA_DIR, "aihub_replay")          # aihub_export.py 가 만든다 — 저장소에 올리지 않음
+REVIEWS_FILE = os.path.join(DATA_DIR, "baseline_reviews.json")
+_lock = threading.Lock()
 
 HOURS = (8, 9, 10, 11)
 SLOT_MIN = 10
@@ -131,6 +141,121 @@ def preview(slots, days, theta):
 def latest_due(now):
     """오늘 이미 지난 평가 시각들 (최근 것이 뒤)."""
     return [h for h in HOURS if now.replace(hour=h, minute=0, second=0, microsecond=0) <= now]
+
+
+# ---------- AIHub 기록 연결과 승인 ----------
+# 시연 세대는 실제로 사람이 사는 집이 아니라 14일 기록이 없다. AIHub 가구의 28일 기록을 '입주 전 기록'으로
+# 연결해, 앞 14일로 추천하고 뒤 14일로 미리보기한다. 승인한 θ 만 care_profiles.json 에 들어가 판정에 쓰인다.
+#   baseline_reviews.json  {세대: {"source": 가명, "status": "pending|approved|rejected", "theta", "history": [...]}}
+
+def replays():
+    if not os.path.isdir(REPLAY_DIR):
+        return []
+    return sorted(f[:-5] for f in os.listdir(REPLAY_DIR) if f.endswith(".json"))
+
+
+def load_replay(alias):
+    with open(os.path.join(REPLAY_DIR, f"{alias}.json"), encoding="utf-8") as f:
+        raw = json.load(f)
+    per = raw["period"]
+    day = lambda t: datetime.strptime(t, "%Y-%m-%d")
+    slots = [{"ts": datetime.fromisoformat(t), "active": a > 0} for t, a, _ in raw["slots"]]
+    span = lambda a, b: [day(a) + timedelta(days=i) for i in range((day(b) - day(a)).days + 1)]
+    return {"household": alias, "period": per, "slots": slots,
+            "baseline_days": span(per["start"], per["baseline_end"]),
+            "validation_days": span(per["validation_start"], per["end"])}
+
+
+def load_reviews():
+    if not os.path.exists(REVIEWS_FILE):
+        return {}
+    with open(REVIEWS_FILE, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save(path, data):
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, path)
+
+
+def _keys(theta):
+    return {str(h): (None if theta.get(h, theta.get(str(h))) is None else float(theta.get(h, theta.get(str(h)))))
+            for h in HOURS}
+
+
+def review(home):
+    """세대의 개인 기준 검토 화면 재료 — 연결된 기록, 추천, 안전성 검토, 미리보기(개인 vs 공통), 승인 상태."""
+    r = load_reviews().get(home) or {}
+    out = {"home": home, "source": r.get("source"), "status": r.get("status"), "approved_theta": r.get("theta"),
+           "history": r.get("history", []), "replays": replays(), "common": _keys(COMMON_THETA)}
+    if not r.get("source"):
+        return out
+    rep = load_replay(r["source"])
+    rec = recommend(rep["slots"], rep["baseline_days"])
+    out.update(period=rep["period"], recommended=_keys(rec["theta"]),
+               basis={str(h): b for h, b in rec["basis"].items()},
+               check=check({"morning_theta": rec["theta"]}),
+               preview={"personal": preview(rep["slots"], rep["validation_days"], rec["theta"]),
+                        "common": preview(rep["slots"], rep["validation_days"], COMMON_THETA)})
+    return out
+
+
+def link(home, alias, by="복지사", now=None):
+    """세대에 AIHub 기록을 연결한다 — 승인 상태는 '대기'로 돌아간다(이미 승인된 값은 판정에서 뺀다)."""
+    if alias not in replays():
+        return {"ok": False, "errors": [f"연결할 기록이 없습니다: {alias}"]}
+    with _lock:
+        data = load_reviews()
+        r = data.setdefault(home, {"history": []})
+        r.update(source=alias, status="pending", theta=None)
+        r["history"].append({"action": "link", "source": alias, "by": by, "at": _now(now)})
+        _save(REVIEWS_FILE, data)
+        _set_profile_theta(home, None)
+    return {"ok": True, "errors": []}
+
+
+def decide(home, action, theta=None, by="복지사", memo="", now=None):
+    """승인·수정 승인·거절. 승인은 안전성 검토를 통과한 값만 판정(care_profiles.json)에 넣는다."""
+    if action not in ("approve", "reject"):
+        return {"ok": False, "errors": [f"알 수 없는 결정: {action}"]}
+    cur = review(home)
+    if not cur.get("source"):
+        return {"ok": False, "errors": ["연결된 기록이 없습니다 — 먼저 AIHub 기록을 연결하세요"]}
+    entry = {"action": action, "by": by, "at": _now(now), "memo": (memo or "")[:200]}
+    if action == "approve":
+        if theta is not None and any(not isinstance(v, (int, float)) or isinstance(v, bool)
+                                     for v in theta.values() if v is not None):
+            return {"ok": False, "errors": ["기준값은 숫자(0 초과 1 이하 비율)여야 합니다"]}
+        chosen = _keys(theta) if theta is not None else cur["recommended"]
+        c = check({"morning_theta": chosen})
+        if not c["ok"]:
+            return {"ok": False, "errors": c["blocks"], "check": c}
+        entry.update(theta=chosen, modified=chosen != cur["recommended"])
+    with _lock:
+        data = load_reviews()
+        r = data[home]
+        r["status"] = "approved" if action == "approve" else "rejected"
+        r["theta"] = entry.get("theta")
+        r["history"].append(entry)
+        _save(REVIEWS_FILE, data)
+        _set_profile_theta(home, r["theta"])
+    return {"ok": True, "errors": [], "status": r["status"]}
+
+
+def _set_profile_theta(home, theta):
+    profiles = care_patterns.load_profiles()
+    p = profiles.setdefault(home, {})
+    if theta is None:
+        p.pop("morning_theta", None)
+    else:
+        p["morning_theta"] = theta
+    _save(care_patterns.PROFILES_FILE, profiles)
+
+
+def _now(now):
+    return (now or datetime.now()).isoformat(timespec="seconds")
 
 
 if __name__ == "__main__":

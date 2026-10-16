@@ -10,6 +10,7 @@ import requests
 from flask import Flask, jsonify, redirect, request
 from flask_cors import CORS
 
+import baseline
 import engine
 import iot_platform as iot
 import kakao_notify
@@ -259,6 +260,31 @@ def alert_action(alert_id):
     result = engine.record_action(
         alert_id, str(body.get("status", "")), str(body.get("memo", "")),
         by=str(body.get("by") or "복지사"), outcome=body.get("outcome") or None)
+    return jsonify(result), (200 if result["ok"] else 400)
+
+
+@app.route("/api/baseline/<home>")
+def baseline_review(home):
+    """개인 기준 검토 — 연결된 AIHub 기록, 추천 θ·근거, 승인 전 안전성 검토, 미리보기(개인 vs 공통), 이력."""
+    return jsonify(baseline.review(home))
+
+
+@app.route("/api/baseline/<home>/link", methods=["POST"])
+def baseline_link(home):
+    body = request.get_json(silent=True) or {}
+    result = baseline.link(home, str(body.get("source", "")), by=str(body.get("by") or "복지사"))
+    return jsonify(result), (200 if result["ok"] else 400)
+
+
+@app.route("/api/baseline/<home>/decide", methods=["POST"])
+def baseline_decide(home):
+    """승인(approve, theta 를 주면 수정 승인) / 거절(reject). 안전성 검토를 통과하지 못하면 400."""
+    body = request.get_json(silent=True) or {}
+    theta = body.get("theta")
+    if theta is not None and not isinstance(theta, dict):
+        return jsonify({"ok": False, "errors": ["theta 는 {시각: 비율} 형식입니다"]}), 400
+    result = baseline.decide(home, str(body.get("action", "")), theta=theta,
+                             by=str(body.get("by") or "복지사"), memo=str(body.get("memo") or ""))
     return jsonify(result), (200 if result["ok"] else 400)
 
 
