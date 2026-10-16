@@ -17,6 +17,15 @@ M = cp.MIN
 NOW = cp.ms(datetime(2026, 10, 15, 9, 40))
 
 
+def morning(home, at_min_ago, theta, values):
+    """평가 시각(NOW - at_min_ago 분)의 window 이벤트 + 직전 1시간 칸 (values 6개, None = 미관측)."""
+    at = NOW - at_min_ago * M
+    ev = [{"home": home, "type": "window", "ts": at, "value": theta}]
+    ev += [{"home": home, "type": "slot", "ts": at - 60 * M + 10 * M * i, "value": float(v)}
+           for i, v in enumerate(values) if v is not None]
+    return ev
+
+
 def codes(found):
     return sorted((f["home"], f["code"]) for f in found)
 
@@ -43,6 +52,16 @@ def scenes(detect):
         ("대응함", [], [{"home": "102", "type": "alert", "ts": NOW - 25 * M, "ref": "a"},
                         {"home": "102", "type": "action", "ts": NOW - 20 * M, "ref": "a"}], []),
         ("알림 5분", [], [{"home": "102", "type": "alert", "ts": NOW - 5 * M, "ref": "a"}], []),
+        # 오전 활동 비율 — NOW 09:40, 평가 시각 08:00(100분 전)·09:00(40분 전)
+        ("09시 창 활동 1/6 + 연속 0 50분", [], morning("101", 40, 0.4, [1, 0, 0, 0, 0, 0]), [("101", "MORNING_LOW")]),
+        ("비율은 낮지만 연속 0 20분뿐", [], morning("101", 40, 0.4, [1, 0, 0, 1, 0, 0]), []),
+        ("비율이 기준과 같음 (미만 아님)", [], morning("101", 40, 0.5, [1, 0, 0, 0, 1, 1]), []),
+        ("09시 창 한 칸 누락 → 08시 창으로", [],
+         morning("101", 100, 0.3, [0, 0, 0, 0, 0, 0]) + morning("101", 40, 0.3, [1, 1, None, 1, 1, 1]),
+         [("101", "MORNING_LOW")]),
+        ("08시 낮아도 09시가 정상이면 없음", [],
+         morning("101", 100, 0.3, [0, 0, 0, 0, 0, 0]) + morning("101", 40, 0.3, [1, 1, 1, 1, 1, 1]), []),
+        ("기준 0은 절대 발동 안 함", [], morning("101", 40, 0.0, [0, 0, 0, 0, 0, 0]), []),
     ]
     for name, homes, events, want in cases:
         got = codes(detect(NOW, homes, events))
@@ -115,6 +134,26 @@ def follow_sweep_check():
     print("재통지·이관은 위험도 알림을 다시 쓰지 않음")
 
 
+def live_slots_check():
+    """실물 세대 — 엔진 타임라인(위험도 구간·움직임)에서 10분 칸을 만든다. 두절·엔진 꺼짐 칸은 미관측."""
+    import engine
+    now = datetime(2026, 10, 16, 9, 5)
+    h = {"sev": [["2026-10-16T06:00:00", "NORMAL"], ["2026-10-16T07:20:00", "CHECK_DEVICE"],
+                 ["2026-10-16T07:40:00", "NORMAL"]],
+         "move": ["2026-10-16T08:03:00"], "seen": "2026-10-16T08:03:00"}
+    prof = {"morning_theta": {"8": 0.3, "9": 0.4, "10": 0.4, "11": 0.4}}
+    ev = engine._pattern_events("101", h, None, None, prof, now)
+    slots = {e["ts"]: e["value"] for e in ev if e["type"] == "slot"}
+    at = lambda hh, mm: cp.ms(datetime(2026, 10, 16, hh, mm))
+    assert at(7, 20) not in slots and at(7, 30) not in slots, "두절 칸은 미관측"
+    assert slots[at(7, 10)] == 0.0 and slots[at(8, 0)] == 1.0 and slots[at(8, 50)] == 0.0
+    assert at(9, 0) not in slots, "아직 끝나지 않은 칸은 넣지 않는다"
+    assert sorted(e["ts"] for e in ev if e["type"] == "window") == [at(8, 0), at(9, 0)]
+    found = cp.detect_python(cp.ms(now), [], ev)
+    assert codes(found) == [("101", "MORNING_LOW")] and found[0]["since"] == at(9, 0), found   # 08시 창은 검증 불가
+    print("실물 세대 10분 칸 통과 — 두절 칸 미관측, 09시 창 활동 1/6 → 생활 확인")
+
+
 def random_case(rng):
     """경계값(5·10·20·25·30·60분 정각)을 자주 섞은 무작위 입력."""
     edges = [0, 5, 10, 20, 25, 30, 60]
@@ -145,6 +184,10 @@ def random_case(rng):
             refs = [x["ref"] for x in events if x["type"] == "alert"] + ["없는 알림"]
             e["ref"] = rng.choice(refs)
         events.append(e)
+    for hid in ("101", "102"):                 # 오전 시간창 — 08:00(100분 전)·09:00(40분 전), 칸 일부 누락
+        for at in rng.sample([100, 40, -20], rng.randint(0, 2)):
+            vals = [None if rng.random() < 0.08 else rng.choice([0, 0, 1]) for _ in range(6)]
+            events += morning(hid, at, rng.choice([0.0, 1 / 6, 0.25, 1 / 3, 0.5, 1.0]), vals)
     if rng.random() < 0.1:
         events.append({"home": "101", "type": "motion", "ts": NOW + 5 * M})   # 미래 기록 — 둘 다 버려야 한다
     return homes, events
@@ -175,6 +218,7 @@ if __name__ == "__main__":
     scenes(cp.detect_python)
     sweep_check()
     follow_sweep_check()
+    live_slots_check()
     if os.environ.get("ONSALPIM_JUDGE") == "python" or not os.path.exists(rules_engine.JAR):
         print("Drools 없음 — 대조 건너뜀")
         sys.exit(0)

@@ -21,7 +21,8 @@ PROFILES_FILE = os.path.join(os.path.dirname(__file__), "data", "care_profiles.j
 MIN = 60_000
 HOT_C_DEFAULT = 30.0      # ponytail: 공통 실내 고온 기준 — 승인된 공통 정책으로 옮길 것
 MORNING_FROM = "05:00"    # 오전 첫 움직임을 이 시각부터 센다 (새벽 화장실은 '아침'이 아니다)
-LIFE = ("HOT_IDLE", "MORNING_NONE", "NIGHT_WANDER")
+LIFE = ("HOT_IDLE", "MORNING_NONE", "MORNING_LOW", "NIGHT_WANDER")
+HOUR_MS = 60 * MIN
 FOLLOW = ("RENOTIFY", "ESCALATE")
 
 
@@ -87,6 +88,7 @@ def detect_python(now_ms, homes, events):
             n = sum(1 for e in moves if e["ts"] >= h["night_from"] and now_ms - e["ts"] < 60 * MIN)
             if n >= h["wander_count"]:
                 out.append({"home": h["id"], "code": "NIGHT_WANDER", "since": None, "ref": None})
+    out += _morning_low_python(evs)
     answered = {e["ref"] for e in evs if e["type"] == "action"}
     for a in evs:
         if a["type"] != "alert" or a["ref"] in answered:
@@ -95,6 +97,59 @@ def detect_python(now_ms, homes, events):
         if waited >= 10 * MIN:
             code = "ESCALATE" if waited >= 20 * MIN else "RENOTIFY"
             out.append({"home": a["home"], "code": code, "since": a["ts"], "ref": a["ref"]})
+    return out
+
+
+def _morning_low_python(evs):
+    """patterns.drl 의 오전 시간창 세 규칙과 같다 — 가장 최근 검증 가능한 창이 낮으면 MORNING_LOW."""
+    out = []
+    slots = {}
+    for e in evs:
+        if e["type"] == "slot":
+            slots.setdefault(e["home"], []).append(e)
+    wins = [e for e in evs if e["type"] == "window"]
+    verifiable, low = {}, set()
+    for w in wins:
+        mine = [s for s in slots.get(w["home"], []) if w["ts"] - HOUR_MS <= s["ts"] < w["ts"]]
+        if len(mine) != 6:
+            continue
+        verifiable.setdefault(w["home"], set()).add(w["ts"])
+        zero = {s["ts"] for s in mine if s["value"] == 0}
+        run = any(t in zero and t + 10 * MIN in zero and t + 20 * MIN in zero
+                  for t in zero if t <= w["ts"] - 30 * MIN)
+        if sum(s["value"] for s in mine) / 6.0 < w["value"] and run:
+            low.add((w["home"], w["ts"]))
+    for home, at in low:
+        if not any(t > at for t in verifiable.get(home, ())):
+            out.append({"home": home, "code": "MORNING_LOW", "since": at, "ref": None})
+    return out
+
+
+def morning_events(home, profile, now):
+    """승인된 개인 θ → 오늘 이미 지난 평가 시각(08~11시)의 'window' 이벤트."""
+    import baseline
+    theta = (profile or {}).get("morning_theta") or {}
+    out = []
+    for h in baseline.latest_due(now):
+        t = theta.get(str(h), theta.get(h))
+        if t is not None and t > 0:
+            out.append({"home": home, "type": "window", "ts": ms(_at(now, f"{h:02d}:00")), "value": float(t)})
+    return out
+
+
+def slot_events(home, moves, observed, now, hours=5):
+    """최근 몇 시간의 10분 칸 — 관측된 칸만. moves: 움직임 시각 목록(datetime),
+    observed: [(시작, 끝)] 장치가 정상 보고하고 엔진이 판정하던 구간. 칸 전체가 덮여야 관측으로 친다."""
+    import baseline
+    end = baseline._floor(now)
+    out = []
+    t = end - timedelta(hours=hours)
+    while t < end:
+        u = t + timedelta(minutes=10)
+        if any(a <= t and u <= b for a, b in observed):
+            active = any(t <= m < u for m in moves)
+            out.append({"home": home, "type": "slot", "ts": ms(t), "value": 1.0 if active else 0.0})
+        t = u
     return out
 
 
@@ -125,10 +180,20 @@ def apply(v, found, profile, now):
         return v
     if v.get("code") not in ("NORMAL", "BATTERY"):     # 무활동 단계가 이미 걸렸으면 그쪽이 더 구체적이다
         return v
-    hit = next((f for f in found if f["code"] in ("MORNING_NONE", "NIGHT_WANDER")), None)
+    hit = next((f for f in found if f["code"] in ("MORNING_LOW", "MORNING_NONE", "NIGHT_WANDER")), None)
     if hit is None:
         return v
-    if hit["code"] == "MORNING_NONE":
+    if hit["code"] == "MORNING_LOW":
+        at = _clock(hit["since"])
+        hour = int(at[:2])
+        theta = ((profile or {}).get("morning_theta") or {})
+        t = theta.get(str(hour), theta.get(hour))
+        pct = f"{t * 100:.0f}%" if t is not None else "개인 기준"
+        v.update(severity="WATCH", reason=f"아침 활동 부재 — {at} 직전 1시간 활동이 개인 기준({pct}) 미만",
+                 life=f"평소보다 아침 활동이 적음 ({hour - 1:02d}~{hour:02d}시)",
+                 basis=f"시간 패턴: {hour - 1:02d}:00~{hour:02d}:00 10분 칸 6개 모두 관측, 활동 칸 비율이 승인된 "
+                       f"개인 기준 {pct} 미만이고 30분 이상 연속 무활동 → 생활 확인")
+    elif hit["code"] == "MORNING_NONE":
         by = _clock(hit["since"])
         v.update(severity="WATCH", reason=f"아침 활동 부재 — 오전 {by}까지 첫 움직임 없음",
                  life=f"오늘 아침 움직임 없음 (평소 {by} 전 활동)",

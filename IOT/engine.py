@@ -2146,7 +2146,8 @@ def collect_home_state(devices, rules):
             "applied": applied,                      # 추적표용 (예외 여부·공통값)
             "temp": temp,
             "profile": profiles.get(home),
-            "events": _pattern_events(home, hist.get(home) or {}, last_activity, temp) + open_alerts.get(home, []),
+            "events": _pattern_events(home, hist.get(home) or {}, last_activity, temp, profiles.get(home))
+                      + open_alerts.get(home, []),
         }
     return state
 
@@ -2155,14 +2156,31 @@ def _ms(iso):
     return care_patterns.ms(datetime.fromisoformat(iso))
 
 
-def _pattern_events(home, h, last_activity, temp):
-    """시간 패턴 재료 — 타임라인의 움직임·온도와 지금 읽은 값."""
+def _pattern_events(home, h, last_activity, temp, profile=None, now=None):
+    """시간 패턴 재료 — 타임라인의 움직임·온도와 지금 읽은 값.
+    승인된 오전 개인 기준이 있으면 10분 칸(관측된 칸만)과 오늘 지난 평가 시각도 넣는다."""
     ev = [{"home": home, "type": "motion", "ts": _ms(t)} for t in h.get("move", [])]
     if last_activity is not None and h.get("seen") is not None:
         ev.append({"home": home, "type": "motion", "ts": care_patterns.ms(last_activity)})
     temps = list(h.get("temp", [])) + ([temp] if temp else [])
     ev += [{"home": home, "type": "temp", "ts": _ms(t), "value": float(v)} for t, v in temps]
+    if (profile or {}).get("morning_theta"):
+        now = now or datetime.now()
+        moves = [datetime.fromisoformat(t) for t in h.get("move", [])] + ([last_activity] if last_activity else [])
+        ev += care_patterns.slot_events(home, moves, _observed(h.get("sev", []), now), now)
+        ev += care_patterns.morning_events(home, profile, now)
     return ev
+
+
+def _observed(sev, now):
+    """타임라인의 위험도 구간 중 '관측된' 구간 [(시작, 끝)] — 엔진이 판정했고(None 아님) 장치가 보고하던 때.
+    엔진이 꺼졌거나 두절이던 칸은 무활동(0)이 아니라 미관측이다."""
+    out = []
+    for i, (t, s) in enumerate(sev):
+        end = datetime.fromisoformat(sev[i + 1][0]) if i + 1 < len(sev) else now
+        if s is not None and s != "CHECK_DEVICE":
+            out.append((datetime.fromisoformat(t), end))
+    return out
 
 
 def _latest_alert_events():

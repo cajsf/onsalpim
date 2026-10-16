@@ -3,6 +3,8 @@
 //   고온 지속 + 무활동   30분 넘게 고온 기준 이상인데 그동안 움직임이 없다      → 긴급 확인
 //   오전 첫 움직임 없음  세대별 기준 시각이 지났는데 오늘 아침 움직임이 없다    → 생활 확인
 //   새벽 배회 의심       새벽 시간대 최근 1시간 움직임 감지가 기준 횟수 이상    → 생활 확인
+//   오전 활동 비율 저하  평가 시각(08~11시) 직전 1시간 10분 칸 6개가 모두 관측됐고, 활동 칸 비율이
+//                        개인 기준 θ 미만이며 연속 무활동 30분 이상 — 가장 최근 검증 가능한 창 기준 → 생활 확인
 //   알림 미대응          대응 없이 10분 → 재통지, 20분 → 다음 담당자에게
 //
 // Drools STREAM 모드. 모든 사실은 이벤트(@timestamp)이고 세션 시계(가상 시계)는 요청의 '지금'에 맞춘다.
@@ -19,6 +21,18 @@ import onsalpim.rules.Finding
 declare Ev
     @role( event )
     @timestamp( ts )
+end
+
+// 오전 시간창 중간 결과 — 'slot'(10분 칸, value 1=활동 0=무활동, 관측된 칸만 들어온다)과
+// 'window'(평가 시각, value=θ) 이벤트로 만든다
+declare Verifiable
+    home : String
+    at : long
+end
+
+declare LowWindow
+    home : String
+    at : long
 end
 
 rule "고온 지속 + 무활동 30분"
@@ -41,6 +55,36 @@ when
     not Ev( home == $h.id, type == "motion", ts >= $h.morningFrom )
 then
     insert( new Finding( $h.getId(), "MORNING_NONE", $h.getMorningBy(), null ) );
+end
+
+rule "오전 시간창 — 6칸 모두 관측 (검증 가능)"
+when
+    $t : Ev( type == "tick" )
+    $w : Ev( type == "window", ts <= $t.ts )
+    accumulate( Ev( home == $w.home, type == "slot", ts >= $w.ts - 3600000L, ts < $w.ts ); $n : count(); $n == 6 )
+then
+    insert( new Verifiable( $w.getHome(), $w.getTs() ) );
+end
+
+rule "오전 시간창 — 활동 비율 θ 미만 + 연속 무활동 30분"
+when
+    $v : Verifiable( $home : home, $at : at )
+    $w : Ev( type == "window", home == $home, ts == $at )
+    accumulate( Ev( home == $home, type == "slot", ts >= $at - 3600000L, ts < $at, $x : value ); $act : sum( $x );
+                $act / 6.0 < $w.value )
+    exists ( Ev( home == $home, type == "slot", value == 0, $s : ts, ts >= $at - 3600000L, ts <= $at - 1800000L )
+             and Ev( home == $home, type == "slot", value == 0, ts == $s + 600000L )
+             and Ev( home == $home, type == "slot", value == 0, ts == $s + 1200000L ) )
+then
+    insert( new LowWindow( $home, $at ) );
+end
+
+rule "오전 활동 비율 저하 — 가장 최근 검증 가능한 창"
+when
+    $l : LowWindow( $home : home, $at : at )
+    not Verifiable( home == $home, at > $at )
+then
+    insert( new Finding( $home, "MORNING_LOW", $at, null ) );
 end
 
 rule "새벽 배회 의심 — 최근 1시간 움직임 감지 횟수"

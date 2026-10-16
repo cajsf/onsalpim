@@ -473,7 +473,7 @@ class Watchdog:
             care_patterns.apply(v, [f for f in found if f["home"] == home], st.get("profile"), now)
             v["life_check"] = v["severity"] == WATCH and (
                 v.get("code") == "IDLE_WATCH"
-                or any(c in ("MORNING_NONE", "NIGHT_WANDER") for c in v.get("patterns") or []))
+                or any(c in ("MORNING_NONE", "MORNING_LOW", "NIGHT_WANDER") for c in v.get("patterns") or []))
             prev = self.last_severity.get(home)
             # 재통지·이관은 위험도가 바뀐 알림이 아니다. 같은 건을 다시 쓰면 대응 시계가 되감긴다.
             # 알림함 항목은 engine.record_followups 가 원래 알림당 한 번씩 남긴다.
