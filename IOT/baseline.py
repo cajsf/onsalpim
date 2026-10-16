@@ -94,7 +94,7 @@ def check(profile):
     blocks, notes = [], []
     theta = profile.get("morning_theta")
     if theta is not None:
-        usable = 0
+        usable, zero = 0, []
         for h in HOURS:
             t = theta.get(h, theta.get(str(h)))
             if t is None:
@@ -103,10 +103,13 @@ def check(profile):
             if not isinstance(t, (int, float)) or t != t or t > 1:
                 blocks.append(f"{h:02d}시 기준값이 잘못됐습니다 ({t}) — 0 초과 1 이하 비율이어야 합니다")
             elif t <= 0:
-                blocks.append(f"{h:02d}시 — 기준 0%는 '활동 비율 0% 미만'이라 절대 발동하지 않습니다 (충족 불가능). "
-                              f"이 가구는 오전 활동 비율로 감지할 수 없습니다 — 공통 무활동 기준만 적용됩니다")
+                zero.append(f"{h:02d}")
             else:
                 usable += 1
+        if zero:
+            blocks.append(f"{'·'.join(zero)}시 기준 0% — '활동 비율 0% 미만'은 절대 발동하지 않습니다 (충족 불가능). "
+                          f"평소 이 시간에 활동이 거의 없는 가구라 오전 활동 비율로 감지할 수 없습니다 — "
+                          f"공통 무활동 기준만 적용됩니다")
         if usable == 0 and not blocks:
             blocks.append("판정할 수 있는 시간창이 하나도 없습니다 — 추천 보류 (관측 부족)")
     hot = profile.get("hot_c")

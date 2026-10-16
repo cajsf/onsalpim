@@ -35,6 +35,12 @@ export const api = {
   getAlerts: (limit = 20) => request(`/alerts?limit=${limit}`),
   // 세대 타임라인 — 엔진이 남긴 위험도 변화·움직임 (최근 24시간)
   getHistory: (home) => request(`/history/${encodeURIComponent(home)}`),
+  // 개인 기준(오전 활동 비율) — 추천·안전성 검토·미리보기·이력. 결정은 서버가 검사한 뒤 저장한다
+  getBaseline: (home) => request(`/baseline/${encodeURIComponent(home)}`),
+  linkBaseline: (home, source, by) => request(`/baseline/${encodeURIComponent(home)}/link`,
+    { method: 'POST', body: JSON.stringify({ source, by }) }),
+  decideBaseline: (home, body) => request(`/baseline/${encodeURIComponent(home)}/decide`,
+    { method: 'POST', body: JSON.stringify(body) }),
   // 월간 보고 초안 — month 'YYYY-MM', minS = 최소 지속 초 (보고 기준 5일, 시연은 짧게)
   getMonthlyReport: (month, minS) => request(`/report/monthly?month=${month}&min_s=${minS}`),
   // value 를 같이 보내면 비어 있던 기준값을 채우면서 승인한다

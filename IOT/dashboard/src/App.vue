@@ -7,6 +7,7 @@ import HomeActions from './HomeActions.vue'
 import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
 import MonthlyReport from './MonthlyReport.vue'
+import BaselineReview from './BaselineReview.vue'
 import RulePreview from './RulePreview.vue'
 import { SEV, SEV_ORDER, ALERT_STATE, FOLLOW_KO, sevKo, sevClass, alertKo, alertChange, outcomeKo, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
 
@@ -14,6 +15,7 @@ const NAV = [
   { id: 'dashboard', label: '대시보드', icon: 'home', ready: true },
   { id: 'homes',     label: '세대 관리', icon: 'users', ready: true },
   { id: 'rules',     label: '규칙 관리', icon: 'doc',   ready: true },
+  { id: 'baseline',  label: '개인 기준', icon: 'chart', ready: true },
   { id: 'alerts',    label: '알림 이력', icon: 'bell',  ready: true },
   { id: 'report',    label: '월간 보고', icon: 'doc',   ready: true },
   { id: 'devices',   label: '기기 관리', icon: 'chip',  ready: true },
@@ -1340,6 +1342,22 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <AlertItem v-for="a in shownAlerts" :key="a.id" :a="a" :worker="worker" :focused="a.id === focusAlertId"
                        @changed="onAlertChanged" />
           </ul>
+        </section>
+      </main>
+
+      <!-- ────────── 개인 기준 ────────── -->
+      <main v-else-if="activeView === 'baseline'" class="content">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>개인 기준 — 14일 기록으로 추천, 승인 전 안전성 검토, 승인한 값만 판정에 적용</h2>
+              <p class="hint">
+                추천은 통계(평소 활동 비율의 절반)이고 AI 가 판정하지 않습니다. 충족 불가능하거나 공통 안전 정책을
+                무력화하는 기준은 승인할 수 없습니다.
+              </p>
+            </div>
+          </div>
+          <BaselineReview :homes="homes.map((h) => h.home)" :worker="worker" />
         </section>
       </main>
 
