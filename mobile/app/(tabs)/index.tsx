@@ -32,7 +32,7 @@ export default function CareScreen() {
     return { engine, care };
   }, [api]);
 
-  const { data, error, loading, refresh } = usePolling(fetchAll, [api.base], 4000);
+  const { data, error, loading, refresh, okAt } = usePolling(fetchAll, [api.base], 4000);
 
   const engine = data?.engine ?? null;
   const care = data?.care ?? null;
@@ -68,7 +68,11 @@ export default function CareScreen() {
       },
     ];
   }, [care]);
+  const known = care != null;
   const updatedHint = care?.updated ? `판정 ${stampOf(care.updated)}` : null;
+  const lastOkText = okAt
+    ? new Date(okAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : null;
 
   return (
     <Screen>
@@ -79,16 +83,21 @@ export default function CareScreen() {
           loading={loading}
           fetchError={error}
           updatedHint={updatedHint}
+          lastOkText={error ? lastOkText : null}
         />
         <View style={styles.filters}>
           {chips.map((c) => (
             <Pressable
               key={c.id}
-              style={StyleSheet.flatten([styles.chip, filter === c.id && styles.chipOn])}
+              style={StyleSheet.flatten([
+                styles.chip,
+                filter === c.id && styles.chipOn,
+                !!error && styles.chipDim,
+              ])}
               onPress={() => setFilter(c.id)}
             >
               <Text style={StyleSheet.flatten([styles.chipText, filter === c.id && styles.chipTextOn])}>
-                {c.label} {c.n}
+                {c.label} {known ? c.n : '—'}
               </Text>
             </Pressable>
           ))}
@@ -99,7 +108,13 @@ export default function CareScreen() {
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={theme.brand} />}
           ListEmptyComponent={
-            !loading ? <Text style={styles.empty}>표시할 세대가 없습니다.</Text> : null
+            !known
+              ? loading
+                ? null
+                : <Text style={styles.empty}>판정을 아직 받지 못했습니다.</Text>
+              : !homes.length
+                ? <Text style={styles.empty}>표시할 세대가 없습니다.</Text>
+                : null
           }
           renderItem={({ item }) => <HomeListItem home={item} nowMs={nowMs} />}
         />
@@ -122,6 +137,7 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: theme.brandSoft, borderColor: theme.brand },
   chipText: { color: theme.text2, fontSize: 13, fontWeight: '600' },
   chipTextOn: { color: theme.brandDim },
+  chipDim: { opacity: 0.45 },
   listContent: { paddingTop: 8, paddingBottom: 24 },
   empty: { textAlign: 'center', color: theme.muted, marginTop: 40 },
 });

@@ -103,10 +103,25 @@ function openHome(home) {
 }
 const devices = ref([])
 const engineRunning = ref(false)
+// 판정을 한 번이라도 받아 온 뒤에만 세대 수를 보여 준다.
+const careReady = ref(false)
+const lastOkAt = ref(null)
+const lastOkText = computed(() => {
+  if (!lastOkAt.value) return ''
+  const d = lastOkAt.value
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+})
+function kpiText(n) {
+  return careReady.value ? n : '—'
+}
 // 엔진이 죽은 것과 공용 서버를 못 읽는 것은 다른 사고다. 대응도 다르다 —
 // 앞은 엔진을 켜야 하고, 뒤는 기다리면 저절로 이어진다.
 const platformError = ref(null)
+const engineMessage = ref('')
+const connectionError = ref('')
 const engineChip = computed(() => {
+  if (connectionError.value) return { cls: 'chip-off', text: '서버 연결 실패' }
+  if (!careReady.value) return { cls: 'chip-off', text: '연결 확인 중' }
   if (!engineRunning.value) return { cls: 'chip-off', text: '엔진 미실행' }
   if (platformError.value) return { cls: 'chip-warn', text: '공용 서버 응답 없음' }
   // 판정을 내린 엔진 — Java 가 없는 서버에선 같은 순서의 내장(파이썬) 판정으로 대신한다. 숨기지 않는다
@@ -114,8 +129,6 @@ const engineChip = computed(() => {
   const by = j?.engine === 'drools' ? ' · Drools 판정' : j?.engine === 'python' ? ' · 내장 판정' : ''
   return { cls: 'chip-on', text: '실시간 모니터링 중' + by }
 })
-const engineMessage = ref('')
-const connectionError = ref('')
 const nowText = ref('')
 
 /* 규칙 만들기 */
@@ -159,8 +172,16 @@ const examples = [
 
 let timer = null
 let clockTimer = null
+let refreshFlight = null
 
 async function refresh() {
+  // 콜드 스타트로 요청이 길어져도 3초마다 같은 요청을 겹쳐 보내지 않는다. 실패하면 다음 주기에 다시 시도한다.
+  if (refreshFlight) return refreshFlight
+  refreshFlight = loadDashboard().finally(() => { refreshFlight = null })
+  return refreshFlight
+}
+
+async function loadDashboard() {
   try {
     // 장치 목록은 공용 서버를 읽어 수 초 걸릴 수 있다 — 기다리면 나머지 화면까지 늦어진다
     api.getDevices().then((d) => { devices.value = d }).catch(() => {})
@@ -177,8 +198,10 @@ async function refresh() {
     platformError.value = eng.running ? eng.platform_error || null : null
     engineMessage.value = eng.message
     connectionError.value = ''
+    careReady.value = true
+    lastOkAt.value = new Date()
   } catch (e) {
-    connectionError.value = `서버 연결 실패: ${e.message}`
+    connectionError.value = `서버 연결 실패: ${e.message} 다시 시도합니다.`
   }
 }
 
@@ -742,7 +765,12 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
         {{ care.outage.homes.length }}세대({{ care.outage.homes.join('·') }})가 동시에 통신이 끊겼습니다.
         가구마다의 이상이 아니라 망·서버를 먼저 봅니다.
       </p>
-      <p v-if="connectionError" class="banner err">{{ connectionError }}</p>
+      <p v-if="connectionError" class="banner err">
+        {{ connectionError }}
+        <template v-if="lastOkText"> 마지막 성공 갱신: {{ lastOkText }}.</template>
+        <template v-else> 받아 온 판정이 없어 숫자를 비워 둡니다.</template>
+      </p>
+      <p v-else-if="!careReady" class="banner info">서버에 연결하는 중…</p>
       <p v-else-if="!engineRunning" class="banner warn">
         규칙 엔진이 실행 중이 아닙니다. 세대 판정이 갱신되지 않습니다 —
         <code class="mono">python -c "import engine; engine.loop()"</code>
@@ -762,14 +790,18 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 
       <!-- ────────── 대시보드 ────────── -->
       <main v-if="activeView === 'dashboard'" class="content">
-        <!-- KPI -->
-        <section class="kpis">
+        <!-- KPI — 받기 전에는 0을 안전으로 읽지 않게 비운다 -->
+        <p v-if="connectionError && lastOkText" class="kpi-stamp">마지막 성공 갱신: {{ lastOkText }}</p>
+        <section class="kpis" :class="{ dim: !!connectionError }">
           <article class="kpi kpi-blue clickable" role="button" tabindex="0" title="전체 세대 보기"
                    @click="showHomes('all')" @keyup.enter="showHomes('all')">
             <div class="kpi-ico">👥</div>
             <div>
               <p class="kpi-label">전체 모니터링 세대</p>
-              <p class="kpi-value">{{ homes.length }} <span>세대</span></p>
+              <p class="kpi-value">
+                <span v-if="!careReady && !connectionError" class="kpi-skel" aria-hidden="true"></span>
+                <template v-else>{{ kpiText(homes.length) }} <span>세대</span></template>
+              </p>
               <p class="kpi-foot">등록된 장치에서 자동 발견</p>
             </div>
           </article>
@@ -778,9 +810,12 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div class="kpi-ico">🚨</div>
             <div>
               <p class="kpi-label">긴급 알림</p>
-              <p class="kpi-value">{{ counts.URGENT }} <span>건</span></p>
+              <p class="kpi-value">
+                <span v-if="!careReady && !connectionError" class="kpi-skel" aria-hidden="true"></span>
+                <template v-else>{{ kpiText(counts.URGENT) }} <span>건</span></template>
+              </p>
               <p class="kpi-foot">
-                확인 우선순위 · 통신 두절만으로 해제하지 않음<template v-if="heldUrgent"> · <b>장치 점검 병행 {{ heldUrgent }}</b></template>
+                확인 우선순위 · 통신 두절만으로 해제하지 않음<template v-if="careReady && heldUrgent"> · <b>장치 점검 병행 {{ heldUrgent }}</b></template>
               </p>
             </div>
           </article>
@@ -789,9 +824,12 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div class="kpi-ico">🔧</div>
             <div>
               <p class="kpi-label">장치 점검</p>
-              <p class="kpi-value">{{ deviceIssueCount }} <span>건</span></p>
+              <p class="kpi-value">
+                <span v-if="!careReady && !connectionError" class="kpi-skel" aria-hidden="true"></span>
+                <template v-else>{{ kpiText(deviceIssueCount) }} <span>건</span></template>
+              </p>
               <p class="kpi-foot">
-                통신 두절 — 긴급 확인과 별도 업무<template v-if="welfareCount"> · <b class="kpi-welfare">그중 안부 확인 {{ welfareCount }}</b></template>
+                통신 두절 — 긴급 확인과 별도 업무<template v-if="careReady && welfareCount"> · <b class="kpi-welfare">그중 안부 확인 {{ welfareCount }}</b></template>
               </p>
             </div>
           </article>
@@ -800,7 +838,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <div class="kpi-ico">📋</div>
             <div>
               <p class="kpi-label">승인 대기 규칙</p>
-              <p class="kpi-value">{{ pendingRules.length }} <span>건</span></p>
+              <p class="kpi-value">
+                <span v-if="!careReady && !connectionError" class="kpi-skel" aria-hidden="true"></span>
+                <template v-else>{{ kpiText(pendingRules.length) }} <span>건</span></template>
+              </p>
               <p class="kpi-foot">승인해야 실행됩니다</p>
             </div>
           </article>
@@ -822,10 +863,13 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 v-for="t in tabs" :key="t.id"
                 class="tab" :class="{ on: filter === t.id, [t.id]: true }"
                 @click="filter = t.id"
-              >{{ t.label }} ({{ t.n }})</button>
+              >{{ t.label }} ({{ kpiText(t.n) }})</button>
             </div>
 
-            <div v-if="!homes.length" class="empty">
+            <div v-if="!careReady" class="empty">
+              {{ connectionError ? '판정을 아직 받지 못했습니다.' : '판정을 받아 오는 중…' }}
+            </div>
+            <div v-else-if="!homes.length" class="empty">
               아직 판정된 세대가 없습니다.
               <span v-if="!engineRunning">규칙 엔진을 실행해 주세요.</span>
               <span v-else>보드에 <code class="mono">home=</code> 라벨이 붙어 있는지 확인해 주세요.</span>
@@ -1066,7 +1110,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 
         <div class="cols">
           <!-- 위험도 분포 -->
-          <section class="card">
+          <section class="card" :class="{ dim: !!connectionError || !careReady }">
             <div class="card-head"><h2>위험도 분포</h2></div>
             <div class="donut-row">
               <svg class="donut" viewBox="0 0 140 140">
@@ -1076,15 +1120,15 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                   class="seg" :class="s.cls"
                   :stroke-dasharray="`${s.len} ${s.gap}`" :stroke-dashoffset="s.offset"
                 />
-                <text x="70" y="66" class="dn">{{ homes.length }}</text>
+                <text x="70" y="66" class="dn">{{ kpiText(homes.length) }}</text>
                 <text x="70" y="86" class="dl">세대</text>
               </svg>
               <ul class="legend">
                 <li v-for="s in dist" :key="s.key">
                   <span class="dot" :class="s.cls"></span>
                   {{ s.ko }}
-                  <strong>{{ s.n }}</strong>
-                  <span class="muted">
+                  <strong>{{ kpiText(s.n) }}</strong>
+                  <span v-if="careReady" class="muted">
                     ({{ homes.length ? Math.round((s.n / homes.length) * 100) : 0 }}%)
                   </span>
                 </li>
@@ -1098,7 +1142,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <h2>최근 알림</h2>
               <button class="btn ghost" @click="activeView = 'alerts'">전체보기 →</button>
             </div>
-            <p v-if="!alerts.length" class="empty">아직 기록된 알림이 없습니다. 위험도가 바뀔 때만 남습니다.</p>
+            <p v-if="!careReady" class="empty">{{ connectionError ? '알림을 아직 받지 못했습니다.' : '알림을 받아 오는 중…' }}</p>
+            <p v-else-if="!alerts.length" class="empty">아직 기록된 알림이 없습니다. 위험도가 바뀔 때만 남습니다.</p>
             <ul v-else class="alerts">
               <AlertItem v-for="a in alerts.slice(0, 5)" :key="a.id" :a="a" :worker="worker" compact />
             </ul>
@@ -1133,10 +1178,11 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <h2>승인 대기 규칙</h2>
               <p class="hint">AI가 만든 규칙은 복지사가 승인해야 실행됩니다.</p>
             </div>
-            <span class="count">{{ pendingRules.length }}건</span>
+            <span class="count">{{ careReady ? pendingRules.length + '건' : '—' }}</span>
           </div>
           <p v-if="ruleError" class="msg err">{{ ruleError }}</p>
-          <p v-if="!pendingRules.length" class="empty">승인 대기 중인 규칙이 없습니다.</p>
+          <p v-if="!careReady" class="empty">{{ connectionError ? '규칙을 아직 받지 못했습니다.' : '규칙을 받아 오는 중…' }}</p>
+          <p v-else-if="!pendingRules.length" class="empty">승인 대기 중인 규칙이 없습니다.</p>
           <article v-for="r in pendingRules" :key="r.id" class="pending-item">
             <div class="pending-top">
               <span class="tag tag-wait">승인 대기</span>
@@ -1514,6 +1560,15 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .kpi-label { font-size: 0.76rem; color: var(--text-2); }
 .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; }
 .kpi-value span { font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+.kpis.dim, .card.dim { filter: grayscale(0.85); opacity: 0.72; }
+.kpi-stamp { margin: 0 0 0.45rem; font-size: 0.78rem; color: var(--text-2); }
+.kpi-skel {
+  display: inline-block; width: 2.4rem; height: 1.15rem; border-radius: 6px; vertical-align: -0.15rem;
+  background: linear-gradient(90deg, #e4e7ee 25%, #f7f8fb 50%, #e4e7ee 75%);
+  background-size: 200% 100%;
+  animation: kpi-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes kpi-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 .kpi-foot { font-size: 0.68rem; color: var(--muted); }
 .kpi-welfare { color: var(--urgent); }
 .tag.welfare { margin-left: 0.3rem; }

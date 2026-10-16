@@ -8,6 +8,7 @@ export function usePolling<T>(
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [okAt, setOkAt] = useState<number | null>(null);
   const fetchRef = useRef(fetchFn);
   fetchRef.current = fetchFn;
 
@@ -16,6 +17,7 @@ export function usePolling<T>(
       const next = await fetchRef.current();
       setData(next);
       setError('');
+      setOkAt(Date.now());
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -33,6 +35,7 @@ export function usePolling<T>(
         if (!cancelled) {
           setData(next);
           setError('');
+          setOkAt(Date.now());
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -50,5 +53,5 @@ export function usePolling<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deps are caller-controlled keys
   }, [intervalMs, refresh, ...deps]);
 
-  return { data, error, loading, refresh };
+  return { data, error, loading, refresh, okAt };
 }

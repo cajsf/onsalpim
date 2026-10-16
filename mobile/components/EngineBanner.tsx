@@ -9,13 +9,19 @@ type Props = {
   loading?: boolean;
   fetchError?: string;
   updatedHint?: string | null;
+  lastOkText?: string | null;
 };
 
-export function EngineBanner({ engine, care, loading, fetchError, updatedHint }: Props) {
+export function EngineBanner({ engine, care, loading, fetchError, updatedHint, lastOkText }: Props) {
   if (fetchError) {
     return (
       <View style={[styles.box, styles.err]}>
         <Text style={styles.errText}>서버 연결 실패 — {fetchError}</Text>
+        {lastOkText ? (
+          <Text style={styles.hint}>마지막 성공 갱신: {lastOkText}</Text>
+        ) : (
+          <Text style={styles.hint}>받아 온 판정이 없어 세대 수를 비워 둡니다. 다시 시도합니다.</Text>
+        )}
         {fetchError.includes('404') ? (
           <Text style={styles.hint}>
             API 는 onsalpim-api …/api 입니다. 더보기 → API 설정을 확인하세요.
