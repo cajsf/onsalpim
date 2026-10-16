@@ -866,8 +866,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       </p>
       <p v-else-if="!careReady" class="banner info">서버에 연결하는 중…</p>
       <p v-else-if="!engineRunning" class="banner warn">
-        규칙 엔진이 실행 중이 아닙니다. 세대 판정이 갱신되지 않습니다 —
-        <code class="mono">python -c "import engine; engine.loop()"</code>
+        규칙 엔진이 실행 중이 아닙니다. 세대 판정이 갱신되지 않습니다.
       </p>
       <p v-else-if="platformError" class="banner warn">
         공용 서버(Mobius)가 응답하지 않아 판정을 잠시 멈췄습니다 ({{ platformError }}).

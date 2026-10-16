@@ -246,7 +246,6 @@ def engine_status():
             "running": False,
             "last_run": None,
             "message": "규칙 엔진이 실행되지 않았습니다.",
-            "command": 'python3 -c "import engine; engine.loop()"',
         })
     with open(HEARTBEAT_FILE, encoding="utf-8") as f:
         data = json.load(f)
@@ -263,7 +262,6 @@ def engine_status():
         "last_run": last_run,
         "pid": data.get("pid"),
         "message": "규칙 엔진 실행 중" if running else "규칙 엔진이 멈춘 것 같습니다. 다시 실행해 주세요.",
-        "command": 'python3 -c "import engine; engine.loop()"',
     })
 
 
