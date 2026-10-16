@@ -19,6 +19,7 @@ IOT/data/alert_actions.json
 IOT/data/absences.json
 IOT/data/approved_baselines.json
 IOT/data/engine_heartbeat.json
+IOT/data/kakao_token.json
 IOT/data/reset_backup/
 
 # ── 개인 환경 ──

@@ -2297,15 +2297,28 @@ def loop(interval=3):
                 entered_outage = is_site_outage(results) and not outage_was
                 # 전체가 동시에 끊긴 순간에는 세대별 두절 알림을 쓰지 않고 망 점검 한 건만 남긴다.
                 individual = [r for r in results if not (entered_outage and r.get("device_check"))]
+                fresh = []
                 for a in append_alerts(individual):   # 상태가 바뀐 세대만 기록/출력
                     print(f'  [{a["home"]}호] {care_monitor.LABEL_KO.get(a["from"], "첫 판정")} '
                           f'→ {care_monitor.LABEL_KO[a["to"]]}  ({a["reason"]})')
+                    fresh.append(a)
                 if entered_outage:
                     for a in record_site_outage(results):
                         print(f'  [망 점검] {a["reason"]}')
+                        fresh.append(a)
                 outage_was = is_site_outage(results)
                 for a in record_followups(results):
                     print(f'  [{a["home"]}호] {FOLLOW_REASON[a["follow"]]}')
+                    fresh.append(a)
+                if fresh:
+                    import kakao_notify
+                    note = kakao_notify.notify(fresh)
+                    if note.get("sent"):
+                        print(f'  [카카오] 나와의 채팅으로 {note["sent"]}건')
+                    elif note.get("error"):
+                        print(f'  [카카오] {note["error"]}')
+                    elif note.get("skipped") == "no_login":
+                        print("  [카카오] 연결이 없어 나와의 채팅으로는 보내지 않았습니다.")
 
             write_heartbeat()
             time.sleep(interval)

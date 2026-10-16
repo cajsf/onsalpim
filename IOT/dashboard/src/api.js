@@ -20,6 +20,9 @@ export const api = {
   getSensors: () => request('/sensors'),
   getActuators: () => request('/actuators'),
   getEngineStatus: () => request('/engine/status'),
+  getKakao: () => request('/kakao/status'),
+  sendKakaoTest: () => request('/kakao/test', { method: 'POST' }),
+  disconnectKakao: () => request('/kakao/disconnect', { method: 'POST' }),
   getRules: () => request('/rules'),
   // 세대별 위험도 판정 — 규칙 엔진의 Watchdog 이 계산한 결과를 읽는다
   getCare: () => request('/care'),

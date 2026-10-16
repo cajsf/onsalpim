@@ -7,11 +7,12 @@ import os
 from datetime import datetime, timedelta
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, redirect, request
 from flask_cors import CORS
 
 import engine
 import iot_platform as iot
+import kakao_notify
 import scope
 import speech_transcribe
 
@@ -324,6 +325,42 @@ def care_state():
 def demo_reset():
     """시연 초기화 — 알림·대응·부재·타임라인을 비운다(백업 폴더로 옮김). 규칙은 그대로 둔다."""
     return jsonify({"ok": True, **engine.reset_demo()})
+
+
+@app.route("/api/kakao/status")
+def kakao_status():
+    return jsonify(kakao_notify.status())
+
+
+@app.route("/api/kakao/login")
+def kakao_login():
+    url, err = kakao_notify.authorize_url()
+    if err:
+        return err, 400, {"Content-Type": "text/plain; charset=utf-8"}
+    return redirect(url)
+
+
+@app.route("/api/kakao/callback")
+def kakao_callback():
+    """카카오가 돌려준 인가 코드를 토큰으로 바꾸고 대시보드로 돌아간다."""
+    dash = kakao_notify.dashboard_url().rstrip("/")
+    if request.args.get("error"):
+        return redirect(f"{dash}/?kakao=denied")
+    try:
+        kakao_notify.finish_login(request.args.get("code"), request.args.get("state"))
+    except (RuntimeError, requests.RequestException) as e:
+        return redirect(f"{dash}/?kakao=fail&msg={requests.utils.quote(str(e))}")
+    return redirect(f"{dash}/?kakao=ok")
+
+
+@app.route("/api/kakao/test", methods=["POST"])
+def kakao_test():
+    return jsonify(kakao_notify.send_test())
+
+
+@app.route("/api/kakao/disconnect", methods=["POST"])
+def kakao_disconnect():
+    return jsonify(kakao_notify.disconnect())
 
 
 @app.route("/api/health")

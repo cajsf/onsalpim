@@ -32,6 +32,9 @@ const rules = ref([])
 const alerts = ref([])
 const alertFilter = ref('todo')      // 알림 이력: 미완료만 / 전체
 const search = ref('')
+const kakao = ref({ configured: false, connected: false, nickname: '', redirect_uri: '' })
+const kakaoNotice = ref('')
+autoClear(kakaoNotice)
 // open = 아무도 안 본 알림 (배지·팝업). 확인·방문 중도 조치 완료 전까지는 끝난 게 아니다 (미완료 탭).
 const openAlerts = computed(() => alerts.value.filter((a) => a.state === 'open'))
 const todoAlerts = computed(() => alerts.value.filter((a) => ['open', 'assign', 'ack', 'progress'].includes(a.state)))
@@ -164,6 +167,7 @@ async function refresh() {
     const [c, r, a, eng] = await Promise.all([
       api.getCare(), api.getRules(), api.getAlerts(100), api.getEngineStatus(),
     ])
+    api.getKakao().then((k) => { kakao.value = k }).catch(() => {})
     care.value = c
     rules.value = r
     alerts.value = a
@@ -184,7 +188,32 @@ function tickClock() {
     `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+function connectKakao() {
+  window.location.href = '/api/kakao/login'
+}
+async function testKakao() {
+  try {
+    const r = await api.sendKakaoTest()
+    kakaoNotice.value = r.ok ? '나와의 채팅으로 시험 알림을 보냈습니다.' : (r.error || '보내지 못했습니다.')
+  } catch (e) {
+    kakaoNotice.value = e.message
+  }
+}
+async function disconnectKakao() {
+  await api.disconnectKakao()
+  kakaoNotice.value = '카카오 연결을 해제했습니다.'
+  refresh()
+}
 onMounted(() => {
+  const q = new URLSearchParams(window.location.search)
+  if (q.get('kakao') === 'ok') kakaoNotice.value = '카카오 나와의 채팅으로 알림을 받습니다.'
+  else if (q.get('kakao') === 'denied') kakaoNotice.value = '카카오 메시지 전송에 동의해야 알림을 받을 수 있습니다.'
+  else if (q.get('kakao') === 'fail') kakaoNotice.value = q.get('msg') || '카카오 연결에 실패했습니다.'
+  if (q.has('kakao')) {
+    q.delete('kakao'); q.delete('msg')
+    const left = q.toString()
+    window.history.replaceState({}, '', window.location.pathname + (left ? `?${left}` : ''))
+  }
   refresh(); tickClock()
   timer = setInterval(refresh, 3000)
   clockTimer = setInterval(tickClock, 10000)
@@ -659,6 +688,20 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <span class="search-icon">⌕</span>
             <input v-model="search" type="text" :placeholder="searchPlaceholder" />
           </div>
+          <button v-if="!kakao.connected" class="btn sm ghost" :disabled="!kakao.configured"
+                  :title="kakao.configured
+                    ? '로그인한 카카오 계정의 나와의 채팅으로 알림을 보냅니다.'
+                    : ('secrets_local.py 에 KAKAO_REST_API_KEY 를 넣고 API를 다시 켜세요. 리다이렉트 URI: ' + (kakao.redirect_uri || ''))"
+                  @click="connectKakao">
+            카카오 연결
+          </button>
+          <template v-else>
+            <button class="btn sm ghost" :title="(kakao.nickname || '연결됨') + ' 나와의 채팅으로 시험 메시지를 보냅니다.'"
+                    @click="testKakao">
+              카카오 시험{{ kakao.nickname ? ' · ' + kakao.nickname : '' }}
+            </button>
+            <button class="btn sm ghost" title="이 계정의 카카오 연결을 끊습니다." @click="disconnectKakao">해제</button>
+          </template>
           <button class="btn sm ghost" :title="soundOn ? '새 알림 소리 끄기' : '새 알림 소리 켜기'" @click="toggleSound">
             {{ soundOn ? '🔔 소리 켬' : '🔕 소리 끔' }}
           </button>
@@ -681,6 +724,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       </header>
 
       <p class="stamp">{{ nowText }}</p>
+      <p v-if="kakaoNotice" class="banner info">{{ kakaoNotice }}</p>
       <p v-if="resetNotice" class="banner info">{{ resetNotice }}</p>
       <p v-if="care.rule_conflicts && care.rule_conflicts.length" class="banner warn">
         같은 세대에 같은 위험도의 무활동 규칙이 겹쳐 있습니다
