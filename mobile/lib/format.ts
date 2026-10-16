@@ -9,11 +9,11 @@ export const SEV = {
 
 export const ALERT_STATE: Record<
   string,
-  { ko: string; cls: 'urgent' | 'watch' | 'normal' | 'muted' }
+  { ko: string; cls: 'urgent' | 'watch' | 'normal' | 'muted' | 'life' }
 > = {
   open: { ko: '대응 필요', cls: 'urgent' },
   missed: { ko: '응답 없이 지나감', cls: 'muted' },
-  assign: { ko: '배정', cls: 'watch' },
+  assign: { ko: '배정', cls: 'life' },
   ack: { ko: '확인', cls: 'watch' },
   progress: { ko: '방문·연락 중', cls: 'watch' },
   done: { ko: '조치 완료', cls: 'normal' },
@@ -22,6 +22,63 @@ export const ALERT_STATE: Record<
 };
 
 export const SEV_ORDER = ['URGENT', 'CHECK_DEVICE', 'WATCH', 'NORMAL'] as const;
+
+/** 조치 완료 결과 — 서버 engine.OUTCOMES 와 같은 키 */
+export const OUTCOMES = [
+  { id: 'outing', ko: '외출' },
+  { id: 'ok', ko: '정상 확인' },
+  { id: 'device', ko: '장치 문제' },
+  { id: 'visit', ko: '방문 필요' },
+] as const;
+
+export function outcomeKo(id: string | null | undefined): string {
+  return OUTCOMES.find((o) => o.id === id)?.ko || '';
+}
+
+export const PATTERN_KO: Record<string, string> = {
+  HOT_IDLE: '고온 지속 + 활동 저하',
+  MORNING_NONE: '아침 활동 부재',
+  NIGHT_WANDER: '야간 활동 변화',
+};
+
+export const FOLLOW_KO: Record<string, string> = {
+  RENOTIFY: '재통지',
+  ESCALATE: '다음 담당자에게 이관',
+};
+
+type SevHome = { severity?: keyof typeof SEV; life_check?: boolean };
+
+/** 생활 쪽 낮은 위험은 생활 확인. 배터리 주의는 주의로 남긴다. */
+export function sevKo(h: SevHome | null | undefined): string {
+  if (h?.life_check) return '생활 확인';
+  return (h?.severity && SEV[h.severity]?.ko) || '';
+}
+
+type SevAlert = {
+  welfare?: boolean;
+  device_check?: boolean;
+  life_check?: boolean;
+  from?: keyof typeof SEV | null;
+  to?: keyof typeof SEV;
+};
+
+/** 알림 한 줄의 위험 이름. 생활 확인은 배터리 주의와 같은 주의로 적지 않는다. */
+export function alertKo(a: SevAlert | null | undefined): string {
+  if (a?.welfare) return '안부 확인';
+  if (a?.device_check && a.from === a.to) return '장치 점검';
+  if (a?.life_check && a.to === 'WATCH') return '생활 확인';
+  return (a?.to && SEV[a.to]?.ko) || '';
+}
+
+export function alertIsLife(a: SevAlert | null | undefined): boolean {
+  return !a?.welfare && !(a?.device_check && a.from === a.to) && !!a?.life_check && a.to === 'WATCH';
+}
+
+export function alertSeverity(a: SevAlert | null | undefined): keyof typeof SEV {
+  if (a?.welfare) return 'URGENT';
+  if (a?.device_check && a.from === a.to) return 'CHECK_DEVICE';
+  return a?.to || 'NORMAL';
+}
 
 export const TYPE_KO: Record<string, string> = {
   motion: '움직임',

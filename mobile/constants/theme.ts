@@ -23,6 +23,8 @@ export const theme = {
   urgentSoft: '#fdeeee',
   device: '#5b5bd6',
   deviceSoft: '#eeeefc',
+  life: '#0f766e',
+  lifeSoft: '#e7f6f3',
 
   radius: 14,
   radiusSm: 9,

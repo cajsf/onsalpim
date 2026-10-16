@@ -6,7 +6,13 @@ export type CareHome = {
   reason?: string;
   welfare_check?: boolean;
   life_check?: boolean;
+  device_check?: boolean;
   life_known?: boolean;
+  life?: string;
+  device?: string;
+  basis?: string;
+  patterns?: string[];
+  followup?: { code: string } | null;
   last_contact_at?: string;
   last_activity_at?: string;
   judged_at?: string;
@@ -41,6 +47,7 @@ export type AlertRecord = {
   to: Severity;
   reason: string;
   welfare?: boolean;
+  device_check?: boolean;
   state: string | null;
   assignee?: string | null;
   outcome?: string | null;

@@ -11,25 +11,33 @@ import {
 } from '@/lib/api';
 
 const STORAGE_KEY = '@onsalpim/apiBase';
+const WORKER_KEY = '@onsalpim/worker';
 
 type SettingsContextValue = {
   apiBase: string;
   api: ApiClient;
   ready: boolean;
+  worker: string;
   setApiBase: (raw: string) => Promise<void>;
+  setWorker: (raw: string) => Promise<void>;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [apiBase, setApiBaseState] = useState(defaultApiBase());
+  const [worker, setWorkerState] = useState('복지사');
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
+        const [saved, savedWorker] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY),
+          AsyncStorage.getItem(WORKER_KEY),
+        ]);
         if (saved) setApiBaseState(resolveApiBase(saved));
+        if (savedWorker?.trim()) setWorkerState(savedWorker.trim().slice(0, 40));
       } catch {
         /* 저장소 불가면 env/기본값 */
       } finally {
@@ -49,11 +57,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(STORAGE_KEY, next);
   }, []);
 
+  const setWorker = useCallback(async (raw: string) => {
+    const next = raw.trim().slice(0, 40) || '복지사';
+    setWorkerState(next);
+    await AsyncStorage.setItem(WORKER_KEY, next);
+  }, []);
+
   const api = useMemo(() => createApi(apiBase), [apiBase]);
 
   const value = useMemo(
-    () => ({ apiBase, api, ready, setApiBase }),
-    [apiBase, api, ready, setApiBase],
+    () => ({ apiBase, api, ready, worker, setApiBase, setWorker }),
+    [apiBase, api, ready, worker, setApiBase, setWorker],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

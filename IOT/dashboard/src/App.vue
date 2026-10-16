@@ -40,7 +40,7 @@ const alerts = ref([])
 const alertFilter = ref('todo')      // 알림 이력: 미완료만 / 전체
 // open = 아무도 안 본 알림 (배지·팝업). 확인·방문 중도 조치 완료 전까지는 끝난 게 아니다 (미완료 탭).
 const openAlerts = computed(() => alerts.value.filter((a) => a.state === 'open'))
-const todoAlerts = computed(() => alerts.value.filter((a) => ['open', 'ack', 'progress'].includes(a.state)))
+const todoAlerts = computed(() => alerts.value.filter((a) => ['open', 'assign', 'ack', 'progress'].includes(a.state)))
 const shownAlerts = computed(() => alertFilter.value === 'todo' ? todoAlerts.value : alerts.value)
 
 /* 새 알림 소리 — 전시장처럼 끄고 싶은 곳이 있다. 이 브라우저에만 기억한다 */

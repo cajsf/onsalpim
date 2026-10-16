@@ -89,6 +89,7 @@ export function createApi(base: string) {
         ok: boolean;
         errors?: string[];
         log?: AlertRecord['log'];
+        assignee?: string | null;
       }>;
     },
     getRules: () => request<RuleRecord[]>('/rules'),

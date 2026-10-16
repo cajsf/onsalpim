@@ -18,20 +18,25 @@ export const SEV_COLORS: Record<
 };
 
 export const LIFE_COLORS = {
-  bg: '#e7f6f3',
-  text: '#0f766e',
-  border: '#e7f6f3',
-  bar: '#0f766e',
+  bg: theme.lifeSoft,
+  text: theme.life,
+  border: theme.lifeSoft,
+  bar: theme.life,
 };
 
 export const STATE_COLORS: Record<string, { bg: string; text: string }> = {
   urgent: { bg: theme.urgentSoft, text: theme.urgent },
   watch: { bg: theme.watchSoft, text: theme.watch },
+  life: { bg: theme.lifeSoft, text: theme.life },
   normal: { bg: theme.normalSoft, text: theme.normal },
   muted: { bg: theme.surface2, text: theme.muted },
 };
 
-export function severityBarColor(severity: Severity, welfare?: boolean): string {
-  if (welfare) return theme.urgent;
+export function severityBarColor(
+  severity: Severity,
+  flags?: { welfare?: boolean; life?: boolean },
+): string {
+  if (flags?.welfare) return theme.urgent;
+  if (flags?.life) return LIFE_COLORS.bar;
   return SEV_COLORS[severity]?.bar ?? theme.border;
 }

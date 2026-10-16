@@ -18,7 +18,7 @@ import type { AlertRecord, EngineStatus } from '@/lib/types';
 
 type Filter = 'todo' | 'all';
 
-const STATE_ORDER: Record<string, number> = { open: 0, ack: 1, progress: 2 };
+const STATE_ORDER: Record<string, number> = { open: 0, assign: 1, ack: 2, progress: 3 };
 
 function sortAlerts(list: AlertRecord[]): AlertRecord[] {
   return [...list].sort((a, b) => {
@@ -55,7 +55,7 @@ export default function AlertsScreen() {
     const base =
       filter === 'all'
         ? alerts
-        : alerts.filter((a) => ['open', 'ack', 'progress'].includes(a.state ?? ''));
+        : alerts.filter((a) => ['open', 'assign', 'ack', 'progress'].includes(a.state ?? ''));
     return sortAlerts(base);
   }, [alerts, filter]);
 

@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { EngineBanner } from '@/components/EngineBanner';
 import { HomeListItem } from '@/components/HomeListItem';
@@ -10,6 +10,8 @@ import { SEV_ORDER, stampOf } from '@/lib/format';
 import type { CareHome } from '@/lib/types';
 import { useNow } from '@/hooks/useNow';
 import { usePolling } from '@/hooks/usePolling';
+
+type HomeFilter = 'all' | 'urgent' | 'life' | 'device' | 'battery';
 
 function sortHomes(homes: CareHome[]): CareHome[] {
   return [...homes].sort((a, b) => {
@@ -23,6 +25,7 @@ function sortHomes(homes: CareHome[]): CareHome[] {
 export default function CareScreen() {
   const { api } = useSettings();
   const nowMs = useNow();
+  const [filter, setFilter] = useState<HomeFilter>('all');
 
   const fetchAll = useCallback(async () => {
     const [engine, care] = await Promise.all([api.getEngineStatus(), api.getCare()]);
@@ -33,7 +36,38 @@ export default function CareScreen() {
 
   const engine = data?.engine ?? null;
   const care = data?.care ?? null;
-  const homes = useMemo(() => sortHomes(care?.homes ?? []), [care]);
+  const homes = useMemo(() => {
+    const all = care?.homes ?? [];
+    const picked =
+      filter === 'urgent'
+        ? all.filter((h) => h.severity === 'URGENT')
+        : filter === 'life'
+          ? all.filter((h) => h.life_check)
+          : filter === 'device'
+            ? all.filter((h) => h.severity === 'CHECK_DEVICE' || h.device_check)
+            : filter === 'battery'
+              ? all.filter((h) => h.battery != null && h.battery < 20)
+              : all;
+    return sortHomes(picked);
+  }, [care, filter]);
+  const chips = useMemo(() => {
+    const all = care?.homes ?? [];
+    return [
+      { id: 'all' as const, label: '전체', n: all.length },
+      { id: 'urgent' as const, label: '긴급', n: all.filter((h) => h.severity === 'URGENT').length },
+      { id: 'life' as const, label: '생활 확인', n: all.filter((h) => h.life_check).length },
+      {
+        id: 'device' as const,
+        label: '장치 점검',
+        n: all.filter((h) => h.severity === 'CHECK_DEVICE' || h.device_check).length,
+      },
+      {
+        id: 'battery' as const,
+        label: '배터리',
+        n: all.filter((h) => h.battery != null && h.battery < 20).length,
+      },
+    ];
+  }, [care]);
   const updatedHint = care?.updated ? `판정 ${stampOf(care.updated)}` : null;
 
   return (
@@ -46,6 +80,19 @@ export default function CareScreen() {
           fetchError={error}
           updatedHint={updatedHint}
         />
+        <View style={styles.filters}>
+          {chips.map((c) => (
+            <Pressable
+              key={c.id}
+              style={StyleSheet.flatten([styles.chip, filter === c.id && styles.chipOn])}
+              onPress={() => setFilter(c.id)}
+            >
+              <Text style={StyleSheet.flatten([styles.chipText, filter === c.id && styles.chipTextOn])}>
+                {c.label} {c.n}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
         <FlatList
           data={homes}
           keyExtractor={(h) => h.home}
@@ -63,6 +110,18 @@ export default function CareScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: theme.screenPad, paddingBottom: 4 },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  chipOn: { backgroundColor: theme.brandSoft, borderColor: theme.brand },
+  chipText: { color: theme.text2, fontSize: 13, fontWeight: '600' },
+  chipTextOn: { color: theme.brandDim },
   listContent: { paddingTop: 8, paddingBottom: 24 },
   empty: { textAlign: 'center', color: theme.muted, marginTop: 40 },
 });

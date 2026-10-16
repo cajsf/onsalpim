@@ -10,7 +10,7 @@ export function useTabBadges(intervalMs = 5000) {
   const fetchCounts = useCallback(async () => {
     const [alerts, rules] = await Promise.all([api.getAlerts(50), api.getRules()]);
     const todo = alerts.filter((a) =>
-      ['open', 'ack', 'progress'].includes(a.state ?? ''),
+      ['open', 'assign', 'ack', 'progress'].includes(a.state ?? ''),
     ).length;
     const open = alerts.filter((a) => a.state === 'open').length;
     const pending = rules.filter((r) => r.status === 'pending').length;

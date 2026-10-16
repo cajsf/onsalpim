@@ -6,7 +6,7 @@ import { AlertActions } from '@/components/AlertActions';
 import { SeverityTag } from '@/components/SeverityTag';
 import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
-import { SEV, stampOf } from '@/lib/format';
+import { SEV, alertIsLife, alertKo, alertSeverity, stampOf } from '@/lib/format';
 import type { AlertRecord } from '@/lib/types';
 
 export default function AlertDetailScreen() {
@@ -62,22 +62,29 @@ export default function AlertDetailScreen() {
         <Text style={styles.ts}>{stampOf(a.ts)}</Text>
         <Text style={styles.home}>{a.home}호</Text>
         <View style={styles.tags}>
-          {a.welfare ? (
-            <SeverityTag severity="URGENT" label="안부 확인" />
-          ) : (
-            <SeverityTag severity={a.to} />
-          )}
+          <SeverityTag
+            severity={alertSeverity(a)}
+            label={alertKo(a)}
+            tone={alertIsLife(a) ? 'life' : undefined}
+          />
+          {a.assignee ? (
+            <View style={styles.who}>
+              <Text style={styles.whoText}>{a.assignee}</Text>
+            </View>
+          ) : null}
         </View>
         <Text style={styles.reason}>
-          {!a.welfare && a.from ? `${SEV[a.from]?.ko ?? a.from} → ` : ''}
-          {SEV[a.to]?.ko ?? a.to} · {a.reason}
+          {!a.welfare && !(a.device_check && a.from === a.to)
+            ? `${a.from ? (SEV[a.from]?.ko ?? a.from) : '첫 판정'} → ${alertKo(a)} · `
+            : ''}
+          {a.reason}
         </Text>
       </View>
       <AlertActions
         alert={a}
         api={api}
-        onUpdated={(log, state) => {
-          setAlert({ ...a, log, state });
+        onUpdated={(log, state, assignee) => {
+          setAlert({ ...a, log, state, assignee: assignee ?? a.assignee });
         }}
       />
     </ScrollView>
@@ -96,6 +103,8 @@ const styles = StyleSheet.create({
   },
   ts: { color: theme.muted, marginBottom: 4 },
   home: { fontSize: 22, fontWeight: '700', marginBottom: 8, color: theme.text },
-  tags: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8, alignItems: 'center' },
+  who: { backgroundColor: theme.lifeSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: theme.radiusSm },
+  whoText: { color: theme.life, fontSize: 12, fontWeight: '600' },
   reason: { lineHeight: 22, color: theme.text2 },
 });

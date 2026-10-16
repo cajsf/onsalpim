@@ -1,8 +1,8 @@
 import { Link } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { HomeTags } from '@/components/HomeTags';
 import { ListCard } from '@/components/ListCard';
-import { SeverityTag } from '@/components/SeverityTag';
 import { severityBarColor } from '@/constants/severityColors';
 import { theme } from '@/constants/theme';
 import { fmtAgo, secondsSince } from '@/lib/format';
@@ -13,7 +13,7 @@ type Props = { home: CareHome; nowMs: number };
 export function HomeListItem({ home, nowMs }: Props) {
   const contact = secondsSince(home.last_contact_at, nowMs) ?? home.silent_s ?? null;
   const activity = secondsSince(home.last_activity_at, nowMs) ?? home.idle_s ?? null;
-  const bar = severityBarColor(home.severity, home.welfare_check);
+  const bar = severityBarColor(home.severity, { welfare: home.welfare_check, life: home.life_check });
   const urgent = home.severity === 'URGENT' || home.welfare_check;
 
   return (
@@ -21,21 +21,20 @@ export function HomeListItem({ home, nowMs }: Props) {
       <ListCard barColor={bar} highlight={urgent}>
         <View style={styles.head}>
           <Text style={styles.title}>{home.home}호</Text>
-          {home.welfare_check ? (
-            <SeverityTag severity="CHECK_DEVICE" label="안부 확인" />
-          ) : home.life_check ? (
-            <SeverityTag severity="WATCH" label="생활 확인" tone="life" />
-          ) : (
-            <SeverityTag severity={home.severity} />
-          )}
+          <HomeTags home={home} />
         </View>
-        {home.reason ? (
+        {home.life ? (
+          <Text style={styles.reason} numberOfLines={2}>
+            {home.life}
+          </Text>
+        ) : home.reason ? (
           <Text style={styles.reason} numberOfLines={2}>
             {home.reason}
           </Text>
         ) : null}
         <Text style={styles.meta}>
           통신 {fmtAgo(contact)} · 움직임 {fmtAgo(activity)}
+          {home.device ? ` · ${home.device}` : ''}
         </Text>
       </ListCard>
     </Link>

@@ -3,11 +3,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HomeAbsencePanel } from '@/components/HomeAbsencePanel';
+import { HomeTags } from '@/components/HomeTags';
 import { HomeTimeline } from '@/components/HomeTimeline';
-import { SeverityTag } from '@/components/SeverityTag';
 import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
-import { fmtAgo, fmtMinutes, secondsSince, SEV } from '@/lib/format';
+import { PATTERN_KO, SEV, fmtAgo, fmtMinutes, secondsSince } from '@/lib/format';
 import type { CareHome } from '@/lib/types';
 import { useNow } from '@/hooks/useNow';
 
@@ -68,20 +68,26 @@ export default function HomeDetailScreen() {
     <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
       <View style={styles.head}>
         <Text style={styles.title}>{h.home}호</Text>
-        {h.welfare_check ? (
-          <SeverityTag severity="CHECK_DEVICE" label="안부 확인" />
-        ) : (
-          <SeverityTag severity={h.severity} />
-        )}
+        <HomeTags home={h} />
       </View>
-      {h.reason ? <Text style={styles.reason}>{h.reason}</Text> : null}
+      {h.basis ? <Text style={styles.reason}>{h.basis}</Text> : h.reason ? <Text style={styles.reason}>{h.reason}</Text> : null}
 
       <View style={styles.card}>
-        <Row label="마지막 통신" value={fmtAgo(contact)} flag={h.severity === 'CHECK_DEVICE' ? '두절' : undefined} />
+        <Row
+          label="마지막 통신"
+          value={fmtAgo(contact)}
+          flag={h.severity === 'CHECK_DEVICE' || h.device_check ? '두절' : undefined}
+        />
         <Row
           label="마지막 움직임"
           value={fmtAgo(activity)}
-          note={!h.life_known ? '(기록 기준) · 통신 두절 이후는 확인 불가' : undefined}
+          note={
+            h.device_check && h.severity === 'URGENT'
+              ? '· 두절 이후는 재판단하지 않음, 기존 긴급 확인 유지'
+              : !h.life_known
+                ? '(기록 기준) · 통신 두절 이후는 확인 불가'
+                : undefined
+          }
         />
         {h.idle_levels && h.idle_levels.length > 1 ? (
           <Row
@@ -100,7 +106,14 @@ export default function HomeDetailScreen() {
           />
         ) : null}
         {h.battery != null ? <Row label="배터리" value={`${Math.round(h.battery)}%`} /> : null}
-        <Row label="판정 시각" value={judged != null ? fmtAgo(judged) : '—'} />
+        {h.patterns && h.patterns.length ? (
+          <Row label="시간 패턴" value={h.patterns.map((c) => PATTERN_KO[c] || c).join(' · ')} />
+        ) : null}
+        <Row
+          label="판정 시각"
+          value={judged != null ? fmtAgo(judged) : '—'}
+          flag={judged != null && judged > 30 ? '판정이 갱신되지 않음' : undefined}
+        />
       </View>
 
       <HomeTimeline home={h.home} judgedAt={h.judged_at} />

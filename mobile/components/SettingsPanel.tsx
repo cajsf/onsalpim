@@ -6,14 +6,19 @@ import { useSettings } from '@/context/SettingsContext';
 import { FALLBACK_API_BASE } from '@/lib/api';
 
 export function SettingsPanel() {
-  const { apiBase, setApiBase, ready } = useSettings();
+  const { apiBase, setApiBase, ready, worker, setWorker } = useSettings();
   const [draft, setDraft] = useState(apiBase);
+  const [workerDraft, setWorkerDraft] = useState(worker);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
   useEffect(() => {
     setDraft(apiBase);
   }, [apiBase]);
+
+  useEffect(() => {
+    setWorkerDraft(worker);
+  }, [worker]);
 
   async function save() {
     setErr('');
@@ -38,8 +43,33 @@ export function SettingsPanel() {
     }
   }
 
+  async function saveWorker() {
+    setErr('');
+    setMsg('');
+    try {
+      await setWorker(workerDraft);
+      setMsg('담당자 이름을 저장했습니다. 이 이름으로 알림을 맡습니다.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   return (
     <View style={styles.card}>
+      <Text style={styles.title}>담당자 이름</Text>
+      <Text style={styles.hint}>알림을 맡는 이름입니다. 다른 이름은 같은 알림을 받을 수 없습니다.</Text>
+      <TextInput
+        style={styles.input}
+        value={workerDraft}
+        onChangeText={setWorkerDraft}
+        maxLength={40}
+        placeholder="복지사"
+        placeholderTextColor={theme.muted}
+        editable={ready}
+      />
+      <Pressable style={[styles.btn, styles.primary]} onPress={saveWorker}>
+        <Text style={styles.btnText}>이름 저장</Text>
+      </Pressable>
       <Text style={styles.title}>API 서버</Text>
       <Text style={styles.hint}>끝에 /api 가 없으면 자동으로 붙습니다.</Text>
       <Text style={styles.current}>현재: {apiBase}</Text>
