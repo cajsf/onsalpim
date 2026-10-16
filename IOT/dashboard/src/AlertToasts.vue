@@ -69,7 +69,7 @@ function beep(urgent) {
     <div v-for="a in toasts.slice(0, MAX)" :key="a.id" class="toast" :class="'t-' + alertClass(a)" role="alert">
       <div class="t-head">
         <span class="tag" :class="'tag-' + alertClass(a)">{{ alertKo(a) }}</span>
-        <strong>{{ a.home }}호</strong>
+        <strong>{{ a.outage ? '전체' : a.home + '호' }}</strong>
         <span class="mono t-time">{{ timeOf(a.ts) }}</span>
         <button class="t-x" title="팝업 닫기 (알림은 '대응 필요'로 남습니다)" @click="dismiss(a.id)">×</button>
       </div>

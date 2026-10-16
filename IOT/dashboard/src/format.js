@@ -84,6 +84,7 @@ export function sevClass(h) {
 
 /** 알림 한 줄의 위험 이름. 생활 확인은 배터리 주의와 같은 '주의'로 적지 않는다. */
 export function alertKo(a) {
+  if (a?.outage) return '망 점검'
   if (a?.follow && FOLLOW_KO[a.follow]) return FOLLOW_KO[a.follow]
   if (a?.welfare) return '안부 확인'
   if (a?.device_check && a?.from === a?.to) return '장치 점검'
@@ -92,6 +93,7 @@ export function alertKo(a) {
 }
 
 export function alertClass(a) {
+  if (a?.outage) return 'device'
   if (a?.follow === 'ESCALATE') return 'urgent'
   if (a?.follow === 'RENOTIFY') return 'watch'
   if (a?.welfare) return 'urgent'

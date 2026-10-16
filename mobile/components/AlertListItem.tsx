@@ -38,7 +38,8 @@ export function AlertListItem({ alert: a, compact }: Props) {
           <Text style={styles.time}>{compact ? timeOf(a.ts) : a.ts.slice(5, 16).replace('T', ' ')}</Text>
         </View>
         <Text style={styles.body} numberOfLines={3}>
-          {a.home}호 {arrow}
+          {a.outage ? '전체 ' : `${a.home}호 `}
+          {arrow}
           {a.reason}
         </Text>
       </ListCard>

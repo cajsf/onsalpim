@@ -60,7 +60,7 @@ export default function AlertDetailScreen() {
     <ScrollView style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.ts}>{stampOf(a.ts)}</Text>
-        <Text style={styles.home}>{a.home}호</Text>
+        <Text style={styles.home}>{a.outage ? '전체' : `${a.home}호`}</Text>
         <View style={styles.tags}>
           <SeverityTag
             severity={alertSeverity(a)}
@@ -74,7 +74,7 @@ export default function AlertDetailScreen() {
           ) : null}
         </View>
         <Text style={styles.reason}>
-          {!a.welfare && !(a.device_check && a.from === a.to)
+          {!a.outage && !a.welfare && !(a.device_check && a.from === a.to)
             ? `${a.from ? (SEV[a.from]?.ko ?? a.from) : '첫 판정'} → ${alertKo(a)} · `
             : ''}
           {a.reason}

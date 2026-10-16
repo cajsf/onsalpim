@@ -213,6 +213,28 @@ assert engine.record_followups(
     [{"home": "109", "severity": "WATCH", "life_check": True, "followup": {"code": "RENOTIFY", "ref": sid9}}],
     now=T0 + timedelta(seconds=5600)) == [], "이미 대응한 알림은 재통지하지 않음"
 
+# 세대가 둘 이상이고 모두 동시에 끊기면 알림은 망 점검 한 건이다.
+def judged(home, device=True, sev="CHECK_DEVICE", frm="NORMAL", away=None, welfare=False):
+    return {"home": home, "severity": sev, "changed": True, "from": frm, "reason": "통신 두절",
+            "welfare_check": welfare, "device_check": device, "life_check": False, "away": away}
+
+both = [judged("102"), judged("101")]
+assert engine.is_site_outage(both)
+assert not engine.is_site_outage([judged("101")]), "한 세대 두절은 그 세대 알림"
+assert not engine.is_site_outage([judged("101"), judged("102", device=False, sev="NORMAL", frm="NORMAL")])
+with open(engine.ALERTS_FILE, "w", encoding="utf-8") as f:
+    json.dump([], f)
+entered = engine.is_site_outage(both)
+individual = [r for r in both if not (entered and r.get("device_check"))]
+assert engine.append_alerts(individual) == []
+made = engine.record_site_outage(both, now=T0 + timedelta(seconds=6000))
+assert len(made) == 1 and made[0]["homes"] == ["101", "102"] and "망·서버" in made[0]["reason"]
+assert engine.record_site_outage(both, now=T0 + timedelta(seconds=6010)) == [], "같은 전체 두절은 한 번"
+out = next(a for a in engine.alerts_with_actions() if a.get("outage"))
+assert out["state"] == "open" and out["home"] == "전체"
+lone = [judged("104")]
+assert engine.append_alerts(lone)[0]["home"] == "104", "한 세대는 그 세대 알림으로 남음"
+
 print("알림 대응 점검 통과")
 
 

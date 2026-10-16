@@ -674,6 +674,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
         ({{ care.rule_conflicts.map((g) => '#' + g.ids.join('·#')).join(', ') }}). 더 짧은 기준을 적용 중입니다 —
         <a href="#" @click.prevent="activeView = 'rules'">규칙 관리</a>에서 어떤 규칙을 쓸지 골라 주세요.
       </p>
+      <p v-if="care.outage && care.outage.homes && care.outage.homes.length" class="banner warn">
+        {{ care.outage.homes.length }}세대({{ care.outage.homes.join('·') }})가 동시에 통신이 끊겼습니다.
+        가구마다의 이상이 아니라 망·서버를 먼저 봅니다.
+      </p>
       <p v-if="connectionError" class="banner err">{{ connectionError }}</p>
       <p v-else-if="!engineRunning" class="banner warn">
         규칙 엔진이 실행 중이 아닙니다. 세대 판정이 갱신되지 않습니다 —

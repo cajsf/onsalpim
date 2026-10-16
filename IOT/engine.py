@@ -1391,6 +1391,43 @@ def append_alerts(results):
     return new
 
 
+def is_site_outage(results):
+    """모니터링 중인 세대가 둘 이상이고, 부재가 아닌 세대가 모두 통신 두절이면 망·서버 쪽이다."""
+    if len(results) < 2:
+        return False
+    return all(r.get("device_check") and not r.get("away") for r in results)
+
+
+def record_site_outage(results, now=None):
+    """전체 두절이 시작된 순간에만 알림 한 건을 남긴다. 세대별 두절 알림은 호출하는 쪽이 뺀다."""
+    if not is_site_outage(results):
+        return []
+    now = now or datetime.now()
+    homes = [r["home"] for r in sorted(results, key=lambda r: r["home"])]
+    welfare = [r["home"] for r in results if r.get("welfare_check")]
+    reason = f"{len(homes)}세대가 동시에 통신이 끊겼습니다. 가구마다의 이상이 아니라 망·서버를 먼저 봅니다."
+    if welfare:
+        reason += f" 두절이 긴 세대({', '.join(welfare)})는 화면에서 안부 확인도 함께 봅니다."
+    item = {
+        "ts": now.isoformat(timespec="seconds"),
+        "home": "전체",
+        "from": None,
+        "to": "CHECK_DEVICE",
+        "reason": reason,
+        "welfare": False,
+        "device_check": True,
+        "life_check": False,
+        "outage": True,
+        "homes": homes,
+    }
+    log = load_alerts()
+    if log and log[0].get("outage") and log[0].get("homes") == homes:
+        return []
+    with open(ALERTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(([item] + log)[:ALERT_KEEP], f, ensure_ascii=False, indent=2)
+    return [item]
+
+
 FOLLOW_REASON = {
     "RENOTIFY": "대응 없이 10분 — 재통지",
     "ESCALATE": "대응 없이 20분 — 다음 담당자에게 이관",
@@ -2176,11 +2213,15 @@ def write_care_state(results, homes_state, rules=None, devices=None):
         applied = (homes_state.get(r["home"]) or {}).get("applied") or {}
         payload.append({**r, "applied": applied, "rules": by_home.get(r["home"], [])})
     with open(CARE_STATE_FILE, "w", encoding="utf-8") as f:
+        outage = None
+        if is_site_outage(results):
+            outage = {"homes": [r["home"] for r in sorted(results, key=lambda r: r["home"])]}
         json.dump({"updated": datetime.now().isoformat(), "homes": payload,
                    # 센서를 믿을 수 없어 멈춘 제어 규칙 — 로그에만 있으면 복지사는 모른다
                    "held_rules": {str(k): v for k, v in _held.items()},
                    # 판정을 Drools 가 내렸는지, Java 가 없어 파이썬으로 대신했는지 — 화면이 숨기지 않게
-                   "judge": rules_engine.which()},
+                   "judge": rules_engine.which(),
+                   "outage": outage},
                   f, ensure_ascii=False, indent=2)
 
 
@@ -2216,6 +2257,7 @@ def loop(interval=3):
     for a in reversed(load_alerts()):          # 오래된 것부터 덮어써서 세대별 최신만 남긴다
         wd.last_severity[a["home"]] = a["to"]
     # 마지막 판정이 긴급 확인이면, 재시작 직후 두절이 나도 그 건을 장치 점검으로 덮어쓰지 않는다.
+    outage_was = False
     if os.path.exists(CARE_STATE_FILE):
         try:
             with open(CARE_STATE_FILE, encoding="utf-8") as f:
@@ -2223,6 +2265,12 @@ def loop(interval=3):
             for h in saved_care.get("homes") or []:
                 if h.get("severity") == care_monitor.URGENT:
                     wd.confirmed_urgent[h["home"]] = True
+            # 이미 망 점검으로 묶어 둔 두절을 재시작 직후 세대별로 다시 알리지 않는다.
+            if saved_care.get("outage"):
+                outage_was = True
+                for h in saved_care.get("homes") or []:
+                    if h.get("home") and h.get("severity"):
+                        wd.last_severity[h["home"]] = h["severity"]
         except (OSError, json.JSONDecodeError):
             pass
     gap_since = _last_heartbeat()   # 직전 엔진이 멈춘 시각 — 첫 판정 때 타임라인에 공백으로 남긴다
@@ -2246,9 +2294,16 @@ def loop(interval=3):
                 append_history(results, gap_since)
                 update_stats(results)
                 gap_since = None
-                for a in append_alerts(results):   # 상태가 바뀐 세대만 기록/출력
+                entered_outage = is_site_outage(results) and not outage_was
+                # 전체가 동시에 끊긴 순간에는 세대별 두절 알림을 쓰지 않고 망 점검 한 건만 남긴다.
+                individual = [r for r in results if not (entered_outage and r.get("device_check"))]
+                for a in append_alerts(individual):   # 상태가 바뀐 세대만 기록/출력
                     print(f'  [{a["home"]}호] {care_monitor.LABEL_KO.get(a["from"], "첫 판정")} '
                           f'→ {care_monitor.LABEL_KO[a["to"]]}  ({a["reason"]})')
+                if entered_outage:
+                    for a in record_site_outage(results):
+                        print(f'  [망 점검] {a["reason"]}')
+                outage_was = is_site_outage(results)
                 for a in record_followups(results):
                     print(f'  [{a["home"]}호] {FOLLOW_REASON[a["follow"]]}')
 

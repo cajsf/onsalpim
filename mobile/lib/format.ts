@@ -60,12 +60,14 @@ type SevAlert = {
   device_check?: boolean;
   life_check?: boolean;
   follow?: string | null;
+  outage?: boolean;
   from?: keyof typeof SEV | null;
   to?: keyof typeof SEV;
 };
 
 /** 알림 한 줄의 위험 이름. 생활 확인은 배터리 주의와 같은 주의로 적지 않는다. */
 export function alertKo(a: SevAlert | null | undefined): string {
+  if (a?.outage) return '망 점검';
   if (a?.follow && FOLLOW_KO[a.follow]) return FOLLOW_KO[a.follow];
   if (a?.welfare) return '안부 확인';
   if (a?.device_check && a.from === a.to) return '장치 점검';

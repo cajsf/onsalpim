@@ -54,6 +54,8 @@ export type AlertRecord = {
   life_check?: boolean;
   follow?: 'RENOTIFY' | 'ESCALATE';
   ref?: string;
+  outage?: boolean;
+  homes?: string[];
   log: { at: string; status: string; by: string; memo?: string; outcome?: string }[];
   first_response_s?: number | null;
 };

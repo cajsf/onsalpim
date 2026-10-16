@@ -62,8 +62,8 @@ async function act(status) {
       <!-- 안부 확인: 위험도는 '점검 필요' 그대로라 'A → A'로 보이지 않게 따로 적는다 -->
       <span class="tag" :class="'tag-' + alertClass(a)">{{ alertKo(a) }}</span>
       <span class="atext">
-        <strong v-if="showHome">{{ a.home }}호 </strong>
-        <template v-if="!compact && !a.welfare && !(a.device_check && a.from === a.to)">{{ a.from ? (SEV[a.from]?.ko || a.from) : '첫 판정' }} → {{ alertKo(a) }} · </template>{{ a.reason }}
+        <strong v-if="showHome">{{ a.outage ? '전체 ' : a.home + '호 ' }}</strong>
+        <template v-if="!compact && !a.outage && !a.welfare && !(a.device_check && a.from === a.to)">{{ a.from ? (SEV[a.from]?.ko || a.from) : '첫 판정' }} → {{ alertKo(a) }} · </template>{{ a.reason }}
       </span>
       <span v-if="a.assignee" class="tag tag-life">{{ a.assignee }}</span>
       <span v-if="st" class="tag" :class="'tag-' + st.cls">{{ st.ko }}</span>
