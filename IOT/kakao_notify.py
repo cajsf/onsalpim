@@ -39,6 +39,10 @@ _pending_state = {}
 
 
 def _secret(name):
+    """환경 변수가 있으면 그 값을 쓴다. Render 에는 secrets_local.py 가 없다."""
+    env = str(os.environ.get(name) or "").strip()
+    if env:
+        return env
     try:
         import secrets_local
     except ImportError:
@@ -55,11 +59,22 @@ def client_secret():
 
 
 def redirect_uri():
-    return _secret("KAKAO_REDIRECT_URI") or "http://127.0.0.1:5001/api/kakao/callback"
+    explicit = _secret("KAKAO_REDIRECT_URI")
+    if explicit:
+        return explicit
+    external = str(os.environ.get("RENDER_EXTERNAL_URL") or "").rstrip("/")
+    if external:
+        return f"{external}/api/kakao/callback"
+    return "http://127.0.0.1:5001/api/kakao/callback"
 
 
 def dashboard_url():
-    return _secret("KAKAO_DASHBOARD_URL") or "http://localhost:5173/"
+    explicit = _secret("KAKAO_DASHBOARD_URL")
+    if explicit:
+        return explicit if explicit.endswith("/") else explicit + "/"
+    if os.environ.get("RENDER_EXTERNAL_URL"):
+        return "https://onsalpim-dashboard.onrender.com/"
+    return "http://localhost:5173/"
 
 
 def configured():

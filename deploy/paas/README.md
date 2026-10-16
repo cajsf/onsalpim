@@ -21,8 +21,11 @@ Mobius·Gemini는 **어떤 방식이든** 별도(수업 서버·API 키).
 2. `render.yaml` 이 **Web `onsalpim-api`** 를 만듦  
 3. **Environment** 에 추가 (Secret):
    - `GEMINI_API_KEY`
-   - `PLATFORM_API_KEY`  
-   (`start_paas.sh` 가 `secrets_local.py` 를 자동 생성)
+   - `PLATFORM_API_KEY`
+   - `KAKAO_REST_API_KEY` · `KAKAO_CLIENT_SECRET` (나에게 보내기)
+   - `KAKAO_REDIRECT_URI` = `https://onsalpim-api.onrender.com/api/kakao/callback`
+   - `KAKAO_DASHBOARD_URL` = `https://onsalpim-dashboard.onrender.com/`  
+   (`start_paas.sh` 가 `secrets_local.py` 를 자동 생성. 카카오 키는 환경 변수로도 읽는다)
 4. 배포 후 URL 확인: `https://onsalpim-api-xxxx.onrender.com`  
 5. 헬스: `https://.../api/health`
 

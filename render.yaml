@@ -18,6 +18,14 @@ services:
         sync: false
       - key: PLATFORM_API_KEY
         sync: false
+      - key: KAKAO_REST_API_KEY
+        sync: false
+      - key: KAKAO_CLIENT_SECRET
+        sync: false
+      - key: KAKAO_REDIRECT_URI
+        sync: false
+      - key: KAKAO_DASHBOARD_URL
+        sync: false
     healthCheckPath: /api/health
 
   # Static site — CDN만 쓰므로 plan 필드 없음 (free plan 은 Python Web 전용)

@@ -167,7 +167,9 @@ async function refresh() {
     const [c, r, a, eng] = await Promise.all([
       api.getCare(), api.getRules(), api.getAlerts(100), api.getEngineStatus(),
     ])
-    api.getKakao().then((k) => { kakao.value = k }).catch(() => {})
+    api.getKakao().then((k) => { kakao.value = k }).catch(() => {
+      kakao.value = { ...kakao.value, configured: false, error: '배포된 API가 카카오 연결을 아직 제공하지 않습니다. API를 다시 배포한 뒤 키 환경 변수를 넣으세요.' }
+    })
     care.value = c
     rules.value = r
     alerts.value = a
@@ -189,7 +191,12 @@ function tickClock() {
 }
 
 function connectKakao() {
-  window.location.href = '/api/kakao/login'
+  if (!kakao.value.configured) {
+    kakaoNotice.value = kakao.value.error
+      || `API에 카카오 키가 없습니다. 카카오 리다이렉트 URI에 ${kakao.value.redirect_uri || 'API 주소/api/kakao/callback'} 를 등록하세요.`
+    return
+  }
+  window.location.href = api.kakaoLoginUrl()
 }
 async function testKakao() {
   try {
@@ -688,10 +695,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             <span class="search-icon">⌕</span>
             <input v-model="search" type="text" :placeholder="searchPlaceholder" />
           </div>
-          <button v-if="!kakao.connected" class="btn sm ghost" :disabled="!kakao.configured"
+          <button v-if="!kakao.connected" class="btn sm ghost"
                   :title="kakao.configured
                     ? '로그인한 카카오 계정의 나와의 채팅으로 알림을 보냅니다.'
-                    : ('secrets_local.py 에 KAKAO_REST_API_KEY 를 넣고 API를 다시 켜세요. 리다이렉트 URI: ' + (kakao.redirect_uri || ''))"
+                    : ('카카오 키가 API에 없습니다. 리다이렉트 URI: ' + (kakao.redirect_uri || ''))"
                   @click="connectKakao">
             카카오 연결
           </button>

@@ -1,6 +1,11 @@
 // 로컬·VM(Nginx): '/api' — Render Static 등 분리 배포: VITE_API_BASE=https://xxx.onrender.com/api
 const BASE = import.meta.env.VITE_API_BASE || '/api'
 
+/** 카카오 로그인은 화면 주소가 아니라 API 주소로 연다. 정적 배포에서는 /api 가 없다. */
+export function kakaoLoginUrl() {
+  return `${String(BASE).replace(/\/$/, '')}/kakao/login`
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
@@ -21,6 +26,7 @@ export const api = {
   getActuators: () => request('/actuators'),
   getEngineStatus: () => request('/engine/status'),
   getKakao: () => request('/kakao/status'),
+  kakaoLoginUrl,
   sendKakaoTest: () => request('/kakao/test', { method: 'POST' }),
   disconnectKakao: () => request('/kakao/disconnect', { method: 'POST' }),
   getRules: () => request('/rules'),
