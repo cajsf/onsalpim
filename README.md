@@ -13,8 +13,10 @@
 
 ```
 IOT/                      파이썬 백엔드 (규칙 엔진·판정·검증·API)
-  ├─ engine.py            규칙 엔진 루프 (Watchdog 판정 포함)
+  ├─ engine.py            규칙 엔진 루프 (Watchdog 판정·알림 대응 포함)
   ├─ care_monitor.py      무활동/두절 판정 — AI 없음
+  ├─ care_patterns.py     시간 패턴 (고온·아침·야간·재통지)
+  ├─ rules_engine.py      Drools 또는 같은 순서의 파이썬 판정
   ├─ scope.py             세대 발견·범위·예외
   ├─ validator.py         장치·값 검증
   ├─ llm_translator.py    문장 → 규칙 (Gemini)
@@ -22,12 +24,15 @@ IOT/                      파이썬 백엔드 (규칙 엔진·판정·검증·AP
   ├─ virtual_home.py      개발용 가상 세대
   ├─ run_live.py          실물 보드로 돌릴 때 (가짜값 안 씀)
   ├─ verify_report.py     검증 시험 17개 (제안서에 인용)
-  ├─ test_history.py      타임라인·집계 점검
+  ├─ test_history.py      타임라인·집계·알림 대응 점검
   ├─ test_rules.py        규칙 충돌·예외·부재 점검
+  ├─ test_patterns.py     시간 패턴 점검
+  ├─ test_rules_engine.py Drools 와 파이썬 판정 대조 (Java·jar 가 있을 때)
   ├─ dashboard/           Vue 3 대시보드 (:5173)
-  └─ data/                규칙과 돌면서 쌓이는 기록
-                          (rules.json 만 저장소에 올라간다)
+  └─ data/                규칙·시연 프로필과 돌면서 쌓이는 기록
+                          (rules.json, care_profiles.json 만 저장소에 올라간다)
 
+analysis_outputs/         AIHub 집계와 14일 기준 추천의 근거 표·보고서
 mobile/                   Expo · 복지사 현장 앱 — mobile/README.md
 
 arduino/                  세대 노드 펌웨어
@@ -38,7 +43,9 @@ arduino/                  세대 노드 펌웨어
 
 docs/                     문서
   ├─ CODEX_인수인계_0917.md  설계 결정·실측·할 일
+  ├─ RULE_ENGINE.md       판정 코드·시간 패턴·화면 이름
   ├─ VERIFY_RESULT.md     검증 결과표 (verify_report.py --save 가 씀)
+  ├─ FAULT_INJECTION.md   고장 주입 결과 (measure_faults.py --save 가 씀)
   ├─ POSTMAN_SETUP.md     Mobius 초기 세팅용
   └─ archive/             지난 챌린지 기록 (참고용)
 ```
@@ -88,7 +95,37 @@ python virtual_home.py 101:move 102:still 104:batt=11  # (실물 보드 없을 �
 npm run dev --prefix dashboard                          # 대시보드 :5173
 ```
 
-가상 세대 모드: `move` 정상 · `still` 무활동→긴급 · `batt=11` 배터리 부족→주의 · 목록에서 빼면 두절→점검 필요
+가상 세대 모드: `move` 정상 · `still` 무활동→생활 확인, 기준을 더 넘기면 긴급 확인 · `batt=11` 배터리 부족→주의 · 목록에서 빼면 두절→장치 점검
+
+## 화면에서 보는 상태
+
+판정 코드는 네 단계(`NORMAL` · `WATCH` · `URGENT` · `CHECK_DEVICE`)이고, 화면 이름은 생활과 장치를 나눠 보여 준다.
+
+| 화면 | 언제 |
+|---|---|
+| **정상** | 통신이 살아 있고 생활·배터리 기준 안 |
+| **생활 확인** | 무활동이 낮은 단계를 넘음, 아침 첫 움직임이 없음, 야간 배회. 청록색 |
+| **주의** | 배터리 부족 |
+| **긴급 확인** | 무활동이 긴급 단계를 넘음, 고온이 이어지는데 움직임이 없음 |
+| **장치 점검** | 통신 두절. 이미 긴급 확인이던 세대는 긴급 확인을 유지하고 장치 점검을 함께 표시 |
+| **안부 확인** | 두절이 긴급 기준보다 길어짐. 위험도는 장치 점검으로 두고 원인만 기기로 표시 |
+
+복지사가 규칙 문장에 쓰는 말은 화면과 다르다. `점검 필요`는 규칙 입력용 이름이고, 화면에는 **장치 점검**으로 나온다.
+
+시간 패턴(아침 활동 부재, 고온+무활동, 야간 배회, 10분 재통지·20분 이관)은 [docs/RULE_ENGINE.md](docs/RULE_ENGINE.md) 에 있다. 시연 세대 기준은 `IOT/data/care_profiles.json` 이다.
+
+### 알림 업무
+
+상단의 이름이 담당자다. 기본값은 복지사이고, 대시보드는 그 브라우저에만 기억한다.
+
+1. **맡기** — 담당자가 비어 있을 때 이 이름으로 맡는다
+2. **확인** → **방문·연락 중** → **조치 완료**
+3. 조치 완료는 결과 하나(외출 · 정상 확인 · 장치 문제 · 방문 필요)가 있어야 한다. 메모는 덧붙일 수 있다
+4. 한 번 맡은 알림은 그 이름만 확인·완료할 수 있다. 현장 앱의 담당자 이름은 복지사로 고정되어 있다
+
+### 14일 기준 추천
+
+대시보드 **기준 추천**은 AIHub 5가구(E002·E016·E007·E012·E004)의 오전 활동 비율 후보를 검토하는 화면이다. 승인·수정·거부는 그 브라우저에만 남고, 시연 프로필과 실시간 판정에는 들어가지 않는다. E016은 개인 임계값이 0이라 추천 보류다. 숫자의 근거는 `analysis_outputs/` 다.
 
 ## 배포
 
@@ -101,8 +138,9 @@ npm run dev --prefix dashboard                          # 대시보드 :5173
 
 ```bash
 python verify_report.py      # 17/17 이어야 함 (--save 로 docs/VERIFY_RESULT.md 갱신)
-python test_history.py       # 타임라인·집계·알림 대응 점검
+python test_history.py       # 타임라인·집계·알림 담당·결과 코드 점검
 python test_rules.py         # 규칙 겹침·단계 경보 점검
+python test_patterns.py      # 시간 패턴 점검
 python measure_faults.py     # 고장 4종 오탐·미탐 (--save 로 docs/FAULT_INJECTION.md 갱신)
 python harness_eval.py --offline   # 하네스 실험 — 저장된 AI 답으로 재현 (--save 로 docs/HARNESS_EVAL.md)
 npm run build --prefix dashboard

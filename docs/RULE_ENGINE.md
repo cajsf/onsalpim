@@ -17,8 +17,12 @@
 
 ## 결정 코드 (8종)
 
-`DEVICE_WELFARE`(두절 + 긴급 기준 초과 → 점검 필요 + 안부 확인) · `DEVICE_SILENT` · `AWAY_BATTERY` · `AWAY` · `IDLE_URGENT` · `IDLE_WATCH` · `BATTERY` · `NORMAL`.
+`DEVICE_WELFARE`(두절 + 긴급 기준 초과 → 장치 점검 + 안부 확인) · `DEVICE_SILENT` · `AWAY_BATTERY` · `AWAY` · `IDLE_URGENT` · `IDLE_WATCH` · `BATTERY` · `NORMAL`.
 순서는 DRL 의 salience 이고, 앞 규칙이 결정을 넣으면 뒤 규칙은 `not Decision` 으로 막힌다.
+
+이미 긴급 확인으로 확인된 세대(`prior_urgent`)는 이후 통신이 끊겨도 `URGENT` 를 유지하고, `device_check` 로 장치 점검을 병행한다. 두절만으로 긴급 건을 지우지 않는다. 긴급으로 확인된 적이 없는 첫 두절은 `CHECK_DEVICE` 다.
+
+화면 이름은 결정 코드와 한 단계 더 나뉜다. `IDLE_WATCH`·`MORNING_NONE`·`NIGHT_WANDER` 는 **생활 확인**, `BATTERY` 는 **주의**, `CHECK_DEVICE` 는 **장치 점검**이다. 규칙 문장에 적는 `점검 필요`(`scope.SEV_KO`)는 입력용 이름이고 화면 표기와 다르다.
 
 ## 빌드·실행
 

@@ -253,7 +253,7 @@ def get_alerts():
 
 @app.route("/api/alerts/<path:alert_id>/action", methods=["POST"])
 def alert_action(alert_id):
-    """알림 대응 기록 — 확인 / 방문·연락 중 / 조치 완료(메모 필수)."""
+    """알림 대응 기록 — 맡기·확인·방문 중·조치 완료. 완료는 결과 코드가 필요하고, 다른 이름은 같은 건을 받지 못한다."""
     body = request.get_json(silent=True) or {}
     result = engine.record_action(
         alert_id, str(body.get("status", "")), str(body.get("memo", "")),
