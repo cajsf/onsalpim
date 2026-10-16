@@ -5,7 +5,7 @@ import { ListCard } from '@/components/ListCard';
 import { SeverityTag } from '@/components/SeverityTag';
 import { STATE_COLORS, severityBarColor } from '@/constants/severityColors';
 import { theme } from '@/constants/theme';
-import { ALERT_STATE, SEV, alertIsLife, alertKo, alertSeverity, timeOf } from '@/lib/format';
+import { ALERT_STATE, alertChange, alertIsLife, alertKo, alertSeverity, timeOf } from '@/lib/format';
 import type { AlertRecord } from '@/lib/types';
 
 type Props = { alert: AlertRecord; compact?: boolean };
@@ -16,9 +16,7 @@ export function AlertListItem({ alert: a, compact }: Props) {
   const life = alertIsLife(a);
   const bar = severityBarColor(alertSeverity(a), { welfare: a.welfare, life });
   const name = alertKo(a);
-  const sameDevice = a.device_check && a.from === a.to;
-  const fromKo = a.from ? (SEV[a.from]?.ko ?? a.from) : '';
-  const arrow = !a.welfare && !sameDevice && fromKo ? `${fromKo} → ${name} · ` : '';
+  const arrow = compact ? '' : alertChange(a);
 
   return (
     <Link href={`/alert/${encodeURIComponent(a.id)}`} asChild>

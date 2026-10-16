@@ -74,6 +74,15 @@ export function alertKo(a: SevAlert | null | undefined): string {
   return (a?.to && SEV[a.to]?.ko) || '';
 }
 
+/** 알림 문장 앞의 '이전 → 지금'. 화면에 보이는 이름이 같을 때는 빈 문자열. */
+export function alertChange(a: SevAlert | null | undefined): string {
+  if (!a || a.outage || a.welfare) return '';
+  const to = alertKo(a);
+  const from = a.from ? (SEV[a.from]?.ko ?? a.from) : '첫 판정';
+  if (!to || from === to) return '';
+  return `${from} → ${to} · `;
+}
+
 export function alertIsLife(a: SevAlert | null | undefined): boolean {
   return !a?.welfare && !(a?.device_check && a.from === a.to) && !!a?.life_check && a.to === 'WATCH';
 }

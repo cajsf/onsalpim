@@ -8,7 +8,7 @@ import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
 import MonthlyReport from './MonthlyReport.vue'
 import RulePreview from './RulePreview.vue'
-import { SEV, SEV_ORDER, FOLLOW_KO, sevKo, sevClass, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
+import { SEV, SEV_ORDER, ALERT_STATE, FOLLOW_KO, sevKo, sevClass, alertKo, alertChange, outcomeKo, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
 
 const NAV = [
   { id: 'dashboard', label: '대시보드', icon: 'home', ready: true },
@@ -31,10 +31,30 @@ const care = ref({ homes: [], updated: null, stale: true, message: '' })
 const rules = ref([])
 const alerts = ref([])
 const alertFilter = ref('todo')      // 알림 이력: 미완료만 / 전체
+const search = ref('')
 // open = 아무도 안 본 알림 (배지·팝업). 확인·방문 중도 조치 완료 전까지는 끝난 게 아니다 (미완료 탭).
 const openAlerts = computed(() => alerts.value.filter((a) => a.state === 'open'))
 const todoAlerts = computed(() => alerts.value.filter((a) => ['open', 'assign', 'ack', 'progress'].includes(a.state)))
-const shownAlerts = computed(() => alertFilter.value === 'todo' ? todoAlerts.value : alerts.value)
+/** 알림 이력에서 위쪽 검색창이 세대·상태·사유를 거른다. */
+function alertMatches(a, q) {
+  const bits = [
+    a.outage ? '전체' : `${a.home || ''}호`,
+    a.home,
+    alertKo(a),
+    alertChange(a),
+    ALERT_STATE[a.state]?.ko,
+    outcomeKo(a.outcome),
+    a.reason,
+    a.assignee,
+  ]
+  return bits.filter(Boolean).join(' ').includes(q)
+}
+const shownAlerts = computed(() => {
+  const list = alertFilter.value === 'todo' ? todoAlerts.value : alerts.value
+  const q = search.value.trim()
+  if (!q) return list
+  return list.filter((a) => alertMatches(a, q))
+})
 
 /* 새 알림 소리 — 전시장처럼 끄고 싶은 곳이 있다. 이 브라우저에만 기억한다 */
 const soundOn = ref(true)
@@ -112,7 +132,10 @@ const lastSentence = ref('')   // 성공하면 입력창은 비우지만 요약 
 
 /* 표 필터 */
 const filter = ref('all')
-const search = ref('')
+const searchPlaceholder = computed(() =>
+  activeView.value === 'alerts'
+    ? '세대, 상태, 사유를 검색해보세요'
+    : '세대, 상태, 규칙을 검색해보세요')
 
 /* 펼쳐진 세대 — 판단 근거를 보여준다 */
 const expanded = ref(new Set())
@@ -593,7 +616,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
         </div>
         <div>
           <p class="brand-name">온살핌</p>
-          <p class="brand-sub">말로 만들고, 한눈에 살피다</p>
+          <p class="brand-sub">한줄로 편하게, 한눈에 살피다</p>
         </div>
       </a>
 
@@ -629,12 +652,12 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       <header class="topbar">
         <div>
           <h1>온살핌 웹 대시보드</h1>
-          <p class="topbar-sub">말로 만들고, 한눈에 살피다</p>
+          <p class="topbar-sub">한줄로 편하게, 한눈에 살피다</p>
         </div>
         <div class="topbar-right">
           <div class="search">
             <span class="search-icon">⌕</span>
-            <input v-model="search" type="text" placeholder="세대, 상태, 규칙을 검색해보세요" />
+            <input v-model="search" type="text" :placeholder="searchPlaceholder" />
           </div>
           <button class="btn sm ghost" :title="soundOn ? '새 알림 소리 끄기' : '새 알림 소리 켜기'" @click="toggleSound">
             {{ soundOn ? '🔔 소리 켬' : '🔕 소리 끔' }}
@@ -1248,7 +1271,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 위험도가 바뀐 순간과, 대응 없이 10분·20분이 지난 재통지·이관을 기록합니다. 이상 알림은 복지사가 대응해야 끝나고, 누가·언제·무엇을 했는지 남습니다.
               </p>
             </div>
-            <span class="count">{{ alerts.length }}건</span>
+            <span class="count">{{ search.trim() ? shownAlerts.length + '건' : alerts.length + '건' }}</span>
           </div>
           <div class="tabs">
             <button class="tab" :class="{ on: alertFilter === 'todo', urgent: alertFilter === 'todo' }"
@@ -1260,7 +1283,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             </button>
           </div>
           <p v-if="!shownAlerts.length" class="empty">
-            {{ alertFilter === 'todo' ? '조치할 알림이 없습니다.' : '아직 기록된 알림이 없습니다.' }}
+            {{ search.trim() ? '검색한 알림이 없습니다.' : (alertFilter === 'todo' ? '조치할 알림이 없습니다.' : '아직 기록된 알림이 없습니다.') }}
           </p>
           <ul v-else class="alerts big">
             <AlertItem v-for="a in shownAlerts" :key="a.id" :a="a" :worker="worker" :focused="a.id === focusAlertId"

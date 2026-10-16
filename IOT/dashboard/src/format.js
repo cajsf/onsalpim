@@ -101,6 +101,15 @@ export function alertClass(a) {
   return SEV[a?.to]?.cls || 'normal'
 }
 
+/** 알림 문장 앞의 '이전 → 지금'. 화면에 보이는 이름이 같을 때는 비운다. */
+export function alertChange(a) {
+  if (!a || a.outage || a.welfare) return ''
+  const to = alertKo(a)
+  const from = a.from ? (SEV[a.from]?.ko || a.from) : '첫 판정'
+  if (!to || from === to) return ''
+  return `${from} → ${to} · `
+}
+
 export const TYPE_KO = {
   motion: '움직임', temperature: '온도', humidity: '습도',
   battery: '배터리', light: '조명', window: '창문', card: '카드',

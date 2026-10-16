@@ -6,7 +6,7 @@ import { AlertActions } from '@/components/AlertActions';
 import { SeverityTag } from '@/components/SeverityTag';
 import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
-import { SEV, alertIsLife, alertKo, alertSeverity, stampOf } from '@/lib/format';
+import { alertChange, alertIsLife, alertKo, alertSeverity, stampOf } from '@/lib/format';
 import type { AlertRecord } from '@/lib/types';
 
 export default function AlertDetailScreen() {
@@ -74,9 +74,7 @@ export default function AlertDetailScreen() {
           ) : null}
         </View>
         <Text style={styles.reason}>
-          {!a.outage && !a.welfare && !(a.device_check && a.from === a.to)
-            ? `${a.from ? (SEV[a.from]?.ko ?? a.from) : '첫 판정'} → ${alertKo(a)} · `
-            : ''}
+          {alertChange(a)}
           {a.reason}
         </Text>
       </View>

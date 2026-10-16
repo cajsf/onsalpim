@@ -3,7 +3,7 @@
 // compact: 목록 요약용 (대응 상태 배지만). 아니면 대응 버튼과 기록까지.
 import { ref, computed } from 'vue'
 import { api } from './api.js'
-import { SEV, ALERT_STATE, OUTCOMES, alertKo, alertClass, outcomeKo, fmtAgo, stampOf, timeOf } from './format.js'
+import { ALERT_STATE, OUTCOMES, alertKo, alertClass, alertChange, outcomeKo, fmtAgo, stampOf, timeOf } from './format.js'
 
 const props = defineProps({
   a: { type: Object, required: true },
@@ -25,6 +25,7 @@ const error = ref('')
 const actionable = computed(() => ['open', 'assign', 'ack', 'progress'].includes(props.a.state))
 const st = computed(() => ALERT_STATE[props.a.state])
 const mine = computed(() => !props.a.assignee || props.a.assignee === (props.worker || '복지사'))
+const changeText = computed(() => (props.compact ? '' : alertChange(props.a)))
 
 // 지금 보이는 조치 메모 — 고쳤으면 마지막 수정본
 const lastMemo = computed(() =>
@@ -63,7 +64,7 @@ async function act(status) {
       <span class="tag" :class="'tag-' + alertClass(a)">{{ alertKo(a) }}</span>
       <span class="atext">
         <strong v-if="showHome">{{ a.outage ? '전체 ' : a.home + '호 ' }}</strong>
-        <template v-if="!compact && !a.outage && !a.welfare && !(a.device_check && a.from === a.to)">{{ a.from ? (SEV[a.from]?.ko || a.from) : '첫 판정' }} → {{ alertKo(a) }} · </template>{{ a.reason }}
+        <template v-if="changeText">{{ changeText }}</template>{{ a.reason }}
       </span>
       <span v-if="a.assignee" class="tag tag-life">{{ a.assignee }}</span>
       <span v-if="st" class="tag" :class="'tag-' + st.cls">{{ st.ko }}</span>
