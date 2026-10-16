@@ -39,6 +39,14 @@ export const PATTERN_KO: Record<string, string> = {
   HOT_IDLE: '고온 지속 + 활동 저하',
   MORNING_NONE: '아침 활동 부재',
   NIGHT_WANDER: '야간 활동 변화',
+  MORNING_LOW: '아침 활동 부재 (개인 기준)',
+  COLD_IDLE: '저온 지속 + 활동 저하',
+  HUMID_IDLE: '습도 이상 + 활동 감소',
+  DAY_DROP: '주간 활동 급감',
+  DAILY_DECLINE: '반복 활동 감소',
+  ROUTINE_OVERDUE: '외출·수면 뒤 추가 확인',
+  ROUTINE_HOLD: '생활 일정 중 (주의 보류)',
+  SENSOR_STUCK: '센서값 고정·범위 밖',
 };
 
 export const FOLLOW_KO: Record<string, string> = {

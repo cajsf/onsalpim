@@ -40,7 +40,16 @@ SAFETY = {
     "hot_c_max": 32.0,            # 고온 기준을 이보다 높이면 폭염 위험을 놓친다
     "morning_by_latest": "12:00",  # 첫 움직임 기한을 정오보다 늦추면 오전 확인이 사실상 꺼진다
     "wander_count_max": 60,       # 움직임은 1분 간격으로 남긴다 — 1시간 60회 초과는 충족 불가능
+    "cold_c_min": 16.0,           # 저온 기준을 이보다 낮추면 한랭 위험을 놓친다
+    "humid_lo_min": 10.0,         # 습도 정상 범위를 이보다 넓히면 습도 이상을 사실상 안 본다
+    "humid_hi_max": 90.0,
+    "routine_hours_max": 12,      # 생활 일정으로 주의 단계를 보류하는 시간 — 하루 12시간을 넘길 수 없다
 }
+
+
+def _routine_hours(r):
+    a, b = (int(x[:2]) * 60 + int(x[3:]) for x in (r["from"], r["to"]))
+    return ((b - a) % 1440 or 1440) / 60
 
 
 def _floor(ts):
@@ -120,6 +129,22 @@ def check(profile):
     if by is not None and by > SAFETY["morning_by_latest"]:
         blocks.append(f"첫 움직임 기한 {by}는 공통 상한 {SAFETY['morning_by_latest']}보다 늦습니다 — "
                       f"오전 확인이 사실상 꺼집니다")
+    cold = profile.get("cold_c")
+    if cold is not None and float(cold) < SAFETY["cold_c_min"]:
+        blocks.append(f"저온 기준 {float(cold):g}℃는 공통 하한 {SAFETY['cold_c_min']:g}℃보다 낮습니다 — "
+                      f"공통 안전 정책을 무력화합니다")
+    hm = profile.get("humid") or {}
+    if float(hm.get("lo", SAFETY["humid_lo_min"])) < SAFETY["humid_lo_min"] or \
+            float(hm.get("hi", SAFETY["humid_hi_max"])) > SAFETY["humid_hi_max"]:
+        blocks.append(f"습도 정상 범위 {hm.get('lo')}~{hm.get('hi')}%는 공통 한계 "
+                      f"{SAFETY['humid_lo_min']:g}~{SAFETY['humid_hi_max']:g}%보다 넓습니다 — 습도 이상을 사실상 보지 않습니다")
+    for d in range(7):                   # 요일마다 그날 걸리는 일정 시간을 더한다
+        hours = sum(_routine_hours(r) for r in profile.get("routines") or []
+                    if r.get("days") is None or d in r["days"])
+        if hours > SAFETY["routine_hours_max"]:
+            blocks.append(f"생활 일정으로 보류하는 시간이 하루 {hours:g}시간입니다 (최대 "
+                          f"{SAFETY['routine_hours_max']}시간) — 그 시간 동안 주의 단계 알림이 꺼집니다")
+            break
     w = profile.get("wander")
     if w and int(w.get("count", 0)) > SAFETY["wander_count_max"]:
         blocks.append(f"새벽 움직임 {w['count']}회는 1시간에 나올 수 없는 횟수입니다 (최대 "
@@ -283,6 +308,12 @@ if __name__ == "__main__":
     assert not c["ok"] and "충족 불가능" in c["blocks"][0], c
     assert not check({"hot_c": 35})["ok"] and not check({"wander": {"count": 99}})["ok"]
     assert not check({"morning_by": "13:00"})["ok"] and check({"morning_by": "09:30"})["ok"]
+    assert not check({"cold_c": 12})["ok"] and check({"cold_c": 18})["ok"]
+    assert not check({"humid": {"lo": 5, "hi": 80}})["ok"] and check({"humid": {"lo": 25, "hi": 75}})["ok"]
+    sleep = {"label": "수면", "from": "22:00", "to": "07:00"}
+    assert check({"routines": [sleep]})["ok"], "수면 9시간은 된다"
+    assert not check({"routines": [sleep, {"label": "복지관", "from": "10:00", "to": "14:00", "days": [1]}]})["ok"], \
+        "화요일은 9+4=13시간 — 막는다"
     assert check({"morning_theta": {8: None, 9: 0.3, 10: None, 11: None}})["notes"]
     assert not check({"morning_theta": {8: None, 9: None, 10: None, 11: None}})["ok"]
     print("개인 기준 계산·안전성 검토 점검 통과")

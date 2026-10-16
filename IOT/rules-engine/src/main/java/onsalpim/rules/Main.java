@@ -110,7 +110,8 @@ public final class Main {
                 Double hot = num(h, "hot_c");
                 Double wander = num(h, "wander_count");
                 s.insert(new Home(h.get("id").asText(), hot, lng(h, "morning_from"), lng(h, "morning_by"),
-                        lng(h, "night_from"), lng(h, "night_to"), wander == null ? null : wander.intValue()));
+                        lng(h, "night_from"), lng(h, "night_to"), wander == null ? null : wander.intValue(),
+                        num(h, "cold_c"), num(h, "humid_lo"), num(h, "humid_hi"), lng(h, "day_from"), lng(h, "day_to")));
             }
             java.util.List<JsonNode> evs = new java.util.ArrayList<>();
             req.get("events").forEach(evs::add);

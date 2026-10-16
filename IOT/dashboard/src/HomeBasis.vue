@@ -68,6 +68,10 @@ const judgedAgo = computed(() => secondsSince(props.h.judged_at))
       <dt>시간 패턴</dt>
       <dd>{{ h.patterns.map((c) => PATTERN_KO[c] || c).join(' · ') }}</dd>
     </div>
+    <div v-if="h.context && h.context.length">
+      <dt>일정·센서</dt>
+      <dd>{{ h.context.map((c) => PATTERN_KO[c] || c).join(' · ') }}</dd>
+    </div>
     <div><dt>판단 근거</dt><dd class="basis-text">{{ h.basis }}</dd></div>
     <div v-if="judgedAgo != null">
       <dt>판정 시각</dt>

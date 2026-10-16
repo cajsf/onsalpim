@@ -12,6 +12,7 @@ export type CareHome = {
   device?: string;
   basis?: string;
   patterns?: string[];
+  context?: string[];
   followup?: { code: string } | null;
   last_contact_at?: string;
   last_activity_at?: string;

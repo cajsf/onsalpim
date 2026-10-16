@@ -109,6 +109,9 @@ export default function HomeDetailScreen() {
         {h.patterns && h.patterns.length ? (
           <Row label="시간 패턴" value={h.patterns.map((c) => PATTERN_KO[c] || c).join(' · ')} />
         ) : null}
+        {h.context && h.context.length ? (
+          <Row label="일정·센서" value={h.context.map((c) => PATTERN_KO[c] || c).join(' · ')} />
+        ) : null}
         <Row
           label="판정 시각"
           value={judged != null ? fmtAgo(judged) : '—'}

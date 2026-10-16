@@ -1520,10 +1520,11 @@ def append_history(results, gap_since=None, now=None):
         if not h["sev"] or h["sev"][-1][1] != r["severity"]:
             h["sev"].append([r["judged_at"], r["severity"]])
             dirty = True
-        t = r.get("temp")
-        if t and (not h.get("temp") or _gap_s(h["temp"][-1][0], t[0]) >= MOVE_GAP_S):
-            h.setdefault("temp", []).append(t)
-            dirty = True
+        for kind in ("temp", "humid"):
+            t = r.get(kind)
+            if t and (not h.get(kind) or _gap_s(h[kind][-1][0], t[0]) >= MOVE_GAP_S):
+                h.setdefault(kind, []).append(t)
+                dirty = True
         a = r.get("last_activity_at")
         if a and a != h["seen"]:
             # 처음 보는 값은 기준점일 뿐(엔진 켜기 전 기록이거나 컨테이너 생성 시각) — 움직임으로 치지 않는다
@@ -1539,9 +1540,10 @@ def append_history(results, gap_since=None, now=None):
         if h["move"] and h["move"][0] < cutoff:
             h["move"] = [t for t in h["move"] if t >= cutoff]
             dirty = True
-        if h.get("temp") and h["temp"][0][0] < cutoff:
-            h["temp"] = [t for t in h["temp"] if t[0] >= cutoff]
-            dirty = True
+        for kind in ("temp", "humid"):
+            if h.get(kind) and h[kind][0][0] < cutoff:
+                h[kind] = [t for t in h[kind] if t[0] >= cutoff]
+                dirty = True
     if dirty:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(hist, f, ensure_ascii=False)
@@ -2109,6 +2111,7 @@ def collect_home_state(devices, rules):
     absences = load_absences()
     profiles = care_patterns.load_profiles()
     hist = load_history()
+    stats = load_stats().get("homes", {})
     open_alerts = _latest_alert_events()
     state = {}
 
@@ -2124,13 +2127,8 @@ def collect_home_state(devices, rules):
             raw = iot.get_latest_by_path(batt_dev["path"])
             batt = _num(raw)
 
-        temp = None
-        temp_dev = scope.find_sensor(home, "temperature", devices)
-        if temp_dev is not None:
-            cin = iot.get_latest_cin_full(temp_dev["path"])
-            at, val = care_monitor.parse_ct((cin or {}).get("ct")), _num((cin or {}).get("con"))
-            if at is not None and val is not None:
-                temp = [at.isoformat(timespec="seconds"), val]
+        temp = _latest_reading(home, "temperature", devices)
+        humid = _latest_reading(home, "humidity", devices)
         last_activity = care_monitor.read_activity(evt) if evt else None
 
         levels = level_map.get(home) or []
@@ -2145,8 +2143,10 @@ def collect_home_state(devices, rules):
             "battery": batt,
             "applied": applied,                      # 추적표용 (예외 여부·공통값)
             "temp": temp,
+            "humid": humid,                          # [측정 시각, %] — 습도 이상·센서값 고정을 본다
             "profile": profiles.get(home),
-            "events": _pattern_events(home, hist.get(home) or {}, last_activity, temp, profiles.get(home))
+            "events": _pattern_events(home, hist.get(home) or {}, last_activity, temp, profiles.get(home),
+                                      humid=humid, stats_home=stats.get(home))
                       + open_alerts.get(home, []),
         }
     return state
@@ -2156,19 +2156,37 @@ def _ms(iso):
     return care_patterns.ms(datetime.fromisoformat(iso))
 
 
-def _pattern_events(home, h, last_activity, temp, profile=None, now=None):
-    """시간 패턴 재료 — 타임라인의 움직임·온도와 지금 읽은 값.
-    승인된 오전 개인 기준이 있으면 10분 칸(관측된 칸만)과 오늘 지난 평가 시각도 넣는다."""
+def _latest_reading(home, kind, devices):
+    """세대의 온도·습도 센서 최신값 [측정 시각 ISO, 값]. 센서가 없거나 읽지 못하면 None."""
+    dev = scope.find_sensor(home, kind, devices)
+    if dev is None:
+        return None
+    cin = iot.get_latest_cin_full(dev["path"])
+    at, val = care_monitor.parse_ct((cin or {}).get("ct")), _num((cin or {}).get("con"))
+    return None if at is None or val is None else [at.isoformat(timespec="seconds"), val]
+
+
+def _pattern_events(home, h, last_activity, temp, profile=None, now=None, humid=None, stats_home=None):
+    """시간 패턴 재료 — 타임라인의 움직임·온도·습도와 지금 읽은 값.
+    승인된 오전 개인 기준·주간 급감이 켜져 있으면 10분 칸(관측된 칸만)을, 반복 활동 감소가 켜져 있으면
+    지난 날들의 하루 활동 비율을, 생활 일정이 있으면 어제·오늘의 일정 구간을 넣는다."""
+    p = profile or {}
+    now = now or datetime.now()
     ev = [{"home": home, "type": "motion", "ts": _ms(t)} for t in h.get("move", [])]
     if last_activity is not None and h.get("seen") is not None:
         ev.append({"home": home, "type": "motion", "ts": care_patterns.ms(last_activity)})
-    temps = list(h.get("temp", [])) + ([temp] if temp else [])
-    ev += [{"home": home, "type": "temp", "ts": _ms(t), "value": float(v)} for t, v in temps]
-    if (profile or {}).get("morning_theta"):
-        now = now or datetime.now()
+    for kind, now_val in (("temp", temp), ("humid", humid)):
+        vals = list(h.get(kind, [])) + ([now_val] if now_val else [])
+        ev += [{"home": home, "type": kind, "ts": _ms(t), "value": float(v)} for t, v in vals]
+    if p.get("morning_theta") or p.get("day_drop"):
         moves = [datetime.fromisoformat(t) for t in h.get("move", [])] + ([last_activity] if last_activity else [])
-        ev += care_patterns.slot_events(home, moves, _observed(h.get("sev", []), now), now)
+        hours = 6 if p.get("day_drop") else 5
+        ev += care_patterns.slot_events(home, moves, _observed(h.get("sev", []), now), now, hours=hours)
+    if p.get("morning_theta"):
         ev += care_patterns.morning_events(home, profile, now)
+    if p.get("daily_decline"):
+        ev += care_patterns.day_events(home, stats_home, now)
+    ev += care_patterns.routine_events(home, profile, now)
     return ev
 
 
