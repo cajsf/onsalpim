@@ -43,17 +43,27 @@ export function defaultApiBase(): string {
   return resolveApiBase(process.env.EXPO_PUBLIC_API_BASE);
 }
 
-export function createApi(base: string) {
+export function createApi(base: string, token = '', onUnauthorized?: () => void) {
   const BASE = normalizeApiBase(base);
 
-  async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  function jsonHeaders(extra?: Record<string, string>): Record<string, string> {
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...extra,
+    };
+  }
+
+  async function request<T>(path: string, options: RequestInit = {}, dropOn401 = true): Promise<T> {
     const res = await fetch(`${BASE}${path}`, {
       ...options,
       headers: {
         ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers as Record<string, string>),
       },
     });
+    if (dropOn401 && res.status === 401) onUnauthorized?.();
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg =
@@ -67,6 +77,15 @@ export function createApi(base: string) {
 
   return {
     base: BASE,
+    sessionStatus: () => request<{ required: boolean }>('/session'),
+    loginStaff: (code: string) =>
+      request<{ required: boolean; token: string }>(
+        '/session',
+        { method: 'POST', body: JSON.stringify({ code }) },
+        false,
+      ),
+    logoutStaff: () =>
+      request<{ ok: boolean }>('/session', { method: 'DELETE' }, false),
     getEngineStatus: () => request<EngineStatus>('/engine/status'),
     getCare: () => request<CareResponse>('/care'),
     getAlerts: (limit = 50) => request<AlertRecord[]>(`/alerts?limit=${limit}`),
@@ -82,7 +101,7 @@ export function createApi(base: string) {
     ) {
       const res = await fetch(`${BASE}/alerts/${encodeURIComponent(id)}/action`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonHeaders(),
         body: JSON.stringify({ status, memo, by: extra.by || '복지사', outcome: extra.outcome || '' }),
       });
       return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] })) as Promise<{
@@ -104,7 +123,7 @@ export function createApi(base: string) {
     async addAbsence(body: { home: string; start: string; end: string; reason: string }) {
       const res = await fetch(`${BASE}/absences`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonHeaders(),
         body: JSON.stringify(body),
       });
       return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] })) as Promise<{
@@ -116,7 +135,7 @@ export function createApi(base: string) {
     async endAbsence(id: number) {
       const res = await fetch(`${BASE}/absences/${id}/end`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonHeaders(),
         body: JSON.stringify({}),
       });
       return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }));
@@ -124,7 +143,7 @@ export function createApi(base: string) {
     async previewRule(id: number, value?: string, replace = false, days = 14) {
       const res = await fetch(`${BASE}/rules/${id}/preview`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonHeaders(),
         body: JSON.stringify({
           ...(value === undefined || value === '' ? {} : { value }),
           replace,
@@ -138,7 +157,7 @@ export function createApi(base: string) {
     async approveRule(id: number, value?: string, replace = false) {
       const res = await fetch(`${BASE}/rules/${id}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonHeaders(),
         body: JSON.stringify({
           ...(value === undefined || value === '' ? {} : { value }),
           replace,
@@ -149,7 +168,7 @@ export function createApi(base: string) {
     async rejectRule(id: number) {
       const res = await fetch(`${BASE}/rules/${id}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonHeaders(),
         body: JSON.stringify({}),
       });
       return res.json().catch(() => ({})) as Promise<{ ok?: boolean; errors?: string[] }>;

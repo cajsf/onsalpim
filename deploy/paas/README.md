@@ -23,6 +23,7 @@ Mobius·Gemini는 **어떤 방식이든** 별도(수업 서버·API 키).
    - `GEMINI_API_KEY`
    - `PLATFORM_API_KEY`
    - `KAKAO_REST_API_KEY` · `KAKAO_CLIENT_SECRET` (나에게 보내기)
+   - `STAFF_ACCESS_CODE` (직원 접속. 카카오 계정과 따로. 비우면 API 가 열려 있다)
    - `KAKAO_REDIRECT_URI` = `https://onsalpim-api.onrender.com/api/kakao/callback`
    - `KAKAO_DASHBOARD_URL` = `https://onsalpim-dashboard.onrender.com/`  
    (`start_paas.sh` 가 `secrets_local.py` 를 자동 생성. 카카오 키는 환경 변수로도 읽는다)
@@ -64,7 +65,7 @@ Mobius·Gemini는 **어떤 방식이든** 별도(수업 서버·API 키).
 
 1. [Railway](https://railway.app) → **New Project** → GitHub `onsalpim`  
 2. **Settings** → **Root Directory**: `IOT`  
-3. **Variables**: `GEMINI_API_KEY`, `PLATFORM_API_KEY`, 그리고 나에게 보내기를 쓸 때는 `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REDIRECT_URI`, `KAKAO_DASHBOARD_URL`  
+3. **Variables**: `GEMINI_API_KEY`, `PLATFORM_API_KEY`, 그리고 나에게 보내기를 쓸 때는 `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REDIRECT_URI`, `KAKAO_DASHBOARD_URL`. 직원 접속은 `STAFF_ACCESS_CODE` (카카오 계정과 따로, 비우면 API 가 열려 있다)  
 4. **Deploy** → Start command: `bash start_paas.sh` (`railway.toml` 참고)  
 5. **Networking** → **Generate Domain** → `https://xxx.up.railway.app`  
 6. 대시보드는 **로컬에서**:

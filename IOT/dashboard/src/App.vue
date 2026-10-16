@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { api } from './api.js'
+import { api, setStaffToken, staffToken } from './api.js'
 import HomeBasis from './HomeBasis.vue'
 import HomeTimeline from './HomeTimeline.vue'
 import HomeActions from './HomeActions.vue'
@@ -174,7 +174,53 @@ let timer = null
 let clockTimer = null
 let refreshFlight = null
 
+const authChecking = ref(true)
+const authRequired = ref(false)
+const authed = ref(false)
+const staffCode = ref('')
+const authError = ref('')
+const authBusy = ref(false)
+
+function startPolling() {
+  if (timer) return
+  refresh()
+  timer = setInterval(refresh, 3000)
+}
+function stopPolling() {
+  clearInterval(timer)
+  timer = null
+}
+function onUnauthorized() {
+  authRequired.value = true
+  authed.value = false
+  stopPolling()
+}
+async function submitStaff() {
+  authBusy.value = true
+  authError.value = ''
+  try {
+    const r = await api.loginStaff(staffCode.value)
+    staffCode.value = ''
+    if (r.required && r.token) setStaffToken(r.token)
+    authRequired.value = !!r.required
+    authed.value = true
+    startPolling()
+  } catch (e) {
+    authError.value = e.message
+  } finally {
+    authBusy.value = false
+  }
+}
+async function logoutStaff() {
+  try { await api.logoutStaff() } catch { /* 이미 끊긴 접속 */ }
+  setStaffToken('')
+  authed.value = false
+  stopPolling()
+}
+
 async function refresh() {
+  // 직원 접속이 필요한데 아직 안 들어왔으면 세대·규칙을 묻지 않는다.
+  if (authRequired.value && !authed.value) return
   // 콜드 스타트로 요청이 길어져도 3초마다 같은 요청을 겹쳐 보내지 않는다. 실패하면 다음 주기에 다시 시도한다.
   if (refreshFlight) return refreshFlight
   refreshFlight = loadDashboard().finally(() => { refreshFlight = null })
@@ -234,7 +280,7 @@ async function disconnectKakao() {
   kakaoNotice.value = '카카오 연결을 해제했습니다.'
   refresh()
 }
-onMounted(() => {
+onMounted(async () => {
   const q = new URLSearchParams(window.location.search)
   if (q.get('kakao') === 'ok') kakaoNotice.value = '카카오 나와의 채팅으로 알림을 받습니다.'
   else if (q.get('kakao') === 'denied') kakaoNotice.value = '카카오 메시지 전송에 동의해야 알림을 받을 수 있습니다.'
@@ -244,11 +290,26 @@ onMounted(() => {
     const left = q.toString()
     window.history.replaceState({}, '', window.location.pathname + (left ? `?${left}` : ''))
   }
-  refresh(); tickClock()
-  timer = setInterval(refresh, 3000)
+  tickClock()
   clockTimer = setInterval(tickClock, 10000)
+  window.addEventListener('onsalpim-unauthorized', onUnauthorized)
+  try {
+    const s = await api.sessionStatus()
+    authRequired.value = !!s.required
+    authed.value = !s.required || !!staffToken()
+  } catch {
+    // 예전 API 는 /session 이 없다. 그때는 지금까지처럼 열어 둔다.
+    authRequired.value = false
+    authed.value = true
+  }
+  authChecking.value = false
+  if (authed.value) startPolling()
 })
-onUnmounted(() => { clearInterval(timer); clearInterval(clockTimer) })
+onUnmounted(() => {
+  stopPolling()
+  clearInterval(clockTimer)
+  window.removeEventListener('onsalpim-unauthorized', onUnauthorized)
+})
 
 /* ────────── 집계 ────────── */
 
@@ -661,7 +722,36 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 </script>
 
 <template>
-  <div class="app">
+  <div v-if="authChecking" class="login-app">
+    <section class="card login-card">
+      <p class="brand-name">온살핌</p>
+      <p class="login-lead">접속을 확인하는 중…</p>
+    </section>
+  </div>
+  <div v-else-if="authRequired && !authed" class="login-app">
+    <section class="card login-card">
+      <p class="brand-name">온살핌</p>
+      <h1>직원 접속</h1>
+      <p class="login-lead">
+        직원 접속 코드로 들어갑니다. 카카오 나에게 보내기 계정과는 따로 둡니다.
+      </p>
+      <form @submit.prevent="submitStaff">
+        <input
+          v-model="staffCode"
+          class="login-input"
+          type="password"
+          autocomplete="current-password"
+          placeholder="접속 코드"
+          :disabled="authBusy"
+        />
+        <button class="btn primary" type="submit" :disabled="authBusy || !staffCode.trim()">
+          {{ authBusy ? '확인 중…' : '들어가기' }}
+        </button>
+      </form>
+      <p v-if="authError" class="login-err">{{ authError }}</p>
+    </section>
+  </div>
+  <div v-else class="app">
     <!-- ══════════ 좌측 내비게이션 ══════════ -->
     <aside class="sidebar">
       <a class="brand" href="/" title="처음 화면으로" @click.prevent="goHome">
@@ -734,6 +824,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           </template>
           <button class="btn sm ghost" :title="soundOn ? '새 알림 소리 끄기' : '새 알림 소리 켜기'" @click="toggleSound">
             {{ soundOn ? '🔔 소리 켬' : '🔕 소리 끔' }}
+          </button>
+          <button v-if="authRequired" class="btn sm ghost" title="이 브라우저의 직원 접속을 끊습니다."
+                  @click="logoutStaff">
+            나가기
           </button>
           <button class="btn sm ghost" :class="{ danger: confirmReset }" :disabled="resetting"
                   title="알림·대응 기록·부재·타임라인을 비웁니다. 규칙은 그대로 남습니다."
@@ -1778,4 +1872,24 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
   .topbar-right { flex: 1 1 100%; }
   .who { display: none; }
 }
+.login-app {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: var(--bg, #f6f3ee);
+}
+.login-card { width: min(420px, 100%); display: grid; gap: 0.75rem; }
+.login-card h1 { margin: 0; font-size: 1.35rem; }
+.login-lead { margin: 0; color: var(--muted, #5c564e); line-height: 1.5; }
+.login-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+.login-err { margin: 0; color: var(--urgent); font-size: 0.85rem; }
 </style>

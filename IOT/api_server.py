@@ -17,6 +17,7 @@ import iot_platform as iot
 import kakao_notify
 import scope
 import speech_transcribe
+import staff_auth
 
 AE = "byeongari"
 HEARTBEAT_FILE = engine.HEARTBEAT_FILE      # 경로는 engine 한 곳에서만 정한다
@@ -25,6 +26,56 @@ ENGINE_STALE_SEC = 30   # 이 시간 안에 하트비트 없으면 미실행으�
 
 app = Flask(__name__)
 CORS(app)
+
+# 카카오가 브라우저를 돌려보내는 주소와 헬스 체크는 직원 토큰 없이 연다.
+_PUBLIC = {
+    ("GET", "/api/health"),
+    ("GET", "/api/session"),
+    ("POST", "/api/session"),
+    ("GET", "/api/kakao/callback"),
+}
+
+
+@app.before_request
+def _require_staff():
+    """STAFF_ACCESS_CODE 가 있으면 주소만으로는 세대·규칙·알림을 못 본다."""
+    if not staff_auth.required() or request.method == "OPTIONS":
+        return None
+    if (request.method, request.path) in _PUBLIC:
+        return None
+    header = request.headers.get("Authorization", "")
+    token = header[7:] if header.startswith("Bearer ") else ""
+    if staff_auth.valid(token):
+        return None
+    resp = jsonify(error="직원 접속이 필요합니다.")
+    resp.status_code = 401
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
+@app.route("/api/session", methods=["GET"])
+def session_status():
+    return jsonify({"required": staff_auth.required()})
+
+
+@app.route("/api/session", methods=["POST"])
+def session_login():
+    """직원 접속 코드 → 이 서버만의 토큰. 카카오 나에게 보내기 로그인과는 별개다."""
+    if not staff_auth.required():
+        return jsonify({"required": False, "token": ""})
+    body = request.get_json(silent=True) or {}
+    token = staff_auth.login(str(body.get("code") or ""))
+    if not token:
+        return jsonify({"error": "접속 코드가 맞지 않습니다."}), 401
+    return jsonify({"required": True, "token": token})
+
+
+@app.route("/api/session", methods=["DELETE"])
+def session_logout():
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        staff_auth.drop(header[7:])
+    return jsonify({"ok": True})
 
 
 @app.errorhandler(Exception)

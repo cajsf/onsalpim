@@ -6,9 +6,10 @@ import { useSettings } from '@/context/SettingsContext';
 import { FALLBACK_API_BASE } from '@/lib/api';
 
 export function SettingsPanel() {
-  const { apiBase, setApiBase, ready, worker, setWorker } = useSettings();
+  const { apiBase, setApiBase, ready, worker, setWorker, staffToken, loginStaff, logoutStaff } = useSettings();
   const [draft, setDraft] = useState(apiBase);
   const [workerDraft, setWorkerDraft] = useState(worker);
+  const [code, setCode] = useState('');
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
@@ -54,8 +55,57 @@ export function SettingsPanel() {
     }
   }
 
+  async function saveStaff() {
+    setErr('');
+    setMsg('');
+    try {
+      const note = await loginStaff(code);
+      setCode('');
+      setMsg(note);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function leaveStaff() {
+    setErr('');
+    setMsg('');
+    try {
+      await logoutStaff();
+      setMsg('직원 접속을 끊었습니다.');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   return (
     <View style={styles.card}>
+      <Text style={styles.title}>직원 접속</Text>
+      <Text style={styles.hint}>
+        서버가 접속 코드를 요구하면 여기에 넣습니다. 카카오 나에게 보내기 계정과는 따로 둡니다.
+      </Text>
+      <Text style={styles.current}>{staffToken ? '접속 중' : '접속 전'}</Text>
+      <TextInput
+        style={styles.input}
+        value={code}
+        onChangeText={setCode}
+        secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
+        placeholder="접속 코드"
+        placeholderTextColor={theme.muted}
+        editable={ready}
+      />
+      <View style={styles.row}>
+        <Pressable style={[styles.btn, styles.primary]} onPress={saveStaff} disabled={!code.trim()}>
+          <Text style={styles.btnText}>들어가기</Text>
+        </Pressable>
+        {staffToken ? (
+          <Pressable style={[styles.btn, styles.ghost]} onPress={leaveStaff}>
+            <Text style={styles.ghostText}>나가기</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <Text style={styles.title}>담당자 이름</Text>
       <Text style={styles.hint}>알림을 맡는 이름입니다. 다른 이름은 같은 알림을 받을 수 없습니다.</Text>
       <TextInput

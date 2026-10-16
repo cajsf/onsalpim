@@ -1,5 +1,34 @@
 // 로컬·VM(Nginx): '/api' — Render Static 등 분리 배포: VITE_API_BASE=https://xxx.onrender.com/api
 const BASE = import.meta.env.VITE_API_BASE || '/api'
+const TOKEN_KEY = 'onsalpim.staff'
+
+export function staffToken() {
+  try { return sessionStorage.getItem(TOKEN_KEY) || '' } catch { return '' }
+}
+
+export function setStaffToken(token) {
+  try {
+    if (token) sessionStorage.setItem(TOKEN_KEY, token)
+    else sessionStorage.removeItem(TOKEN_KEY)
+  } catch { /* 저장소를 못 쓰면 이번 화면에만 둔다 */ }
+}
+
+function authHeaders(extra = {}) {
+  const token = staffToken()
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  }
+}
+
+function noteAuth(res) {
+  if (res.status === 401) {
+    setStaffToken('')
+    window.dispatchEvent(new Event('onsalpim-unauthorized'))
+  }
+  return res
+}
 
 /** 카카오 로그인은 화면 주소가 아니라 API 주소로 연다. 정적 배포에서는 /api 가 없다. */
 export function kakaoLoginUrl() {
@@ -8,10 +37,14 @@ export function kakaoLoginUrl() {
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
+    headers: authHeaders(options.headers),
   })
   const data = await res.json().catch(() => ({}))
+  if (res.status === 401) {
+    setStaffToken('')
+    window.dispatchEvent(new Event('onsalpim-unauthorized'))
+  }
   if (!res.ok) {
     const msg = data.errors?.join(', ') || data.error || `HTTP ${res.status}`
     throw new Error(msg)
@@ -20,6 +53,9 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  sessionStatus: () => request('/session'),
+  loginStaff: (code) => request('/session', { method: 'POST', body: JSON.stringify({ code }) }),
+  logoutStaff: () => request('/session', { method: 'DELETE' }),
   // force=true → 서버가 트리 캐시를 무시하고 새로 읽는다 (새 장치 꽂은 직후용)
   getDevices: (force = false) => request(`/devices${force ? '?force=1' : ''}`),
   getSensors: () => request('/sensors'),
@@ -42,40 +78,40 @@ export const api = {
   async previewRule(id, value, replace = false, days = 14) {
     const res = await fetch(`${BASE}/rules/${id}/preview`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({
         ...(value === undefined ? {} : { value }),
         replace,
         days,
       }),
     })
-    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+    return noteAuth(res).json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
   },
   async approveRule(id, value, replace = false) {
     const res = await fetch(`${BASE}/rules/${id}/approve`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ ...(value === undefined ? {} : { value }), replace }),
     })
-    return res.json().catch(() => ({}))
+    return noteAuth(res).json().catch(() => ({}))
   },
   rejectRule: (id) => request(`/rules/${id}/reject`, { method: 'POST' }),
   // 알림 대응 기록 — status: ack | progress | done(메모 필수). 실패하면 errors 가 온다
   async actAlert(id, status, memo = '', extra = {}) {
     const res = await fetch(`${BASE}/alerts/${encodeURIComponent(id)}/action`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ status, memo, by: extra.by || '', outcome: extra.outcome || '' }),
     })
-    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+    return noteAuth(res).json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
   },
   async addRule(sentence) {
     const res = await fetch(`${BASE}/rules`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ sentence }),
     })
-    return res.json().catch(() => ({}))
+    return noteAuth(res).json().catch(() => ({}))
   },
   deleteRule: (id) => request(`/rules/${id}`, { method: 'DELETE' }),
   toggleRule: (id) => request(`/rules/${id}/toggle`, { method: 'POST' }),
@@ -88,35 +124,35 @@ export const api = {
   async addAbsence(body) {
     const res = await fetch(`${BASE}/absences`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify(body),
     })
-    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+    return noteAuth(res).json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
   },
   async endAbsence(id) {
     const res = await fetch(`${BASE}/absences/${id}/end`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({}),
     })
-    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+    return noteAuth(res).json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
   },
   // 겹친 무활동 규칙 중 이 규칙을 쓰고 나머지는 끈다
   async keepRule(id) {
     const res = await fetch(`${BASE}/rules/${id}/keep`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({}),
     })
-    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+    return noteAuth(res).json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
   },
   // 예외 대상 후보가 여럿일 때 고른 규칙에 {세대, 값} 예외를 붙인다 (AI 다시 안 부름)
   async overrideRule(id, home, value) {
     const res = await fetch(`${BASE}/rules/${id}/override`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ home, value }),
     })
-    return res.json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
+    return noteAuth(res).json().catch(() => ({ ok: false, errors: [`HTTP ${res.status}`] }))
   },
 }

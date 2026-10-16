@@ -9,3 +9,5 @@ KAKAO_REST_API_KEY = ""
 KAKAO_CLIENT_SECRET = ""          # 앱에서 클라이언트 시크릿을 켰을 때만
 # KAKAO_REDIRECT_URI = "http://127.0.0.1:5001/api/kakao/callback"
 # KAKAO_DASHBOARD_URL = "http://localhost:5173/"
+# 직원 접속. 카카오 나에게 보내기 키와 따로 둔다. 비어 있으면 API 는 시연처럼 열려 있다.
+STAFF_ACCESS_CODE = ""
