@@ -10,7 +10,6 @@ import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-import baseline_judge
 import engine
 import iot_platform as iot
 import scope
@@ -243,19 +242,6 @@ def approve_rule(rule_id):
 def reject_rule(rule_id):
     result = engine.reject_rule(rule_id)
     return jsonify(result), (200 if result["ok"] else 404)
-
-
-@app.route("/api/baselines")
-def get_baselines():
-    """가구별 14일 기준 검토. 승인한 가구만 그 가구 판정이 읽는다."""
-    return jsonify(baseline_judge.public_state())
-
-
-@app.route("/api/baselines/<home>", methods=["POST"])
-def post_baseline(home):
-    body = request.get_json(silent=True) or {}
-    result = baseline_judge.set_decision(home, body.get("status"), body.get("theta"))
-    return jsonify(result), (200 if result["ok"] else 400)
 
 
 @app.route("/api/alerts")

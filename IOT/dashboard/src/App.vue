@@ -8,8 +8,6 @@ import AlertItem from './AlertItem.vue'
 import AlertToasts from './AlertToasts.vue'
 import MonthlyReport from './MonthlyReport.vue'
 import RulePreview from './RulePreview.vue'
-import BaselineReview from './BaselineReview.vue'
-import { loadDecisions, pendingCount } from './baselineRecommendations.js'
 import { SEV, SEV_ORDER, FOLLOW_KO, sevKo, sevClass, typeKo, fmtAgo, fmtMinutes, timeOf, stampOf, autoClear, devName } from './format.js'
 
 const NAV = [
@@ -19,16 +17,11 @@ const NAV = [
   { id: 'alerts',    label: '알림 이력', icon: 'bell',  ready: true },
   { id: 'report',    label: '월간 보고', icon: 'doc',   ready: true },
   { id: 'devices',   label: '기기 관리', icon: 'chip',  ready: true },
-  { id: 'stats',     label: '기준 추천', icon: 'chart', ready: true },
 ]
 
 const activeView = ref('dashboard')
 const worker = ref(localStorage.getItem('onsalpim.worker') || '복지사')
 watch(worker, (v) => localStorage.setItem('onsalpim.worker', (v || '').trim() || '복지사'))
-const baselineDecisions = ref(loadDecisions())
-const baselinePending = computed(() => pendingCount(baselineDecisions.value))
-function onBaselineChanged(next) { baselineDecisions.value = next }
-
 // 로고·이름을 누르면 처음 화면(대시보드)으로
 function goHome() {
   activeView.value = 'dashboard'
@@ -622,9 +615,6 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           <span v-else-if="n.id === 'alerts' && openAlerts.length" class="nav-badge" title="대응 필요 알림">
             {{ openAlerts.length }}
           </span>
-          <span v-else-if="n.id === 'stats' && baselinePending" class="nav-badge" title="승인 대기 개인 기준">
-            {{ baselinePending }}
-          </span>
           <span v-else-if="!n.ready" class="nav-soon">준비 중</span>
         </button>
       </nav>
@@ -740,10 +730,6 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               <p class="kpi-foot">승인해야 실행됩니다</p>
             </div>
           </article>
-        </section>
-
-        <section class="card">
-          <BaselineReview compact @open="activeView = 'stats'" @changed="onBaselineChanged" />
         </section>
 
         <div class="cols">
@@ -1250,13 +1236,6 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
             </ul>
           </section>
         </div>
-      </main>
-
-      <!-- ────────── 14일 개인 기준 추천 ────────── -->
-      <main v-else-if="activeView === 'stats'" class="content">
-        <section class="card">
-          <BaselineReview @changed="onBaselineChanged" />
-        </section>
       </main>
 
       <!-- ────────── 알림 이력 ────────── -->

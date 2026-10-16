@@ -23,11 +23,6 @@ export const api = {
   getRules: () => request('/rules'),
   // 세대별 위험도 판정 — 규칙 엔진의 Watchdog 이 계산한 결과를 읽는다
   getCare: () => request('/care'),
-  getBaselines: () => request('/baselines'),
-  saveBaseline: (id, body) => request(`/baselines/${encodeURIComponent(id)}`, {
-    method: 'POST',
-    body: JSON.stringify({ status: body.status, theta: body.theta }),
-  }),
   getAlerts: (limit = 20) => request(`/alerts?limit=${limit}`),
   // 세대 타임라인 — 엔진이 남긴 위험도 변화·움직임 (최근 24시간)
   getHistory: (home) => request(`/history/${encodeURIComponent(home)}`),

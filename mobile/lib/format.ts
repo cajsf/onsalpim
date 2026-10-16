@@ -38,7 +38,6 @@ export function outcomeKo(id: string | null | undefined): string {
 export const PATTERN_KO: Record<string, string> = {
   HOT_IDLE: '고온 지속 + 활동 저하',
   MORNING_NONE: '아침 활동 부재',
-  MORNING_RATIO: '승인된 아침 활동 비율',
   NIGHT_WANDER: '야간 활동 변화',
 };
 

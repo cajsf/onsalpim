@@ -63,7 +63,6 @@ export const SEV_ORDER = ['URGENT', 'CHECK_DEVICE', 'WATCH', 'NORMAL']
 export const PATTERN_KO = {
   HOT_IDLE: '고온 지속 + 활동 저하',
   MORNING_NONE: '아침 활동 부재',
-  MORNING_RATIO: '승인된 아침 활동 비율',
   NIGHT_WANDER: '야간 활동 변화',
 }
 export const FOLLOW_KO = {

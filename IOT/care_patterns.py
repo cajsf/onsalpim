@@ -111,7 +111,7 @@ def apply(v, found, profile, now):
     생긴 '움직임 없음'을 사람의 이상으로 단정하지 않는다. 더 높은 위험도를 낮추지도 않는다.
     """
     codes = [f["code"] for f in found]
-    v["patterns"] = [c for c in codes if c in LIFE or c == "MORNING_RATIO"]
+    v["patterns"] = [c for c in codes if c in LIFE]
     v["followup"] = next((f for f in found if f["code"] in FOLLOW), None)
     if not v["life_known"] or v.get("away") or v.get("device_check"):
         return v
@@ -125,18 +125,8 @@ def apply(v, found, profile, now):
         return v
     if v.get("code") not in ("NORMAL", "BATTERY"):     # 무활동 단계가 이미 걸렸으면 그쪽이 더 구체적이다
         return v
-    hit = next((f for f in found if f["code"] in ("MORNING_NONE", "NIGHT_WANDER", "MORNING_RATIO")), None)
+    hit = next((f for f in found if f["code"] in ("MORNING_NONE", "NIGHT_WANDER")), None)
     if hit is None:
-        return v
-    if hit["code"] == "MORNING_RATIO":
-        ratio, theta = hit.get("ratio") or 0, hit.get("theta") or 0
-        v.update(severity="WATCH",
-                 reason=(f"아침 활동 비율 {ratio * 100:.2f}% — "
-                         f"이 세대 {hit.get('hour')} 기준 {theta * 100:.2f}% 미만, 연속 0 {hit.get('zero_min')}분"),
-                 life=f"오늘 {hit.get('hour')} 직전 1시간 활동이 이 세대 기준보다 낮음",
-                 basis=(f"승인된 개인 기준: {hit.get('hour')} 직전 1시간 활동 비율이 "
-                        f"{ratio * 100:.2f}%로 이 세대 임계값 {theta * 100:.2f}%보다 낮고, "
-                        f"관측된 연속 0이 {hit.get('zero_min')}분 → 생활 확인"))
         return v
     if hit["code"] == "MORNING_NONE":
         by = _clock(hit["since"])
