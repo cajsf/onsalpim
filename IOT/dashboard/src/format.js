@@ -25,10 +25,10 @@ export function autoClear(r, ms = 5000) {
   })
 }
 
-/** 서버가 준 시각('2026-09-17T09:05:06', KST·시간대 표기 없음)부터 지금까지 경과 초. 없으면 null. */
+/** 서버가 준 시각('2026-09-17T09:05:06+09:00')부터 지금까지 경과 초. 없으면 null. */
 export function secondsSince(iso) {
   if (!iso) return null
-  const t = Date.parse(iso)            // 시간대 표기가 없으면 브라우저 로컬(KST)로 해석
+  const t = Date.parse(iso)            // +09:00 이면 그 순간, 표기가 없으면 브라우저 로컬(KST)
   return Number.isFinite(t) ? Math.max(0, (nowMs.value - t) / 1000) : null
 }
 

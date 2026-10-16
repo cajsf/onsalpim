@@ -9,7 +9,7 @@ import copy
 import io
 import os
 import tempfile
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import care_monitor as cm
 import engine
@@ -1172,3 +1172,13 @@ assert not engine._invented_thresholds("101호 온도가 30도 넘으면 불 켜
 assert engine._relative_delta("102호는 무활동 알림이 지금보다 1시간 더 빨리 오게 해줘") == -1, "빨리 오게 = 줄이기 (m13)"
 assert engine._relative_delta("전체 세대에서 6시간 움직임 없으면 긴급으로 빨리 알려줘") == 0, "빨리 알려 = 급함, 기준 변경 아님"
 print("  ✅ 31차: 말 고치기·하루+시간·기한·호수 없이 가리키기·켜기/끄기 누락·'빨리 오게'")
+
+# 플랫폼 ct 는 시간대 없는 한국 시각이다. 경과와 화면용 문자열은 +09:00 기준으로 맞춘다.
+sensor = cm.parse_ct("20261016T141800")
+kst_now = datetime(2026, 10, 16, 14, 37, tzinfo=cm.KST)
+assert sensor.utcoffset() == timedelta(hours=9)
+assert cm._iso(sensor) == "2026-10-16T14:18:00+09:00"
+assert cm._elapsed_s(sensor, kst_now) == 19 * 60
+assert cm._elapsed_s(sensor, datetime(2026, 10, 16, 14, 37)) == 19 * 60, "시간대 없는 판정 시각도 같은 벽시계"
+assert cm.now_kst().utcoffset() == timedelta(hours=9)
+print("  ✅ 시각: 센서 ct 와 경과를 한국 시각(+09:00)으로")

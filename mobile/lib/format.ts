@@ -111,6 +111,7 @@ export function devName(path: string | undefined): string {
   return (path || '').split('/').slice(2).join('/') || path || '';
 }
 
+/** 서버 시각('2026-09-17T09:05:06+09:00')부터 nowMs 까지 경과 초. 표기가 없으면 기기 로컬로 읽는다. */
 export function secondsSince(iso: string | null | undefined, nowMs: number): number | null {
   if (!iso) return null;
   const t = Date.parse(iso);

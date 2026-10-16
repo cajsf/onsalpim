@@ -86,7 +86,7 @@ def write_heartbeat(platform_error=None):
     이 둘을 구분하지 않으면 서버가 잠깐 끊겼을 때 화면이 '엔진 미실행'이라고 말한다.
     전시장에서 그 문구가 뜨면 발표자가 먼저 당황하고, 고칠 수 없는 걸 고치려 든다.
     """
-    beat = {"last_run": datetime.now().isoformat(), "pid": os.getpid()}
+    beat = {"last_run": care_monitor.now_kst().isoformat(timespec="seconds"), "pid": os.getpid()}
     if platform_error:
         beat["platform_error"] = platform_error
     with open(HEARTBEAT_FILE, "w", encoding="utf-8") as f:
@@ -1379,7 +1379,7 @@ def append_alerts(results):
     if not changed:
         return []
     log = load_alerts()
-    now = datetime.now().isoformat(timespec="seconds")
+    now = care_monitor.now_kst().isoformat(timespec="seconds")
     # welfare: 위험도는 '점검 필요' 그대로인데 두절이 길어져 안부 확인도 필요해진 알림 — 화면이 긴급처럼 띄운다
     new = [{"ts": now, "home": r["home"], "from": r["from"],
             "to": r["severity"], "reason": r["reason"], "welfare": bool(r.get("welfare_check")),
@@ -1402,7 +1402,7 @@ def record_site_outage(results, now=None):
     """전체 두절이 시작된 순간에만 알림 한 건을 남긴다. 세대별 두절 알림은 호출하는 쪽이 뺀다."""
     if not is_site_outage(results):
         return []
-    now = now or datetime.now()
+    now = now or care_monitor.now_kst()
     homes = [r["home"] for r in sorted(results, key=lambda r: r["home"])]
     welfare = [r["home"] for r in results if r.get("welfare_check")]
     reason = f"{len(homes)}세대가 동시에 통신이 끊겼습니다. 가구마다의 이상이 아니라 망·서버를 먼저 봅니다."
@@ -1442,7 +1442,7 @@ def record_followups(results, now=None):
     이미 대응이 있으면 넣지 않는다. 이관 항목은 담당자가 비어 있어
     다음 사람이 맡는다.
     """
-    now = now or datetime.now()
+    now = now or care_monitor.now_kst()
     due = []
     for r in results:
         f = r.get("followup") or {}
@@ -1507,7 +1507,7 @@ def append_history(results, gap_since=None, now=None):
     gap_since: 엔진을 다시 켰을 때 직전 엔진이 마지막으로 돈 시각.
       그 사이를 직전 위험도로 칠하면 판정하지 않은 시간을 판정한 것처럼 보이게 된다.
     """
-    now = now or datetime.now()
+    now = now or care_monitor.now_kst()
     cutoff = (now - timedelta(seconds=HISTORY_KEEP_S)).isoformat(timespec="seconds")
     sev_cutoff = (now - timedelta(seconds=SEV_KEEP_S)).isoformat(timespec="seconds")
     hist = load_history()
@@ -1578,11 +1578,11 @@ def _hour_slices(a, b):
 
 
 def update_stats(results, now=None):
-    now = now or datetime.now()
+    now = now or care_monitor.now_kst()
     st = load_stats()
     st["since"] = st["since"] or now.isoformat(timespec="seconds")
     for r in results:
-        home, sev, t = r["home"], r["severity"], datetime.fromisoformat(r["judged_at"])
+        home, sev, t = r["home"], r["severity"], care_monitor.as_kst(datetime.fromisoformat(r["judged_at"]))
         buckets = st["homes"].setdefault(home, {})
         last = st["last"].get(home)
 
@@ -1590,7 +1590,7 @@ def update_stats(results, now=None):
             return buckets.setdefault(key, {"sev_s": {}, "alerts": {}, "move_min": 0})
 
         if last:
-            prev_t = datetime.fromisoformat(last["t"])
+            prev_t = care_monitor.as_kst(datetime.fromisoformat(last["t"]))
             if 0 < (t - prev_t).total_seconds() <= STATS_MAX_STEP_S:
                 for key, sec in _hour_slices(prev_t, t):
                     b = bucket(key)["sev_s"]
@@ -1615,7 +1615,10 @@ def update_stats(results, now=None):
 
 
 def _gap_s(a, b):
-    return (datetime.fromisoformat(b) - datetime.fromisoformat(a)).total_seconds()
+    """두 ISO 시각의 차이(초). 시간대 표기가 없는 값은 한국 시각으로 본다."""
+    left = care_monitor.as_kst(datetime.fromisoformat(a))
+    right = care_monitor.as_kst(datetime.fromisoformat(b))
+    return (right - left).total_seconds()
 
 
 def _last_heartbeat():
@@ -1703,7 +1706,7 @@ def alerts_with_actions(limit=100):
                 state = None
             else:
                 state = "open" if is_latest else "missed"
-        first = (datetime.fromisoformat(log[0]["at"]) - datetime.fromisoformat(a["ts"])).total_seconds() if log else None
+        first = (care_monitor.as_kst(datetime.fromisoformat(log[0]["at"])) - care_monitor.as_kst(datetime.fromisoformat(a["ts"]))).total_seconds() if log else None
         outcome = next((l.get("outcome") for l in reversed(log) if l.get("outcome")), None)
         out.append({**a, "id": aid, "state": state, "log": log, "first_response_s": first,
                     "assignee": entry.get("assignee"), "outcome": outcome})
@@ -1755,7 +1758,7 @@ def record_action(aid, status, memo="", by="복지사", now=None, outcome=None):
             # 같은 상태를 연달아 누른 것 (응답이 늦어 여러 번 누르는 경우) — 한 번만 남긴다
             return {"ok": True, "errors": [], "log": entry["log"], "assignee": owner}
         row = {"status": status, "memo": memo, "by": by,
-               "at": (now or datetime.now()).isoformat(timespec="seconds")}
+               "at": (now or care_monitor.now_kst()).isoformat(timespec="seconds")}
         if outcome:
             row["outcome"] = outcome
         entry["log"].append(row)
@@ -1894,7 +1897,7 @@ def monthly_report(month, min_s=REPORT_MIN_S, now=None):
     판정하지 않은 시간을 이어 붙이면 실제보다 길게 보인다.
     엔진이 멈춘 채면 마지막 구간은 '진행 중'이 아니라 마지막 판정에서 끊는다 (cut=True) — 그 뒤는 모른다.
     """
-    now = now or datetime.now()
+    now = now or care_monitor.now_kst()
     now_iso = now.isoformat(timespec="seconds")
     m0 = datetime.strptime(month, "%Y-%m")      # 형식이 틀리면 ValueError — API 가 400 으로 돌려준다
     lo = m0.isoformat(timespec="seconds")
@@ -1959,7 +1962,7 @@ def read_value(path, devices, now=None):
     report_s 가 없으면 기본값으로 추측하지 않는다. 추측이 짧으면 멀쩡한 센서가 두절로 보이고,
     길면 죽은 센서를 믿게 된다. 모르면 모른다고 하고 보류한다.
     """
-    now = now or datetime.now()
+    now = now or care_monitor.now_kst()
     if path == "system/hour":
         return str(now.hour), None
     dev = next((d for d in devices if d["path"] == path), None)
@@ -2152,7 +2155,7 @@ def collect_home_state(devices, rules):
 
 
 def _ms(iso):
-    return care_patterns.ms(datetime.fromisoformat(iso))
+    return care_patterns.ms(care_monitor.as_kst(datetime.fromisoformat(iso)))
 
 
 def _pattern_events(home, h, last_activity, temp):
@@ -2216,7 +2219,7 @@ def write_care_state(results, homes_state, rules=None, devices=None):
         outage = None
         if is_site_outage(results):
             outage = {"homes": [r["home"] for r in sorted(results, key=lambda r: r["home"])]}
-        json.dump({"updated": datetime.now().isoformat(), "homes": payload,
+        json.dump({"updated": care_monitor.now_kst().isoformat(timespec="seconds"), "homes": payload,
                    # 센서를 믿을 수 없어 멈춘 제어 규칙 — 로그에만 있으면 복지사는 모른다
                    "held_rules": {str(k): v for k, v in _held.items()},
                    # 판정을 Drools 가 내렸는지, Java 가 없어 파이썬으로 대신했는지 — 화면이 숨기지 않게

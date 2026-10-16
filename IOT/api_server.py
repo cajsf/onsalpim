@@ -10,6 +10,7 @@ import requests
 from flask import Flask, jsonify, redirect, request
 from flask_cors import CORS
 
+import care_monitor
 import engine
 import iot_platform as iot
 import kakao_notify
@@ -51,7 +52,7 @@ def get_sensors():
         "path": "system/hour",
         "meta": {"kind": "sensor", "type": "clock", "unit": "h", "desc": "현재 시각"},
         "labels": [],
-        "value": str(datetime.now().hour),
+        "value": str(care_monitor.now_kst().hour),
     })
     return jsonify(values)
 
@@ -185,7 +186,7 @@ def engine_status():
     last_run = data.get("last_run")
     running = False
     if last_run:
-        elapsed = (datetime.now() - datetime.fromisoformat(last_run)).total_seconds()
+        elapsed = (care_monitor.now_kst() - care_monitor.as_kst(datetime.fromisoformat(last_run))).total_seconds()
         running = elapsed < ENGINE_STALE_SEC
     return jsonify({
         "running": running,
@@ -267,7 +268,7 @@ def home_history(home):
     """세대 타임라인 — 엔진이 판정하며 남긴 위험도 변화와 움직임 (최근 24시간)."""
     h = engine.load_history().get(home) or {"sev": [], "move": []}
     # 위험도 변화는 월간 보고 때문에 35일을 두지만 타임라인은 24시간만 그린다 — 구간의 시작 상태 하나는 같이
-    cut = (datetime.now() - timedelta(seconds=engine.HISTORY_KEEP_S)).isoformat(timespec="seconds")
+    cut = (care_monitor.now_kst() - timedelta(seconds=engine.HISTORY_KEEP_S)).isoformat(timespec="seconds")
     sev = h["sev"]
     first = next((i for i, e in enumerate(sev) if e[0] >= cut), len(sev))
     return jsonify({"sev": sev[max(first - 1, 0):], "move": h["move"]})
@@ -276,7 +277,7 @@ def home_history(home):
 @app.route("/api/report/monthly")
 def monthly_report():
     """월간 보고 초안 — month=YYYY-MM, min_s=최소 지속 초 (기본 5일. 시연은 짧게)."""
-    month = request.args.get("month") or datetime.now().strftime("%Y-%m")
+    month = request.args.get("month") or care_monitor.now_kst().strftime("%Y-%m")
     try:
         min_s = max(int(request.args.get("min_s", engine.REPORT_MIN_S)), 0)
         rows = engine.monthly_report(month, min_s)
@@ -310,7 +311,7 @@ def care_state():
     updated = data.get("updated")
     stale = True
     if updated:
-        stale = (datetime.now() - datetime.fromisoformat(updated)).total_seconds() > ENGINE_STALE_SEC
+        stale = (care_monitor.now_kst() - care_monitor.as_kst(datetime.fromisoformat(updated))).total_seconds() > ENGINE_STALE_SEC
     data["stale"] = stale     # 판정이 멈춰 있으면 화면이 옛 상태를 최신처럼 보여주면 안 된다
     # 겹친 규칙은 규칙 파일로 바로 계산한다 — 복지사가 하나를 고르면 엔진 한 바퀴를 기다리지 않고 사라져야 한다
     try:

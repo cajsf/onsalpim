@@ -18,7 +18,7 @@ def _parse_iso(t):
     if not t:
         return None
     try:
-        return datetime.fromisoformat(str(t).strip())
+        return care_monitor.as_kst(datetime.fromisoformat(str(t).strip()))
     except ValueError:
         return None
 
@@ -103,7 +103,7 @@ def _motion_events(home, start, end, load_history, load_stats):
         if not bucket.get("move_min"):
             continue
         try:
-            hour = datetime.fromisoformat(key)
+            hour = care_monitor.as_kst(datetime.fromisoformat(key))
         except ValueError:
             continue
         if hour < start or hour > end:
@@ -129,7 +129,7 @@ def _last_activity_before(home, start, events, load_history, load_stats):
         if not bucket.get("move_min"):
             continue
         try:
-            hour = datetime.fromisoformat(key)
+            hour = care_monitor.as_kst(datetime.fromisoformat(key))
         except ValueError:
             continue
         if hour + timedelta(hours=1) <= start:
@@ -255,7 +255,7 @@ def preview_pending_rule(
     load_absences,
 ):
     """승인 전 규칙을 지난 days일 기록에 대입한 알림 추정."""
-    end = datetime.now()
+    end = care_monitor.now_kst()
     start = end - timedelta(days=days)
     all_rules = load_rules()
 

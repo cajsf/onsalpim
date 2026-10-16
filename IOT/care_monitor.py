@@ -49,11 +49,30 @@ care_monitor.py — 생활 이상(무활동)과 기기 이상(통신 두절)을 
     서버는 읽기만 한다 — 장치 종류를 라벨로 알아내는 것과 같은 원리다.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import care_patterns
 import iot_platform as iot
 from scope import SEVERITIES
+
+# 판정 시계는 한국 시각이다. Render 같은 호스트의 OS 시계는 UTC라
+# datetime.now() 를 그대로 쓰면 센서 시각(KST)이 미래로 보여 침묵이 0이 된다.
+KST = timezone(timedelta(hours=9))
+
+
+def now_kst():
+    """지금. 서버 운영체제가 UTC여도 한국 시각으로 돌려준다."""
+    return datetime.now(KST)
+
+
+def as_kst(ts):
+    """시간대 표기가 없으면 한국 시각으로 둔다. 모비우스 ct와 로컬 기록이 그 기준이다."""
+    if ts is None:
+        return None
+    if ts.tzinfo is None:
+        return ts.replace(tzinfo=KST)
+    return ts.astimezone(KST)
+
 
 # 보고를 연속 몇 번 놓치면 두절로 볼 것인가.
 # 1회면 네트워크가 한 번만 튀어도 두절로 뜨고, 너무 크면 발견이 늦다. 3회가 통상적인 타협.
@@ -78,15 +97,16 @@ LABEL_KO = {
 # ---------- 플랫폼 시각 해석 ----------
 
 def parse_ct(ct):
-    """oneM2M 생성시각 '20260722T200037' → datetime. 실패하면 None.
+    """oneM2M 생성시각 '20260722T200037' → 한국 시각. 실패하면 None.
 
-    이 서버의 ct 는 한국 시각(KST)이다 — 컨테이너 생성 시각과 작업 PC의 파일 시각을
-    대조해 확인했다. 그래서 datetime.now() 와 직접 비교한다.
+    ct 에는 시간대 표기가 없다. 컨테이너 생성 시각과 작업 PC의 파일 시각을 대조해
+    벽시계가 KST 임을 확인했다. 반환값에는 +09:00 을 붙여, UTC 서버의 datetime.now() 와
+    그대로 빼지 않게 한다.
     """
     if not ct:
         return None
     try:
-        return datetime.strptime(ct, "%Y%m%dT%H%M%S")
+        return datetime.strptime(ct, "%Y%m%dT%H%M%S").replace(tzinfo=KST)
     except (ValueError, TypeError):
         return None
 
@@ -94,12 +114,13 @@ def parse_ct(ct):
 def _elapsed_s(ts, now):
     """ts 이후 경과 초. ts 가 없으면 None.
 
-    시간대를 잘못 잡으면(9시간 오차) 판정이 통째로 틀어지므로, 미래 시각이 나오면
-    조용히 넘기지 않고 드러낸다. 판정은 '경과 0초'로 보수적으로 처리한다.
+    양쪽을 한국 시각으로 맞춘 뒤 뺀다. 한쪽에만 시간대가 있으면 파이썬이 빼기를 거부하고,
+    UTC 시계와 KST 벽시계를 그대로 빼면 침묵이 0초가 된다.
+    센서 시각이 1분 넘게 앞이면 조용히 넘기지 않고 드러낸다. 판정은 경과 0초로 둔다.
     """
     if ts is None:
         return None
-    delta = (now - ts).total_seconds()
+    delta = (as_kst(now) - as_kst(ts)).total_seconds()
     if delta < -60:
         print(f"  [경고] 플랫폼 시각이 미래입니다({ts}) — 시간대 설정을 확인하세요")
         return 0.0
@@ -180,7 +201,7 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
 
     반환: {'severity', 'reason', 'idle_s', 'silent_s', 'life_known', 'welfare_check', ...}
     """
-    now = now or datetime.now()
+    now = as_kst(now) if now is not None else now_kst()
     if idle_levels is None:
         idle_levels = [] if idle_min is None else [{"minutes": idle_min, "severity": URGENT}]
     idle_levels = sorted(idle_levels, key=lambda lv: float(lv["minutes"]))
@@ -387,8 +408,14 @@ def human_minutes(minutes):
 
 
 def _iso(ts):
-    """datetime → '2026-09-17T09:05:06' (플랫폼 ct 와 같은 KST, 시간대 표기 없음). 없으면 None."""
-    return ts.isoformat(timespec="seconds") if ts else None
+    """datetime → '2026-09-17T09:05:06+09:00'. 없으면 None.
+
+    시간대 없는 문자열은 브라우저가 자기 지역 시각으로 읽는다. UTC 서버가 찍은 값은
+    한국에서는 9시간 전으로 보인다. 오프셋을 붙이면 어느 시계로 읽어도 같은 순간이다.
+    """
+    if not ts:
+        return None
+    return as_kst(ts).isoformat(timespec="seconds")
 
 
 def _human(seconds):
@@ -463,7 +490,7 @@ class Watchdog:
         homes_state: {home: {'contact':…, 'last_activity':…, 'idle_min':…, 'battery':…}}
         반환: [{'home', 'severity', 'reason', 'changed', 'from'}, ...] — 위험한 순서로 정렬
         """
-        now = now or datetime.now()
+        now = as_kst(now) if now is not None else now_kst()
         results = []
         found = detect_patterns(homes_state, now)
         for home, st in homes_state.items():
