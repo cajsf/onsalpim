@@ -1881,8 +1881,27 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
   .grid td, .grid th { padding: 0.5rem 0.4rem; }
 }
 @media (max-width: 620px) {
+  .app { flex-direction: column; }
+  .sidebar {
+    width: 100%; flex: 0 0 auto; height: auto; position: sticky; z-index: 5;
+    flex-direction: row; align-items: center; padding: 0.4rem 0.55rem; gap: 0.35rem;
+  }
+  .brand { padding: 0; }
+  .brand > .brand-mark { display: grid; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; }
+  .brand-mark svg { width: 18px; height: 18px; }
+  .nav { flex-direction: row; overflow-x: auto; flex: 1; min-width: 0; }
+  .nav-item {
+    width: auto; font-size: 0.78rem; white-space: nowrap;
+    justify-content: flex-start; padding: 0.42rem 0.55rem; gap: 0.35rem;
+  }
+  .nav-dot { width: 7px; height: 7px; }
+  .nav-badge { position: static; transform: none; margin-left: 0.3rem; font-size: 0.65rem; }
+  .main { min-width: 0; }
+  .topbar { flex-direction: column; align-items: stretch; gap: 0.55rem; }
+  .topbar h1, .topbar-sub { white-space: normal; }
+  .topbar-right { flex: 1 1 auto; width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 0.4rem; }
+  .search { flex: 1 1 100%; max-width: none; }
   .kpis { grid-template-columns: 1fr; }
-  .topbar-right { flex: 1 1 100%; }
   .who { display: none; }
 }
 .login-app {
