@@ -936,7 +936,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 <template v-else>{{ kpiText(counts.URGENT) }} <span>건</span></template>
               </p>
               <p class="kpi-foot">
-                확인 우선순위 · 통신 두절만으로 해제하지 않음<template v-if="careReady && heldUrgent"> · <b>장치 점검 병행 {{ heldUrgent }}</b></template>
+                확인 우선순위 · 통신 두절만으로 해제하지 않음<template v-if="careReady && heldUrgent"><span class="kpi-extra"> · <b>장치 점검 병행 {{ heldUrgent }}</b></span></template>
               </p>
             </div>
           </article>
@@ -950,7 +950,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 <template v-else>{{ kpiText(deviceIssueCount) }} <span>건</span></template>
               </p>
               <p class="kpi-foot">
-                통신 두절 — 긴급 확인과 별도 업무<template v-if="careReady && welfareCount"> · <b class="kpi-welfare">그중 안부 확인 {{ welfareCount }}</b></template>
+                통신 두절 — 긴급 확인과 별도 업무<template v-if="careReady && welfareCount"><span class="kpi-extra"> · <b class="kpi-welfare">그중 안부 확인 {{ welfareCount }}</b></span></template>
               </p>
             </div>
           </article>
@@ -1655,7 +1655,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
   border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
 }
 .kpi-ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.25rem; background: #fff; }
-.kpi-label { font-size: 0.76rem; color: var(--text-2); }
+.kpi-label { font-size: 0.76rem; color: var(--text-2); word-break: keep-all; line-break: strict; }
 .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; }
 .kpi-value span { font-size: 0.82rem; font-weight: 600; color: var(--muted); }
 .kpis.dim, .card.dim { filter: grayscale(0.85); opacity: 0.72; }
@@ -1667,7 +1667,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
   animation: kpi-shimmer 1.2s ease-in-out infinite;
 }
 @keyframes kpi-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-.kpi-foot { font-size: 0.68rem; color: var(--muted); }
+.kpi-foot { font-size: 0.68rem; color: var(--muted); word-break: keep-all; line-break: strict; }
+.kpi-extra { white-space: nowrap; }
 .kpi-welfare { color: var(--urgent-ink); }
 .tag.welfare { margin-left: 0.3rem; }
 .kpi-blue { background: #eff5ff; }
