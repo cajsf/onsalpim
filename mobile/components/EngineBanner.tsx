@@ -24,7 +24,7 @@ export function EngineBanner({ engine, care, loading, fetchError, updatedHint, l
         )}
         {fetchError.includes('404') ? (
           <Text style={styles.hint}>
-            API 는 onsalpim-api …/api 입니다. 더보기 → API 설정을 확인하세요.
+            API 는 onsalpim-api …/api 입니다. 더보기 → 설정에서 주소를 확인하세요.
           </Text>
         ) : (
           <Text style={styles.hint}>Render Free 는 첫 요청에 30초 정도 걸릴 수 있습니다.</Text>
@@ -103,9 +103,9 @@ const styles = StyleSheet.create({
   chipOnText: { color: theme.normal, fontWeight: '600', fontSize: 13 },
   updated: { fontSize: 11, color: theme.muted },
   warn: { backgroundColor: theme.watchSoft },
-  warnText: { color: theme.watch, textAlign: 'center', fontSize: 13, lineHeight: 18 },
+  warnText: { color: theme.watchInk, textAlign: 'center', fontSize: 13, lineHeight: 18 },
   err: { backgroundColor: theme.urgentSoft },
-  errText: { color: theme.urgent, fontWeight: '600', textAlign: 'center', fontSize: 13 },
+  errText: { color: theme.urgentInk, fontWeight: '600', textAlign: 'center', fontSize: 13 },
   hint: { color: theme.muted, fontSize: 12, textAlign: 'center', marginTop: 4 },
   neutral: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
   muted: { color: theme.text2 },

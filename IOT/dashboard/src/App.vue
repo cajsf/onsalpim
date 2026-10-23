@@ -24,6 +24,7 @@ const NAV = [
 const activeView = ref('dashboard')
 const worker = ref(localStorage.getItem('onsalpim.worker') || '복지사')
 watch(worker, (v) => localStorage.setItem('onsalpim.worker', (v || '').trim() || '복지사'))
+const workerMark = computed(() => ((worker.value || '').trim().slice(0, 1) || '복'))
 // 로고·이름을 누르면 처음 화면(대시보드)으로
 function goHome() {
   activeView.value = 'dashboard'
@@ -37,7 +38,7 @@ const search = ref('')
 const kakao = ref({ known: false, configured: false, connected: false, nickname: '', redirect_uri: '', error: '' })
 const kakaoNotice = ref('')
 autoClear(kakaoNotice)
-// open = 아무도 안 본 알림 (배지·팝업). 확인·방문 중도 조치 완료 전까지는 끝난 게 아니다 (미완료 탭).
+// open = 아무도 안 본 알림 (팝업). 사이드바 배지와 미완료 탭은 조치 완료 전까지를 센다.
 const openAlerts = computed(() => alerts.value.filter((a) => a.state === 'open'))
 const todoAlerts = computed(() => alerts.value.filter((a) => ['open', 'assign', 'ack', 'progress'].includes(a.state)))
 /** 알림 이력에서 위쪽 검색창이 세대·상태·사유를 거른다. */
@@ -92,12 +93,17 @@ function onAlertChanged(p) {
   }
   refresh()
 }
-/* 요약 카드 네 개 모두 같은 동작 — 아래 세대 현황 표를 그 탭으로 바꿔 보여준다 (화면을 떠나지 않는다) */
+/* 세대 카드는 아래 표를 거른다. 승인 대기는 규칙 관리로 보낸다. */
 async function showHomes(f) {
   activeView.value = 'dashboard'
   filter.value = f
   await nextTick()
   document.getElementById('home-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+async function openRules() {
+  activeView.value = 'rules'
+  await nextTick()
+  document.getElementById('pending-rules')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 function openHome(home) {
   selectedHomeId.value = home
@@ -150,6 +156,8 @@ const lastSentence = ref('')   // 성공하면 입력창은 비우지만 요약 
 
 /* 표 필터 */
 const filter = ref('all')
+const searchApplies = computed(() =>
+  activeView.value === 'dashboard' || activeView.value === 'alerts')
 const searchPlaceholder = computed(() =>
   activeView.value === 'alerts'
     ? '세대, 상태, 사유를 검색해보세요'
@@ -431,7 +439,6 @@ const tabs = computed(() => [
   { id: 'life',    label: '생활 확인',  n: lifeCheckCount.value },
   { id: 'device',  label: '장치 점검',  n: deviceIssueCount.value },
   { id: 'battery', label: '배터리 부족', n: lowBattery.value.length },
-  { id: 'pending', label: '승인 대기',  n: pendingRules.value.length },
 ])
 
 const visibleHomes = computed(() => {
@@ -800,15 +807,21 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           <span v-if="n.id === 'rules' && pendingRules.length" class="nav-badge">
             {{ pendingRules.length }}
           </span>
-          <span v-else-if="n.id === 'alerts' && openAlerts.length" class="nav-badge" title="대응 필요 알림">
-            {{ openAlerts.length }}
+          <span v-else-if="n.id === 'alerts' && todoAlerts.length" class="nav-badge" title="미완료 알림">
+            {{ todoAlerts.length }}
           </span>
           <span v-else-if="!n.ready" class="nav-soon">준비 중</span>
         </button>
       </nav>
 
       <div class="side-foot">
-        <p>사람이 있는<br />더 따뜻한 기술,<br /><strong>온살핌</strong>이 함께합니다.</p>
+        <p class="side-foot-label">시연용</p>
+        <button class="btn sm" :class="{ danger: confirmReset }" :disabled="resetting"
+                title="알림·대응 기록·부재·타임라인을 비웁니다. 규칙은 그대로 남습니다."
+                @click="resetDemo">
+          {{ confirmReset ? '한 번 더 누르면 초기화' : '시연 초기화' }}
+        </button>
+        <p class="side-foot-note">알림·대응·부재·타임라인을 비웁니다. 규칙은 남습니다.</p>
       </div>
     </aside>
 
@@ -820,44 +833,44 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           <p class="topbar-sub">한줄로 편하게, 한눈에 살피다</p>
         </div>
         <div class="topbar-right">
-          <div class="search">
+          <div v-if="searchApplies" class="search">
             <span class="search-icon">⌕</span>
-            <input v-model="search" type="text" :placeholder="searchPlaceholder" />
+            <input v-model="search" type="text" :placeholder="searchPlaceholder" aria-label="검색" />
           </div>
-          <button v-if="!kakao.connected" class="btn sm ghost"
-                  :title="kakaoTitle"
-                  :disabled="!kakao.known"
-                  @click="connectKakao">
-            카카오 연결
-          </button>
-          <template v-else>
-            <button class="btn sm ghost" :title="(kakao.nickname || '연결됨') + ' 나와의 채팅으로 시험 메시지를 보냅니다.'"
-                    @click="testKakao">
-              카카오 시험{{ kakao.nickname ? ' · ' + kakao.nickname : '' }}
-            </button>
-            <button class="btn sm ghost" title="이 계정의 카카오 연결을 끊습니다." @click="disconnectKakao">해제</button>
-          </template>
-          <button class="btn sm ghost" :title="soundOn ? '새 알림 소리 끄기' : '새 알림 소리 켜기'" @click="toggleSound">
-            {{ soundOn ? '🔔 소리 켬' : '🔕 소리 끔' }}
-          </button>
-          <button v-if="authRequired" class="btn sm ghost" title="이 브라우저의 직원 접속을 끊습니다."
-                  @click="logoutStaff">
-            나가기
-          </button>
-          <button class="btn sm ghost" :class="{ danger: confirmReset }" :disabled="resetting"
-                  title="알림·대응 기록·부재·타임라인을 비웁니다. 규칙은 그대로 남습니다."
-                  @click="resetDemo">
-            {{ confirmReset ? '한 번 더 누르면 초기화' : '시연 초기화' }}
-          </button>
           <span class="chip" :class="engineChip.cls" :title="[engineMessage, care.judge?.why].filter(Boolean).join(' — ')">
             {{ engineChip.text }}
           </span>
-          <div class="who">
-            <div class="avatar">복</div>
-            <div>
-              <input v-model="worker" class="who-name who-input" maxlength="40" title="알림을 맡는 이름. 다른 이름은 같은 건을 받을 수 없습니다." />
-              <p class="who-org">세종대학교</p>
-            </div>
+          <label class="who">
+            <div class="avatar" aria-hidden="true">{{ workerMark }}</div>
+            <span class="who-fields">
+              <span class="who-label">담당자</span>
+              <input v-model="worker" class="who-name who-input" maxlength="40"
+                     aria-label="알림을 맡는 담당자 이름"
+                     title="알림을 맡는 이름. 다른 이름은 같은 건을 받을 수 없습니다." />
+              <span class="who-org">세종대학교</span>
+            </span>
+          </label>
+          <div class="tool-row">
+            <button v-if="!kakao.connected" class="btn sm ghost"
+                    :title="kakaoTitle"
+                    :disabled="!kakao.known"
+                    @click="connectKakao">
+              카카오 연결
+            </button>
+            <template v-else>
+              <button class="btn sm ghost" :title="(kakao.nickname || '연결됨') + ' 나와의 채팅으로 시험 메시지를 보냅니다.'"
+                      @click="testKakao">
+                카카오 시험{{ kakao.nickname ? ' · ' + kakao.nickname : '' }}
+              </button>
+              <button class="btn sm ghost" title="이 계정의 카카오 연결을 끊습니다." @click="disconnectKakao">해제</button>
+            </template>
+            <button class="btn sm ghost" :title="soundOn ? '새 알림 소리 끄기' : '새 알림 소리 켜기'" @click="toggleSound">
+              {{ soundOn ? '소리 켬' : '소리 끔' }}
+            </button>
+            <button v-if="authRequired" class="btn sm ghost" title="이 브라우저의 직원 접속을 끊습니다."
+                    @click="logoutStaff">
+              나가기
+            </button>
           </div>
         </div>
       </header>
@@ -941,8 +954,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               </p>
             </div>
           </article>
-          <article class="kpi kpi-green clickable" role="button" tabindex="0" title="승인 대기 규칙 보기"
-                   @click="showHomes('pending')" @keyup.enter="showHomes('pending')">
+          <article class="kpi kpi-watch clickable" role="button" tabindex="0" title="규칙 관리에서 승인"
+                   @click="openRules" @keyup.enter="openRules">
             <div class="kpi-ico">📋</div>
             <div>
               <p class="kpi-label">승인 대기 규칙</p>
@@ -950,7 +963,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
                 <span v-if="!careReady && !connectionError" class="kpi-skel" aria-hidden="true"></span>
                 <template v-else>{{ kpiText(pendingRules.length) }} <span>건</span></template>
               </p>
-              <p class="kpi-foot">승인해야 실행됩니다</p>
+              <p class="kpi-foot">규칙 관리에서 승인합니다</p>
             </div>
           </article>
         </section>
@@ -981,44 +994,6 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
               아직 판정된 세대가 없습니다.
               <span v-if="!engineRunning">규칙 엔진을 실행해 주세요.</span>
               <span v-else>보드에 <code class="mono">home=</code> 라벨이 붙어 있는지 확인해 주세요.</span>
-            </div>
-
-            <div v-else-if="filter === 'pending'" class="pending-list">
-              <p v-if="!pendingRules.length" class="empty">승인 대기 중인 규칙이 없습니다.</p>
-              <article v-for="r in pendingRules" :key="r.id" class="pending-item">
-                <div class="pending-top">
-                  <span class="tag tag-wait">승인 대기</span>
-                  <p class="pending-sentence">"{{ r.sentence }}"</p>
-                </div>
-                <dl class="mini">
-                  <div><dt>조건</dt><dd>{{ condText(r.rule) }}</dd></div>
-                  <div><dt>동작</dt><dd>{{ actText(r.rule) }}</dd></div>
-                  <div><dt>적용 대상</dt><dd>{{ scopeText(r.rule) }}</dd></div>
-                </dl>
-                <p v-for="q in r.questions" :key="q" class="msg clarify">{{ q }}</p>
-                <p v-for="c in r.conflicts || []" :key="c.id" class="msg warn">
-                  ⚠ 기존 규칙 #{{ c.id }}({{ c.summary }})과 {{ c.homes.join(', ') }}호에서 같은 위험도로 겹칩니다.
-                  <template v-if="c.covers_all">대체하면 #{{ c.id }}은(는) 예외까지 함께 꺼지고, 대체 기록이 남습니다.</template>
-                  <template v-else>일부 세대만 겹쳐 대체할 수 없습니다 — 그 세대만 바꾸려면 "○호만 무활동 기준을 …"처럼 예외로 입력해 주세요.</template>
-                </p>
-                <RulePreview
-                  :rule-id="r.id"
-                  :fill-value="previewFill(r.rule, r.id)"
-                  :replace="previewReplace(r.conflicts)"
-                  :enabled="previewEnabled(r.rule, r.id)"
-                />
-                <div class="pending-act">
-                  <input
-                    v-if="r.questions && r.questions.length"
-                    v-model="fillByRuleId[r.id]" class="fill" type="text" placeholder="기준값 (예: 8시간, 90분, 480)"
-                  />
-                  <button class="btn ghost" :class="{ danger: confirmingId === r.id }" :disabled="ruleBusy === r.id" @click="reject(r.id)">{{ confirmingId === r.id ? (((r.conflicts || []).length) ? '한 번 더 누르면 새 규칙을 버림' : '한 번 더 누르면 거부') : (((r.conflicts || []).length) ? '기존 규칙 유지' : '거부') }}</button>
-                  <button class="btn primary" :disabled="(r.conflicts || []).some((c) => !c.covers_all)"
-                      @click="approve(r.id, pendingFillValue(r.id, r.rule), previewReplace(r.conflicts))">
-                {{ (r.conflicts || []).length ? '새 규칙 적용 (기존 끄기)' : '승인하기' }}
-              </button>
-                </div>
-              </article>
             </div>
 
             <table v-else class="grid">
@@ -1285,7 +1260,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           </div>
         </section>
         <p v-if="ruleNotice && activeView === 'rules'" class="msg info">{{ ruleNotice }}</p>
-        <section class="card">
+        <section id="pending-rules" class="card">
           <div class="card-head">
             <div>
               <h2>승인 대기 규칙</h2>
@@ -1599,9 +1574,12 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 
 .side-foot {
   margin-top: auto; padding: 0.9rem; background: var(--surface-2);
-  border-radius: var(--radius-sm); font-size: 0.72rem; color: var(--muted); line-height: 1.65;
+  border-radius: var(--radius-sm); font-size: 0.72rem; color: var(--text-2); line-height: 1.55;
+  display: flex; flex-direction: column; gap: 0.4rem;
 }
-.side-foot strong { color: var(--brand); }
+.side-foot-label { font-size: 0.68rem; font-weight: 700; color: var(--text-2); }
+.side-foot-note { color: var(--muted); }
+.side-foot .btn { width: 100%; white-space: normal; }
 
 /* ───── 상단 ───── */
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -1612,7 +1590,8 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 }
 .topbar h1 { font-size: 1.32rem; font-weight: 700; letter-spacing: -0.015em; white-space: nowrap; }
 .topbar-sub { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
-.topbar-right { display: flex; align-items: center; gap: 0.9rem; flex: 1 1 320px; justify-content: flex-end; min-width: 0; }
+.topbar-right { display: flex; align-items: center; gap: 0.7rem; flex: 1 1 320px; justify-content: flex-end; min-width: 0; flex-wrap: wrap; }
+.tool-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .search { position: relative; flex: 1 1 160px; min-width: 0; max-width: 260px; }
 .search input {
   width: 100%; padding: 0.5rem 0.75rem 0.5rem 2rem; font-size: 0.82rem;
@@ -1623,24 +1602,29 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--muted); }
 .chip { font-size: 0.72rem; font-weight: 600; padding: 0.28rem 0.62rem; border-radius: 999px; white-space: nowrap; }
 .chip-on { background: var(--normal-soft); color: var(--normal); }
-.chip-off { background: var(--urgent-soft); color: var(--urgent); }
-.chip-warn { background: var(--watch-soft); color: var(--watch); }
-.who { display: flex; align-items: center; gap: 0.55rem; }
+.chip-off { background: var(--urgent-soft); color: var(--urgent-ink); }
+.chip-warn { background: var(--watch-soft); color: var(--watch-ink); }
+.who { display: flex; align-items: center; gap: 0.55rem; margin: 0; }
+.who-fields { display: flex; flex-direction: column; min-width: 0; }
 .avatar {
   width: 34px; height: 34px; border-radius: 50%; background: var(--brand-soft);
   color: var(--brand-dim); display: grid; place-items: center; font-weight: 700; font-size: 0.82rem;
 }
-.who-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
-.who-input { width: 5.5rem; border: 0; background: transparent; color: var(--text); font-family: inherit; padding: 0; }
-.who-input:focus { outline: 1px solid var(--brand); border-radius: 4px; }
+.who-label { font-size: 0.68rem; font-weight: 700; color: var(--text-2); line-height: 1.2; }
+.who-name { font-size: 0.82rem; font-weight: 600; }
+.who-input {
+  width: 7.5rem; border: 1px solid var(--border-strong); background: var(--surface-2);
+  color: var(--text); font-family: inherit; padding: 0.15rem 0.4rem; border-radius: 6px;
+}
+.who-input:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
 .who-org { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
 
 .stamp { padding: 0.7rem 1.75rem 0; font-size: 0.75rem; color: var(--muted); }
 .banner {
   margin: 0.7rem 1.75rem 0; padding: 0.6rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.82rem;
 }
-.banner.err { background: var(--urgent-soft); color: var(--urgent); }
-.banner.warn { background: var(--watch-soft); color: var(--watch); }
+.banner.err { background: var(--urgent-soft); color: var(--urgent-ink); }
+.banner.warn { background: var(--watch-soft); color: var(--watch-ink); }
 .banner.info { background: var(--brand-soft); color: var(--brand-dim); }
 .banner code { background: rgba(0, 0, 0, 0.05); padding: 0.05rem 0.3rem; border-radius: 4px; }
 
@@ -1684,11 +1668,12 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 }
 @keyframes kpi-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 .kpi-foot { font-size: 0.68rem; color: var(--muted); }
-.kpi-welfare { color: var(--urgent); }
+.kpi-welfare { color: var(--urgent-ink); }
 .tag.welfare { margin-left: 0.3rem; }
 .kpi-blue { background: #eff5ff; }
 .kpi-red { background: var(--urgent-soft); }
 .kpi-orange { background: var(--device-soft); }
+.kpi-watch { background: var(--watch-soft); }
 .kpi-green { background: var(--normal-soft); }
 
 /* ───── 탭 ───── */
@@ -1701,7 +1686,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
 .tab.on { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
 .tab.on.urgent { background: var(--urgent); border-color: var(--urgent); }
 .tab.on.device { background: var(--device); border-color: var(--device); }
-.tab.on.battery { background: var(--watch); border-color: var(--watch); }
+.tab.on.battery { background: var(--watch-soft); border-color: var(--watch-ink); color: var(--watch-ink); }
 
 /* ───── 표 ───── */
 .grid { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
@@ -1777,7 +1762,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
           border-radius: 4px; background: var(--brand-soft); color: var(--brand-dim); vertical-align: 1px; }
 .retry-line { display: block; }
 .harness-note { font-size: 0.76rem; margin: 0.1rem 0 0.4rem; padding: 0.35rem 0.55rem; border-radius: var(--radius-sm); }
-.harness-note.blocked { background: var(--urgent-soft); color: var(--urgent); }
+.harness-note.blocked { background: var(--urgent-soft); color: var(--urgent-ink); }
 .harness-note.fixed { background: var(--brand-soft); color: var(--brand-dim); }
 .held-why { margin: 0.35rem 0 0.2rem; }
 .ov-list { display: grid; gap: 0.25rem; }
@@ -1872,14 +1857,33 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
   .banner, .stamp { margin-left: 1rem; margin-right: 1rem; }
 }
 @media (max-width: 860px) {
-  .sidebar { width: 62px; flex: 0 0 62px; padding: 1rem 0.5rem; align-items: center; }
-  .brand { padding: 0 0 1rem; }
-  .brand > div, .side-foot, .nav-soon { display: none; }
-  .nav-item { justify-content: center; padding: 0.6rem 0; font-size: 0; gap: 0; }
-  .nav-dot { width: 9px; height: 9px; }
-  .nav-badge { position: absolute; margin: 0; transform: translate(14px, -10px); font-size: 0.6rem; }
-  .nav-item { position: relative; }
-  .topbar { padding-top: 0.9rem; }
+  .app { flex-direction: column; }
+  .sidebar {
+    width: 100%; flex: 0 0 auto; height: auto; position: sticky; top: 0; z-index: 5;
+    flex-direction: row; align-items: center; padding: 0.4rem 0.55rem; gap: 0.35rem;
+  }
+  .brand { padding: 0; }
+  .brand > div:not(.brand-mark) { display: none; }
+  .brand-mark { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; }
+  .brand-mark svg { width: 18px; height: 18px; }
+  .nav { flex-direction: row; overflow-x: auto; flex: 1; min-width: 0; }
+  .nav-item {
+    width: auto; font-size: 0.78rem; white-space: nowrap;
+    justify-content: flex-start; padding: 0.42rem 0.55rem; gap: 0.35rem;
+  }
+  .nav-dot { width: 7px; height: 7px; }
+  .nav-item.active .nav-dot { width: 7px; }
+  .nav-badge { position: static; transform: none; margin-left: 0.3rem; font-size: 0.65rem; }
+  .side-foot {
+    margin-top: 0; padding: 0; background: none; flex-direction: row; flex: 0 0 auto;
+  }
+  .side-foot-label, .side-foot-note { display: none; }
+  .side-foot .btn { width: auto; }
+  .main { min-width: 0; }
+  .topbar { flex-direction: column; align-items: stretch; gap: 0.55rem; padding-top: 0.9rem; }
+  .topbar h1, .topbar-sub { white-space: normal; }
+  .topbar-right { flex: 1 1 auto; width: 100%; justify-content: flex-start; gap: 0.45rem; }
+  .search { flex: 1 1 100%; max-width: none; }
   .kpis { grid-template-columns: repeat(2, 1fr); gap: 0.7rem; }
   .kpi { padding: 0.8rem; }
   .kpi-value { font-size: 1.3rem; }
@@ -1888,28 +1892,7 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
   .grid td, .grid th { padding: 0.5rem 0.4rem; }
 }
 @media (max-width: 620px) {
-  .app { flex-direction: column; }
-  .sidebar {
-    width: 100%; flex: 0 0 auto; height: auto; position: sticky; z-index: 5;
-    flex-direction: row; align-items: center; padding: 0.4rem 0.55rem; gap: 0.35rem;
-  }
-  .brand { padding: 0; }
-  .brand > .brand-mark { display: grid; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; }
-  .brand-mark svg { width: 18px; height: 18px; }
-  .nav { flex-direction: row; overflow-x: auto; flex: 1; min-width: 0; }
-  .nav-item {
-    width: auto; font-size: 0.78rem; white-space: nowrap;
-    justify-content: flex-start; padding: 0.42rem 0.55rem; gap: 0.35rem;
-  }
-  .nav-dot { width: 7px; height: 7px; }
-  .nav-badge { position: static; transform: none; margin-left: 0.3rem; font-size: 0.65rem; }
-  .main { min-width: 0; }
-  .topbar { flex-direction: column; align-items: stretch; gap: 0.55rem; }
-  .topbar h1, .topbar-sub { white-space: normal; }
-  .topbar-right { flex: 1 1 auto; width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 0.4rem; }
-  .search { flex: 1 1 100%; max-width: none; }
   .kpis { grid-template-columns: 1fr; }
-  .who { display: none; }
 }
 .login-app {
   min-height: 100vh;
@@ -1930,5 +1913,5 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
   border-radius: 8px;
   font-size: 1rem;
 }
-.login-err { margin: 0; color: var(--urgent); font-size: 0.85rem; }
+.login-err { margin: 0; color: var(--urgent-ink); font-size: 0.85rem; }
 </style>

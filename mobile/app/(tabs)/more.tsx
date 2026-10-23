@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,7 +13,6 @@ import {
 } from 'react-native';
 
 import { Screen } from '@/components/Screen';
-import { SettingsPanel } from '@/components/SettingsPanel';
 import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
 import { devName, fmtDurationSec, stampOf } from '@/lib/format';
@@ -91,8 +91,10 @@ export default function MoreScreen() {
             <Text style={styles.menuTitle}>🔌 기기 목록</Text>
             <Text style={styles.menuSub}>공용 서버에서 읽은 장치 트리</Text>
           </Pressable>
-          <View style={styles.spacer} />
-          <SettingsPanel />
+          <Pressable style={styles.menuItem} onPress={() => router.push('/settings')}>
+            <Text style={styles.menuTitle}>설정</Text>
+            <Text style={styles.menuSub}>담당자, 직원 접속, API 주소</Text>
+          </Pressable>
         </ScrollView>
       </Screen>
     );
@@ -196,7 +198,6 @@ const styles = StyleSheet.create({
   },
   menuTitle: { fontSize: 17, fontWeight: '600', color: theme.text },
   menuSub: { color: theme.muted, marginTop: 4, fontSize: 13 },
-  spacer: { height: 20 },
   back: {
     padding: 12,
     backgroundColor: theme.surface,

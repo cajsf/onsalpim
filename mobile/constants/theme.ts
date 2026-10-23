@@ -9,7 +9,7 @@ export const theme = {
 
   text: '#1f2937',
   text2: '#4b5563',
-  muted: '#8a94a6',
+  muted: '#5c6778',
 
   brand: '#2f6bed',
   brandDim: '#1d4ed8',
@@ -18,8 +18,10 @@ export const theme = {
   normal: '#16a34a',
   normalSoft: '#eafaf0',
   watch: '#c2870a',
+  watchInk: '#7a4208',
   watchSoft: '#fdf5e3',
   urgent: '#dc2626',
+  urgentInk: '#b91c1c',
   urgentSoft: '#fdeeee',
   device: '#5b5bd6',
   deviceSoft: '#eeeefc',

@@ -40,7 +40,7 @@ export function RuleListItem({ rule: r, pending }: Props) {
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   badgePending: { backgroundColor: theme.watchSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-  badgePendingText: { fontSize: 11, fontWeight: '700', color: theme.watch },
+  badgePendingText: { fontSize: 11, fontWeight: '700', color: theme.watchInk },
   badgeActive: { backgroundColor: theme.normalSoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   badgeActiveText: { fontSize: 11, fontWeight: '700', color: theme.normal },
   id: { color: theme.muted, fontSize: 12 },

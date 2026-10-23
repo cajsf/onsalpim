@@ -1,7 +1,7 @@
 <script setup>
 // 무활동이 기준에 얼마나 가까워졌는지. 기준이 없는 세대는 그리지 않는다.
 import { computed } from 'vue'
-import { idleBar, secondsSince } from './format.js'
+import { fmtMinutes, idleBar, secondsSince } from './format.js'
 
 const props = defineProps({
   h: { type: Object, required: true },
@@ -17,12 +17,24 @@ const bar = computed(() => idleBar(activityAgo.value, props.h.idle_min, props.h.
 }))
 
 const width = computed(() => (bar.value?.ratio == null ? '0%' : `${bar.value.ratio * 100}%`))
+const near = computed(() => {
+  const b = bar.value
+  if (!b) return false
+  if (b.tone === 'watch' || b.tone === 'urgent') return true
+  return b.ratio != null && b.ratio >= 0.75
+})
+const headline = computed(() => {
+  const b = bar.value
+  if (!b) return ''
+  if (props.size === 'sm' && near.value) return `${b.big} / ${fmtMinutes(b.limitMin)}`
+  return b.big
+})
 </script>
 
 <template>
-  <div v-if="bar" class="idle" :class="[size, bar.tone]">
+  <div v-if="bar" class="idle" :class="[size, bar.tone, { near }]">
     <div class="idle-top">
-      <span class="idle-big">{{ bar.big }}</span>
+      <span class="idle-big">{{ headline }}</span>
       <span class="idle-cap">{{ bar.text }}</span>
     </div>
     <div
@@ -53,12 +65,14 @@ const width = computed(() => (bar.value?.ratio == null ? '0%' : `${bar.value.rat
 .idle-big { font-weight: 700; letter-spacing: -0.02em; color: var(--text); line-height: 1.1; }
 .lg .idle-big { font-size: 1.35rem; }
 .sm .idle-big { display: none; }
+.sm.near .idle-big { display: inline; font-size: 0.8rem; }
 .idle-cap { font-size: 0.75rem; color: var(--text-2); }
 .track {
   position: relative; height: 8px; border-radius: 999px; background: var(--surface-2);
   border: 1px solid var(--border); overflow: hidden;
 }
 .sm .track { height: 5px; }
+.sm.near .track { height: 7px; }
 .fill { height: 100%; border-radius: inherit; width: 0; }
 .ok .fill { background: var(--normal); }
 .watch .fill { background: var(--watch); }

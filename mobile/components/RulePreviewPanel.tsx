@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   },
   title: { fontWeight: '700', fontSize: 14, color: theme.text },
   muted: { color: theme.muted, fontSize: 13, lineHeight: 18 },
-  warn: { color: theme.watch, fontSize: 13 },
+  warn: { color: theme.watchInk, fontSize: 13 },
   kpi: { gap: 2 },
   k: { fontSize: 12, color: theme.muted },
   v: { fontSize: 18, fontWeight: '700', marginBottom: 6, color: theme.text },

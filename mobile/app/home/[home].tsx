@@ -1,15 +1,16 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HomeAbsencePanel } from '@/components/HomeAbsencePanel';
 import { HomeContacts } from '@/components/HomeContacts';
 import { HomeTags } from '@/components/HomeTags';
 import { HomeTimeline } from '@/components/HomeTimeline';
+import { EngineBanner } from '@/components/EngineBanner';
 import { theme } from '@/constants/theme';
 import { useSettings } from '@/context/SettingsContext';
-import { PATTERN_KO, SEV, fmtAgo, fmtMinutes, idleBar, secondsSince, tempStatus } from '@/lib/format';
-import type { CareHome } from '@/lib/types';
+import { PATTERN_KO, SEV, fmtAgo, fmtMinutes, idleBar, secondsSince, stampOf, tempStatus } from '@/lib/format';
+import type { CareHome, CareResponse, EngineStatus } from '@/lib/types';
 import { useNow } from '@/hooks/useNow';
 
 export default function HomeDetailScreen() {
@@ -17,22 +18,31 @@ export default function HomeDetailScreen() {
   const { api } = useSettings();
   const nowMs = useNow();
   const [home, setHome] = useState<CareHome | null>(null);
+  const [careMeta, setCareMeta] = useState<CareResponse | null>(null);
+  const [engine, setEngine] = useState<EngineStatus | null>(null);
   const [error, setError] = useState('');
+  const [fetchError, setFetchError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [okAt, setOkAt] = useState<number | null>(null);
+  const homeRef = useRef<CareHome | null>(null);
 
   const load = useCallback(async () => {
     if (!homeId) return;
     setLoading(true);
     try {
-      const care = await api.getCare();
-      const found = care.homes.find((h) => h.home === homeId);
-      if (!found) setError(`${homeId}호를 찾을 수 없습니다.`);
-      else {
-        setHome(found);
-        setError('');
-      }
+      const [engineRes, care] = await Promise.all([api.getEngineStatus(), api.getCare()]);
+      setEngine(engineRes);
+      setCareMeta(care);
+      setFetchError('');
+      setOkAt(Date.now());
+      const found = care.homes.find((h) => h.home === homeId) ?? null;
+      homeRef.current = found;
+      setHome(found);
+      setError(found ? '' : `${homeId}호를 찾을 수 없습니다.`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      setFetchError(message);
+      if (!homeRef.current) setError(message);
     } finally {
       setLoading(false);
     }
@@ -44,18 +54,41 @@ export default function HomeDetailScreen() {
     return () => clearInterval(id);
   }, [load]);
 
+  const updatedHint = careMeta?.updated ? `판정 ${stampOf(careMeta.updated)}` : null;
+  const lastOkText = okAt
+    ? new Date(okAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : null;
+  const banner = (
+    <EngineBanner
+      engine={engine}
+      care={careMeta}
+      loading={loading && !engine && !careMeta}
+      fetchError={fetchError}
+      updatedHint={updatedHint}
+      lastOkText={fetchError ? lastOkText : null}
+    />
+  );
+
   if (loading && !home) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.brand} />
+      <View style={styles.flex}>
+        {banner}
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={theme.brand} />
+        </View>
       </View>
     );
   }
 
   if (error || !home) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.err}>{error || '세대 없음'}</Text>
+      <View style={styles.flex}>
+        {banner}
+        {fetchError ? null : (
+          <View style={styles.center}>
+            <Text style={styles.err}>{error || '세대 없음'}</Text>
+          </View>
+        )}
       </View>
     );
   }
@@ -71,7 +104,9 @@ export default function HomeDetailScreen() {
   });
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
+    <View style={styles.flex}>
+      {banner}
+      <ScrollView style={styles.flex} contentContainerStyle={styles.pad}>
       <View style={styles.head}>
         <Text style={styles.title}>{h.home}호</Text>
         <HomeTags home={h} />
@@ -162,7 +197,8 @@ export default function HomeDetailScreen() {
 
       <HomeTimeline home={h.home} judgedAt={h.judged_at} />
       <HomeAbsencePanel home={h.home} onChanged={load} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 

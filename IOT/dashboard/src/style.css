@@ -20,7 +20,7 @@
   /* 글자 */
   --text: #1f2937;
   --text-2: #4b5563;
-  --muted: #8a94a6;
+  --muted: #5c6778;
 
   /* 주색 */
   --brand: #2f6bed;
@@ -35,10 +35,12 @@
   --normal: #16a34a;
   --normal-soft: #eafaf0;
   --watch: #c2870a;
+  --watch-ink: #7a4208;
   --watch-soft: #fdf5e3;
   --life: #0f766e;
   --life-soft: #e7f6f3;
   --urgent: #dc2626;
+  --urgent-ink: #b91c1c;
   --urgent-soft: #fdeeee;
   --device: #5b5bd6;        /* 기기 이상 — 생활 신호와 다른 계열 */
   --device-soft: #eeeefc;
@@ -98,9 +100,9 @@ button {
   padding: 0.18rem 0.55rem; border-radius: 999px; white-space: nowrap;
 }
 .tag-normal { background: var(--normal-soft); color: var(--normal); }
-.tag-watch { background: var(--watch-soft); color: var(--watch); }
+.tag-watch { background: var(--watch-soft); color: var(--watch-ink); }
 .tag-life { background: var(--life-soft); color: var(--life); }
-.tag-urgent { background: var(--urgent-soft); color: var(--urgent); }
+.tag-urgent { background: var(--urgent-soft); color: var(--urgent-ink); }
 .tag-device { background: var(--device-soft); color: var(--device); }
 .tag-muted { background: var(--surface-2); color: var(--muted); border: 1px dashed var(--border-strong); }
 .tag-wait { background: var(--brand-soft); color: var(--brand-dim); }
@@ -114,8 +116,8 @@ button {
 
 /* 안내 문구 — 여러 화면·컴포넌트가 같이 쓴다 */
 .msg { margin-top: 0.6rem; padding: 0.55rem 0.8rem; border-radius: var(--radius-sm); font-size: 0.79rem; }
-.msg.err { background: var(--urgent-soft); color: var(--urgent); }
-.msg.warn { background: var(--watch-soft); color: var(--text); }
+.msg.err { background: var(--urgent-soft); color: var(--urgent-ink); }
+.msg.warn { background: var(--watch-soft); color: var(--watch-ink); }
 .msg.info { background: var(--brand-soft); color: var(--brand-dim); }
 .msg.clarify { background: var(--brand-soft); color: var(--brand-dim); font-weight: 500; }
 

@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.border,
   },
-  openBannerTitle: { color: theme.urgent, fontWeight: '700', fontSize: 15 },
-  openBannerSub: { color: theme.urgent, fontSize: 13, marginTop: 2, opacity: 0.85 },
+  openBannerTitle: { color: theme.urgentInk, fontWeight: '700', fontSize: 15 },
+  openBannerSub: { color: theme.urgentInk, fontSize: 13, marginTop: 2 },
   filters: {
     flexDirection: 'row',
     gap: 8,

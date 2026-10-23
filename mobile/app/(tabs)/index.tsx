@@ -86,21 +86,24 @@ export default function CareScreen() {
           lastOkText={error ? lastOkText : null}
         />
         <View style={styles.filters}>
-          {chips.map((c) => (
-            <Pressable
-              key={c.id}
-              style={StyleSheet.flatten([
-                styles.chip,
-                filter === c.id && styles.chipOn,
-                !!error && styles.chipDim,
-              ])}
-              onPress={() => setFilter(c.id)}
-            >
-              <Text style={StyleSheet.flatten([styles.chipText, filter === c.id && styles.chipTextOn])}>
-                {c.label} {known ? c.n : '—'}
-              </Text>
-            </Pressable>
-          ))}
+          {chips.map((c) => {
+            const on = filter === c.id;
+            return (
+              <Pressable
+                key={c.id}
+                style={StyleSheet.flatten([
+                  styles.chip,
+                  on && chipOnStyle(c.id),
+                  !!error && styles.chipDim,
+                ])}
+                onPress={() => setFilter(c.id)}
+              >
+                <Text style={StyleSheet.flatten([styles.chipText, on && chipLabelStyle(c.id)])}>
+                  {c.label} {known ? c.n : '—'}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
         <FlatList
           data={homes}
@@ -123,6 +126,20 @@ export default function CareScreen() {
   );
 }
 
+function chipOnStyle(id: HomeFilter) {
+  if (id === 'urgent') return styles.chipUrgent;
+  if (id === 'life') return styles.chipLife;
+  if (id === 'device') return styles.chipDevice;
+  if (id === 'battery') return styles.chipBattery;
+  return styles.chipOn;
+}
+
+function chipLabelStyle(id: HomeFilter) {
+  if (id === 'battery') return styles.chipTextBattery;
+  if (id === 'all') return styles.chipTextOn;
+  return styles.chipTextInverse;
+}
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: theme.screenPad, paddingBottom: 4 },
@@ -135,8 +152,14 @@ const styles = StyleSheet.create({
     borderColor: theme.border,
   },
   chipOn: { backgroundColor: theme.brandSoft, borderColor: theme.brand },
+  chipUrgent: { backgroundColor: theme.urgent, borderColor: theme.urgent },
+  chipLife: { backgroundColor: theme.life, borderColor: theme.life },
+  chipDevice: { backgroundColor: theme.device, borderColor: theme.device },
+  chipBattery: { backgroundColor: theme.watchSoft, borderColor: theme.watchInk },
   chipText: { color: theme.text2, fontSize: 13, fontWeight: '600' },
   chipTextOn: { color: theme.brandDim },
+  chipTextInverse: { color: '#fff' },
+  chipTextBattery: { color: theme.watchInk },
   chipDim: { opacity: 0.45 },
   listContent: { paddingTop: 8, paddingBottom: 24 },
   empty: { textAlign: 'center', color: theme.muted, marginTop: 40 },

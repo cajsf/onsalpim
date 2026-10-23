@@ -55,7 +55,7 @@ export default function TabLayout() {
         options={{
           title: '규칙',
           tabBarBadge: badgeText(pendingRuleCount),
-          tabBarBadgeStyle: { backgroundColor: theme.watch },
+          tabBarBadgeStyle: { backgroundColor: theme.watchInk },
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'doc.text.fill', android: 'description', web: 'description' }}
@@ -78,7 +78,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null, title: '설정' }} />
     </Tabs>
   );
 }

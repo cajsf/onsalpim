@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   dt: { fontSize: 12, color: theme.muted, fontWeight: '600' },
   dd: { fontSize: 15, lineHeight: 22, color: theme.text2 },
   clarify: { color: theme.brandDim, marginTop: 10, lineHeight: 20 },
-  warn: { color: theme.watch, marginTop: 8, lineHeight: 20, fontSize: 13 },
+  warn: { color: theme.watchInk, marginTop: 8, lineHeight: 20, fontSize: 13 },
   lbl: { marginTop: 12, fontWeight: '600', color: theme.text },
   input: {
     borderWidth: 1,
