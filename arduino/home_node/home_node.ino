@@ -117,6 +117,14 @@ const char* ORIGIN  = "SOrigin_BAR2";
   #endif
   const bool LED_COMMON_ANODE = false;
   Servo servo;
+  // 전시 모형의 덧창은 0~90도만 돈다 — 더 돌면 서보 받침에 닿는다. 90을 넘는 명령은 '다 열림'으로 본다.
+  const int WINDOW_MAX = 90;
+  // 0 → 90 을 보냈는데 덧창이 창문 위쪽으로 돌면 서보 방향이 반대인 것 → true
+  const bool WINDOW_REVERSE = false;
+  int windowAngle(int a) {
+    a = min(a, WINDOW_MAX);
+    return WINDOW_REVERSE ? WINDOW_MAX - a : a;
+  }
 #endif
 
 // PIR 이 튀는 걸 막는 최소 간격. 이보다 짧은 간격의 재발화는 같은 움직임으로 본다.
@@ -241,7 +249,7 @@ void setup() {
     servo.attach(SERVO_PIN);
   #endif
   pinMode(R_PIN, OUTPUT); pinMode(G_PIN, OUTPUT); pinMode(B_PIN, OUTPUT);
-  servo.write(0);
+  servo.write(windowAngle(0));
   setLED(0, 0, 0);
 #endif
 #if defined(ARDUINO_ARCH_ESP32)
@@ -336,7 +344,7 @@ void loop() {
     String sv = getLatest("window");
     if (sv.length() > 0) {
       int angle = sv.toInt();
-      if (angle >= 0 && angle <= 180) servo.write(angle);
+      if (angle >= 0 && angle <= 180) servo.write(windowAngle(angle));
     }
   }
 #endif
