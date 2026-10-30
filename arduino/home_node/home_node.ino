@@ -45,12 +45,12 @@
   #define HAS_DHT      0
   #define HAS_BATT     0
   #define HAS_ACTUATOR 0
-#elif BOARD == 3       // 201호 — 노브를 돌려 배터리 부족을 만든다
+#elif BOARD == 3       // 201호 — 핫팩으로 고온 지속 긴급, 그 상태로 전원을 뽑아 긴급 유지 + 장치 점검. 노브는 배터리 부족
   #define HOME_NO      "201"
-  #define HAS_DHT      0
+  #define HAS_DHT      1
   #define HAS_BATT     1
   #define HAS_ACTUATOR 0
-#elif BOARD == 4       // 202호 — 처음엔 꽂지 않는다. 꽂으면 2층 입주, 뽑으면 통신 두절
+#elif BOARD == 4       // 202호 — 처음엔 꽂지 않는다. 꽂으면 2층 입주, 뽑으면 통신 두절. 201호가 재연결되는 동안 번갈아 쓴다
   #define HOME_NO      "202"
   #define HAS_DHT      0
   #define HAS_BATT     0
