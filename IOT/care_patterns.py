@@ -41,6 +41,24 @@ HOUR_MS = 60 * MIN
 DAY_MS = 24 * HOUR_MS
 FOLLOW = ("RENOTIFY", "ESCALATE")
 
+# 전시 모드 (ONSALPIM_EXHIBIT=1) — 책상 위 미니어처 세대만 '시연 시간 1분 = 1초'로 판정한다.
+#   무활동: 경과 시간을 EXHIBIT_SCALE 배로 본다 → "102호 30분" 규칙이 실제 30초에 걸린다.
+#   고온 지속: patterns.drl 의 전시용 규칙(초 단위, 고정)을 쓴다 — 시간을 그냥 60배 줄이면 '지금도 덥다'
+#     창(5분)이 5초가 되어 보고 주기(5초)와 어긋나고, 긴급이 켜졌다 꺼졌다 하며 알림이 반복된다.
+#   통신 두절(보고 주기 × 3)·재통지·이관은 실제 시간 그대로다 — 장치와 사람의 대응은 줄이지 않는다.
+# 화면은 time_scale 이 1 보다 큰 세대에 '시연 시간'을 표시한다.
+EXHIBIT = os.environ.get("ONSALPIM_EXHIBIT") == "1"
+EXHIBIT_HOMES = ("101", "102", "201", "202")
+EXHIBIT_SCALE = 60
+EX_HOLD_MS, EX_EARLY_MS, EX_RECENT_MS = 30_000, 20_000, 25_000   # patterns.drl '전시 30초' 와 같다
+# '지금도 덥다'를 25초로 넉넉히 두는 이유: 201호 전원을 뽑으면 온도 보고도 끊긴다. 두절(15초 + 판정 주기)이
+# 잡히기 전에 고온 긴급이 먼저 풀리면, 계획안 5단계 '긴급 유지 + 장치 점검' 대신 장치 점검만 뜬다.
+
+
+def time_scale(home):
+    """이 세대의 시연 시간 배율. 전시 모드의 미니어처 세대만 EXHIBIT_SCALE, 나머지는 1."""
+    return EXHIBIT_SCALE if EXHIBIT and home in EXHIBIT_HOMES else 1
+
 
 def ms(dt):
     return int(dt.timestamp() * 1000)
@@ -65,6 +83,8 @@ def home_params(home, profile, now):
     humid = p.get("humid") or {}
     out = {"id": home, "hot_c": float(p.get("hot_c", HOT_C_DEFAULT)), "cold_c": float(p.get("cold_c", COLD_C_DEFAULT)),
            "humid_lo": float(humid.get("lo", HUMID_DEFAULT[0])), "humid_hi": float(humid.get("hi", HUMID_DEFAULT[1]))}
+    if time_scale(home) > 1:
+        out["exhibit"] = True
     if p.get("day_drop"):
         out.update(day_from=ms(_at(now, DAY_HOURS[0])), day_to=ms(_at(now, DAY_HOURS[1])))
     if p.get("morning_by"):
@@ -95,7 +115,13 @@ def detect_python(now_ms, homes, events):
         temps = [e for e in mine if e["type"] == "temp"]
         moves = [e for e in mine if e["type"] == "motion"]
         hot = h.get("hot_c")
-        if hot is not None:
+        if hot is not None and h.get("exhibit"):
+            if (any(e["value"] >= hot and within(e, EX_EARLY_MS, EX_HOLD_MS) for e in temps)
+                    and any(e["value"] >= hot and within(e, 0, EX_RECENT_MS) for e in temps)
+                    and not any(e["value"] < hot and within(e, 0, EX_HOLD_MS) for e in temps)
+                    and not any(within(e, 0, EX_HOLD_MS) for e in moves)):
+                out.append({"home": h["id"], "code": "HOT_IDLE", "since": now_ms - EX_HOLD_MS, "ref": None})
+        elif hot is not None:
             if (any(e["value"] >= hot and within(e, 25 * MIN, 30 * MIN) for e in temps)
                     and any(e["value"] >= hot and within(e, 0, 5 * MIN) for e in temps)
                     and not any(e["value"] < hot and within(e, 0, 30 * MIN) for e in temps)
@@ -323,7 +349,7 @@ def apply(v, found, profile, now):
     p = profile or {}
     hit = next((f for f in found if f["code"] in URGENT_LIFE), None)
     if hit and v["severity"] != "URGENT":
-        mins = int((ms(now) - hit["since"]) / MIN)
+        mins = int((ms(now) - hit["since"]) * v.get("time_scale", 1) / MIN)   # 시연 시간이면 30초 → '30분'
         if hit["code"] == "HOT_IDLE":
             c, word, cmp = p.get("hot_c", HOT_C_DEFAULT), "고온", "이상"
         else:

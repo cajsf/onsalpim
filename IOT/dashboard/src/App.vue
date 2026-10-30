@@ -232,6 +232,8 @@ onUnmounted(() => { clearInterval(timer); clearInterval(clockTimer) })
 /* ────────── 집계 ────────── */
 
 const homes = computed(() => care.value.homes || [])
+// 전시 모드(ONSALPIM_EXHIBIT=1)의 미니어처 세대 — 서버가 time_scale 로 알려 준다
+const exhibitHomes = computed(() => homes.value.filter((h) => h.time_scale > 1).map((h) => h.home).sort())
 const pendingRules = computed(() => rules.value.filter((r) => r.status === 'pending'))
 const activeRules = computed(() => rules.value.filter((r) => r.status !== 'pending'))
 
@@ -743,6 +745,10 @@ function stepIcon(s) { return ({ ok: '✓', fail: '✗', skip: '—', running: '
       <p v-if="care.outage && care.outage.homes && care.outage.homes.length" class="banner warn">
         {{ care.outage.homes.length }}세대({{ care.outage.homes.join('·') }})가 동시에 통신이 끊겼습니다.
         가구마다의 이상이 아니라 망·서버를 먼저 봅니다.
+      </p>
+      <p v-if="exhibitHomes.length" class="banner info">
+        시연 시간 — {{ exhibitHomes.join('·') }}호는 1분을 1초로 줄여 판정합니다 (실제 운영: 무활동 수 시간 · 고온 지속 30분).
+        통신 두절 감지와 재알림은 실제 시간 그대로입니다.
       </p>
       <p v-if="connectionError" class="banner err">{{ connectionError }}</p>
       <p v-else-if="!engineRunning" class="banner warn">

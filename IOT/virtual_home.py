@@ -37,6 +37,7 @@ import random
 import time
 
 import iot_platform as iot
+from care_patterns import EXHIBIT_HOMES
 
 REPORT_S = 5      # home_node.ino 의 REPORT_S 와 같게 유지할 것
 
@@ -59,7 +60,7 @@ def setup(home, batt=True):
         print(f"  h{h}/{rn}: {r.status_code} (201=생성, 409=이미있음)")
 
 
-DEMO_HOMES = ("101", "102", "201", "202")
+DEMO_HOMES = EXHIBIT_HOMES   # 책상 위 미니어처 세대
 
 
 def removal_targets(devices, homes, legacy=False, demo=False):

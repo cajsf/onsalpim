@@ -17,10 +17,11 @@ public class Home {
     private final Double humidHi;
     private final Long dayFrom;         // 주간 활동 급감을 보는 시간대 (null 이면 안 봄)
     private final Long dayTo;
+    private final boolean exhibit;     // 전시 모드의 미니어처 세대 — 고온 지속을 '전시 30초' 규칙으로 본다
 
     public Home(String id, Double hotC, Long morningFrom, Long morningBy,
                 Long nightFrom, Long nightTo, Integer wanderCount,
-                Double coldC, Double humidLo, Double humidHi, Long dayFrom, Long dayTo) {
+                Double coldC, Double humidLo, Double humidHi, Long dayFrom, Long dayTo, boolean exhibit) {
         this.id = id;
         this.hotC = hotC;
         this.morningFrom = morningFrom;
@@ -33,6 +34,7 @@ public class Home {
         this.humidHi = humidHi;
         this.dayFrom = dayFrom;
         this.dayTo = dayTo;
+        this.exhibit = exhibit;
     }
 
     public String getId() { return id; }
@@ -47,4 +49,5 @@ public class Home {
     public Double getHumidHi() { return humidHi; }
     public Long getDayFrom() { return dayFrom; }
     public Long getDayTo() { return dayTo; }
+    public boolean isExhibit() { return exhibit; }
 }

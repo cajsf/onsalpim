@@ -149,7 +149,7 @@ def read_activity(dev):
 # ---------- 판정 ----------
 
 def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=None, away=None,
-          prior_urgent=False):
+          prior_urgent=False, time_scale=1):
     """한 세대의 위험도를 판정한다.
 
     판정 '순서'가 이 함수의 전부다 — 기기를 먼저 보고, 기기가 믿을 만할 때만 생활을 본다.
@@ -175,6 +175,7 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
 
     away: 부재 등록 {'until', 'reason'} — 입원·외출 등으로 집이 빈 기간. 무활동은 판정하지 않고
       기기(통신·배터리)만 본다. 빈 집의 '무활동 긴급'은 헛알림이고, 헛알림이 쌓이면 진짜 알림을 놓친다.
+    time_scale: 시연 시간 배율 (care_patterns.time_scale) — 무활동 경과만 이만큼 키운다. 통신 두절은 실제 시간.
     idle_levels: [{'minutes', 'severity'}, ...] — 단계 경보 (예: 180분 주의, 480분 긴급).
       없으면 idle_min 하나를 긴급 기준으로 쓴다 (기존 호출 호환).
 
@@ -190,6 +191,8 @@ def judge(contact, last_activity, idle_min, battery=None, now=None, idle_levels=
 
     silent_s = _elapsed_s(contact["ts"], now)
     idle_s = _elapsed_s(last_activity, now)
+    if idle_s is not None:
+        idle_s *= time_scale
     case = make_case(silent_s, contact["period_s"], idle_s, idle_levels, battery, away, prior_urgent)
     return render(decide_case(case), case, contact, last_activity, battery, now, idle_levels, idle_min, away)
 
@@ -468,8 +471,10 @@ class Watchdog:
         found = detect_patterns(homes_state, now)
         for home, st in homes_state.items():
             prior = st["prior_urgent"] if "prior_urgent" in st else self.confirmed_urgent.get(home, False)
+            scale = care_patterns.time_scale(home)
             v = judge(st["contact"], st.get("last_activity"), st.get("idle_min"),
-                      st.get("battery"), now, st.get("idle_levels"), st.get("away"), prior)
+                      st.get("battery"), now, st.get("idle_levels"), st.get("away"), prior, scale)
+            v["time_scale"] = scale
             care_patterns.apply(v, [f for f in found if f["home"] == home], st.get("profile"), now)
             v["life_check"] = v["severity"] == WATCH and (
                 v.get("code") == "IDLE_WATCH"
@@ -494,7 +499,8 @@ class Watchdog:
                 "device": v["device"],       # 기기 상태 (화면 오른쪽 칸)
                 "battery": v["battery"],
                 "silent_s": v["silent_s"],
-                "idle_s": v["idle_s"],      # 화면이 예외의 실제 효과를 따질 때 쓴다
+                "idle_s": v["idle_s"],      # 화면이 예외의 실제 효과를 따질 때 쓴다 (시연 시간이면 배율 적용)
+                "time_scale": scale,        # 1 보다 크면 시연 시간 — 화면이 경과를 이만큼 키우고 '시연 시간'을 표시
                 "idle_min": v["idle_min"],  # 이 세대에 적용된 무활동 기준(분)
                 "idle_levels": v["idle_levels"],   # 단계 경보 전체 (주의·긴급)
                 "away": v["away"],                 # 부재 등록 (없으면 None)

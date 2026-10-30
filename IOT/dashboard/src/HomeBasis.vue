@@ -9,8 +9,9 @@ const props = defineProps({ h: { type: Object, required: true } })
 // 실제 시각이 있으면 지금 기준으로 다시 계산한다. (옛 판정 파일에는 시각이 없어 경과 초로 대체)
 const contactAgo = computed(() =>
   props.h.last_contact_at !== undefined ? secondsSince(props.h.last_contact_at) : props.h.silent_s)
+// 시연 시간 세대는 무활동 경과만 배율을 곱한다 (판정과 같은 시계). 통신 경과는 실제 시간.
 const activityAgo = computed(() =>
-  props.h.last_activity_at !== undefined ? secondsSince(props.h.last_activity_at) : props.h.idle_s)
+  props.h.last_activity_at !== undefined ? secondsSince(props.h.last_activity_at) * (props.h.time_scale || 1) : props.h.idle_s)
 const judgedAgo = computed(() => secondsSince(props.h.judged_at))
 </script>
 
@@ -27,6 +28,7 @@ const judgedAgo = computed(() => secondsSince(props.h.judged_at))
       <dt>마지막 움직임</dt>
       <dd>
         {{ fmtAgo(activityAgo) }}
+        <span v-if="h.time_scale > 1" class="muted">(시연 시간)</span>
         <span v-if="h.device_check && h.severity === 'URGENT'" class="muted">· 두절 이후는 재판단하지 않음, 기존 긴급 확인 유지</span>
         <span v-else-if="!h.life_known" class="muted">(기록 기준) · 통신 두절 이후는 확인 불가</span>
       </dd>

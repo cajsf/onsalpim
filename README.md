@@ -100,6 +100,10 @@ npm run dev --prefix dashboard                          # 대시보드 :5173
 
 가상 세대 모드: `move` 정상 · `still` 무활동→생활 확인, 기준을 더 넘기면 긴급 확인 · `batt=11` 배터리 부족→주의 · 목록에서 빼면 두절→장치 점검
 
+전시 모드: 엔진을 `ONSALPIM_EXHIBIT=1 python -c "import engine; engine.loop(interval=4)"` 로 켜면 책상 위 미니어처 세대(101·102·201·202호)만
+시연 시간(1분 = 1초)으로 판정한다 — 무활동 '30분' 규칙이 실제 30초에, 고온 지속 긴급(운영 30분)이 30초에 걸린다.
+통신 두절(보고 주기 × 3)과 재알림·이관은 실제 시간 그대로이고, 화면 위에 '시연 시간' 안내가 뜬다 (`care_patterns.EXHIBIT`).
+
 ## 화면에서 보는 상태
 
 판정 코드는 네 단계(`NORMAL` · `WATCH` · `URGENT` · `CHECK_DEVICE`)이고, 화면 이름은 생활과 장치를 나눠 보여 준다.

@@ -1514,6 +1514,10 @@ def append_history(results, gap_since=None, now=None):
     dirty = False
     for r in results:
         h = hist.setdefault(r["home"], {"sev": [], "move": [], "seen": None})
+        # 전시 모드의 미니어처 세대는 온습도를 보고마다 남긴다 — '전시 30초' 고온 규칙은 초 단위 창을 본다.
+        # 대신 보관도 같은 배율로 줄인다 (24시간 → 24분).
+        scale = care_patterns.time_scale(r["home"])
+        env_cutoff = (now - timedelta(seconds=HISTORY_KEEP_S / scale)).isoformat(timespec="seconds")
         if gap_since and h["sev"] and h["sev"][-1][1] is not None and gap_since > h["sev"][-1][0]:
             h["sev"].append([gap_since, None])
             dirty = True
@@ -1522,7 +1526,7 @@ def append_history(results, gap_since=None, now=None):
             dirty = True
         for kind in ("temp", "humid"):
             t = r.get(kind)
-            if t and (not h.get(kind) or _gap_s(h[kind][-1][0], t[0]) >= MOVE_GAP_S):
+            if t and (not h.get(kind) or _gap_s(h[kind][-1][0], t[0]) >= MOVE_GAP_S / scale):
                 h.setdefault(kind, []).append(t)
                 dirty = True
         a = r.get("last_activity_at")
@@ -1541,8 +1545,8 @@ def append_history(results, gap_since=None, now=None):
             h["move"] = [t for t in h["move"] if t >= cutoff]
             dirty = True
         for kind in ("temp", "humid"):
-            if h.get(kind) and h[kind][0][0] < cutoff:
-                h[kind] = [t for t in h[kind] if t[0] >= cutoff]
+            if h.get(kind) and h[kind][0][0] < env_cutoff:
+                h[kind] = [t for t in h[kind] if t[0] >= env_cutoff]
                 dirty = True
     if dirty:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:

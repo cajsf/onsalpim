@@ -125,6 +125,65 @@ def scenes(detect):
     print(f"장면 {len(cases)}개 통과")
 
 
+def exhibit_scenes(detect):
+    """전시 모드 미니어처 세대 — 고온 지속 '전시 30초' (보고 5초마다)."""
+    S = 1000
+
+    def hot(ages_s, value=33):
+        return [{"home": "201", "type": "temp", "ts": NOW - a * S, "value": value} for a in ages_s]
+
+    ex = [{"id": "201", "hot_c": 31, "exhibit": True}]
+    cases = [
+        ("전시: 고온 35초 + 무활동", ex, hot(range(0, 36, 5)), [("201", "HOT_IDLE")]),
+        ("전시: 고온 15초뿐", ex, hot(range(0, 16, 5)) + hot(range(20, 36, 5), 25), []),
+        ("전시: 고온인데 10초 전 움직임", ex, hot(range(0, 36, 5)) + [{"home": "201", "type": "motion", "ts": NOW - 10 * S}], []),
+        # 전원을 뽑으면 온도 보고도 끊긴다 — 두절(15초 + 판정 주기)이 잡힐 때까지는 긴급이 유지돼야 한다
+        ("전시: 전원 뽑고 22초", ex, hot(range(22, 60, 5)), [("201", "HOT_IDLE")]),
+        ("전시: 전원 뽑고 27초", ex, hot(range(27, 60, 5)), []),
+        ("운영 세대는 35초로 안 걸린다", [{"id": "201", "hot_c": 31}], hot(range(0, 36, 5)), []),
+    ]
+    for name, homes, events, want in cases:
+        got = codes(detect(NOW, homes, events))
+        assert got == want, f"{name}: 기대 {want} 실제 {got}"
+    print(f"전시 장면 {len(cases)}개 통과")
+
+
+def exhibit_sweep_check():
+    """전시 모드 엔진 한 바퀴 — 계획안 2·3·5단계를 실제 초 단위로."""
+    from datetime import timedelta
+    import care_monitor
+    was = cp.EXHIBIT
+    cp.EXHIBIT = True
+    try:
+        now = datetime(2026, 11, 18, 14, 0)
+        fresh = {"ts": now - timedelta(seconds=3), "value": "0", "period_s": 5}
+        watch30 = [{"minutes": 30, "severity": "WATCH"}]
+        # 2단계 — 102호 '30분' 기준이 실제 31초에 생활 확인, 25초에는 아직 정상
+        st = {"contact": fresh, "last_activity": now - timedelta(seconds=31), "idle_min": 30, "idle_levels": watch30,
+              "battery": None, "away": None, "profile": None, "events": []}
+        r = care_monitor.Watchdog().sweep({"102": st}, now)[0]
+        assert r["severity"] == "WATCH" and r["time_scale"] == 60 and "31분" in r["reason"], r
+        r = care_monitor.Watchdog().sweep({"102": dict(st, last_activity=now - timedelta(seconds=25))}, now)[0]
+        assert r["severity"] == "NORMAL", r
+        # 같은 판정이라도 미니어처가 아닌 세대는 실제 시간
+        r = care_monitor.Watchdog().sweep({"301": st}, now)[0]
+        assert r["severity"] == "NORMAL" and r["time_scale"] == 1, r
+        # 3단계 — 201호 핫팩 35초 + 무활동 → 긴급 확인 ('30분 지속'으로 표시)
+        temps = [{"home": "201", "type": "temp", "ts": cp.ms(now - timedelta(seconds=s)), "value": 33} for s in range(0, 36, 5)]
+        st = dict(st, last_activity=now - timedelta(seconds=40), idle_levels=[], idle_min=None,
+                  profile={"hot_c": 30}, events=temps)
+        wd = care_monitor.Watchdog()
+        r = wd.sweep({"201": st}, now)[0]
+        assert r["severity"] == "URGENT" and r["patterns"] == ["HOT_IDLE"] and "30분 지속" in r["reason"], r
+        # 5단계 — 그 상태로 전원을 뽑는다: 18초 뒤 두절이 잡혀도 긴급은 유지 + 장치 점검
+        later = now + timedelta(seconds=18)
+        r = wd.sweep({"201": dict(st, contact=dict(fresh, ts=now))}, later)[0]
+        assert r["severity"] == "URGENT" and r["device_check"], r
+    finally:
+        cp.EXHIBIT = was
+    print("전시 모드 한 바퀴 통과 — 102호 생활 확인 31초 · 201호 고온 긴급 → 전원 뽑아도 긴급 유지")
+
+
 def home_params_checks():
     now = datetime(2026, 10, 15, 2, 0)
     p = cp.home_params("101", {"wander": {"from": "22:00", "to": "05:00", "count": 8}, "morning_by": "09:30"}, now)
@@ -354,7 +413,9 @@ if __name__ == "__main__":
     home_params_checks()
     apply_checks()
     scenes(cp.detect_python)
+    exhibit_scenes(cp.detect_python)
     sweep_check()
+    exhibit_sweep_check()
     follow_sweep_check()
     live_slots_check()
     live_env_check()
@@ -364,5 +425,6 @@ if __name__ == "__main__":
     os.environ.setdefault("ONSALPIM_JUDGE", "drools")
     rules_engine.MODE = "drools"
     scenes(rules_engine.detect)
+    exhibit_scenes(rules_engine.detect)
     cross_check(n)
     print("시간 패턴 점검 통과")

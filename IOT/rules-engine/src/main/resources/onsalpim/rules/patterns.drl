@@ -47,7 +47,7 @@ end
 rule "고온 지속 + 무활동 30분"
 when
     $t : Ev( type == "tick" )
-    $h : Home( hotC != null )
+    $h : Home( hotC != null, !exhibit )
     exists Ev( home == $h.id, type == "temp", value >= $h.hotC, this before[25m, 30m] $t )     // 30분 전에도 더웠고
     exists Ev( home == $h.id, type == "temp", value >= $h.hotC, this before[0s, 5m] $t )       // 지금도 덥고
     not Ev( home == $h.id, type == "temp", value < $h.hotC, this before[0s, 30m] $t )          // 그 사이 내려간 적 없고
@@ -55,6 +55,21 @@ when
     not Finding( home == $h.id, code == "HOT_IDLE" )
 then
     insert( new Finding( $h.getId(), "HOT_IDLE", $t.getTs() - 30 * 60000L, null ) );
+end
+
+// 전시 모드의 미니어처 세대 (care_patterns.EXHIBIT) — 시연 시간 1분 = 1초. 30분 → 30초.
+// '지금도 덥다' 창은 25초 — 보고 주기 5초보다 넉넉하고, 전원을 뽑았을 때 두절(15초)이 잡힐 때까지 긴급이 풀리지 않게.
+rule "고온 지속 + 무활동 — 전시 30초"
+when
+    $t : Ev( type == "tick" )
+    $h : Home( hotC != null, exhibit )
+    exists Ev( home == $h.id, type == "temp", value >= $h.hotC, this before[20s, 30s] $t )
+    exists Ev( home == $h.id, type == "temp", value >= $h.hotC, this before[0s, 25s] $t )
+    not Ev( home == $h.id, type == "temp", value < $h.hotC, this before[0s, 30s] $t )
+    not Ev( home == $h.id, type == "motion", this before[0s, 30s] $t )
+    not Finding( home == $h.id, code == "HOT_IDLE" )
+then
+    insert( new Finding( $h.getId(), "HOT_IDLE", $t.getTs() - 30 * 1000L, null ) );
 end
 
 rule "오전 기준 시각까지 첫 움직임 없음"
