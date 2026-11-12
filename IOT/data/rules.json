@@ -181,7 +181,7 @@
       "reason": "전체 세대 8시간 무활동 시 긴급 표시",
       "overrides": {}
     },
-    "enabled": true,
+    "enabled": false,
     "status": "approved",
     "questions": [],
     "conflicts": [],
@@ -214,5 +214,37 @@
         "at": "2026-09-18T17:22:34"
       }
     ]
+  },
+  {
+    "id": 9,
+    "sentence": "전체 세대에서 30분 동안 움직임이 없으면 주의로 표시해줘",
+    "rule": {
+      "scope": {
+        "homes": "ALL"
+      },
+      "when": {
+        "path": "",
+        "type": "motion",
+        "op": "idle_over_m",
+        "value": "30"
+      },
+      "and": [],
+      "then": [
+        {
+          "path": "",
+          "value": "",
+          "severity": "WATCH"
+        }
+      ],
+      "reason": "전체 세대 30분 무활동 시 주의(생활 확인) 표시",
+      "overrides": {}
+    },
+    "enabled": true,
+    "status": "approved",
+    "questions": [],
+    "conflicts": [],
+    "created": "2026-11-12T16:40:39",
+    "approved_by": "복지사",
+    "approved_at": "2026-11-12T16:40:39"
   }
 ]

@@ -5,6 +5,9 @@ rem 보드 없이 가상 세대로 개발할 때는 start_virtual.bat — 이 �
 cd /d "%~dp0IOT"
 set PYTHONUTF8=1
 
+rem 전시 모드 — 책상 위 미니어처 세대(101·102·201·202호)를 시연 시간(1분 = 1초)으로 판정한다. 가상 세대 개발 모드에서는 켜지 않는다
+if /i not "%~1"=="virtual" set ONSALPIM_EXHIBIT=1
+
 rem ── 처음 받은 폴더면 필요한 준비를 먼저 한다 (GitHub 에는 패키지·비밀 파일이 없다) ──
 if not exist "secrets_local.py" (
   echo [준비] 비밀 파일이 없습니다. 팀 카톡의 onsalpim_secrets.zip 을 이 폴더 맨 위에 대고 압축을 풀어 주세요.

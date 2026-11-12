@@ -81,6 +81,7 @@ npm install --prefix IOT/dashboard
 |---|---|---|
 | 실물 보드로 (시연) | `start_real.bat` | `start_real.command` |
 | 보드 없이 가상 세대로 (개발) | `start_virtual.bat` | `start_virtual.command` |
+| 전시 전 공용 서버 정리 (옛 세대 컨테이너) | `cleanup_demo_homes.bat` | `cleanup_demo_homes.command` |
 | 모두 끄기 | `stop.bat` | 켠 창에서 Ctrl+C 또는 `stop.command` |
 
 - Windows 는 서버마다 창이 따로 뜨고, Mac 은 한 창에 `[api]`·`[engine]` 처럼 이름을 붙여 보여 준다
@@ -100,9 +101,16 @@ npm run dev --prefix dashboard                          # 대시보드 :5173
 
 가상 세대 모드: `move` 정상 · `still` 무활동→생활 확인, 기준을 더 넘기면 긴급 확인 · `batt=11` 배터리 부족→주의 · 목록에서 빼면 두절→장치 점검
 
-전시 모드: 엔진을 `ONSALPIM_EXHIBIT=1 python -c "import engine; engine.loop(interval=4)"` 로 켜면 책상 위 미니어처 세대(101·102·201·202호)만
+전시 모드: `start_real` 로 켜면 자동으로 켜진다(직접 켤 때는 엔진을 `ONSALPIM_EXHIBIT=1 python -c "import engine; engine.loop(interval=4)"` 로). 켜면 책상 위 미니어처 세대(101·102·201·202호)만
 시연 시간(1분 = 1초)으로 판정한다 — 무활동 '30분' 규칙이 실제 30초에, 고온 지속 긴급(운영 30분)이 30초에 걸린다.
 통신 두절(보고 주기 × 3)과 재알림·이관은 실제 시간 그대로이고, 화면 위에 '시연 시간' 안내가 뜬다 (`care_patterns.EXHIBIT`).
+
+### 전시 시작 상태
+
+- 규칙 #9 `전체 세대에서 30분 동안 움직임이 없으면 주의로 표시` 만 켜 둔다 — 전시 모드에서 30초 뒤 '생활 확인'. 긴급 기준은 관람객이 ②에서 직접 만든다
+  (예: "전체 세대에서 8시간 동안 움직임이 없으면 긴급으로 표시해줘"). 옛 #8(8시간 긴급)은 꺼 두었다. 전시 전에 규칙 화면에서 이 상태인지 본다.
+- 시연 세대: 101 무활동 단계 경보 · 102 입주·통신 두절(스위치 USB 허브) · 201 손 흔들기·제어 규칙(창문 서보·RGB·온습도) · 202 핫팩 고온 긴급·배터리 노브 (`arduino/ARDUINO_WIRING.md`)
+- 보드를 켜기 전에 `cleanup_demo_homes` 로 공용 서버의 옛 세대(101·102·104·105호)를 지운다 — 옛 101호 컨테이너에는 새 구성에 없는 온습도·LED·창문이 남아 있다
 
 ## 화면에서 보는 상태
 

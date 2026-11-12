@@ -3,6 +3,8 @@
 # 보드 없이 가상 세대로 개발할 때는 start_virtual.command. 끄려면 이 창에서 Ctrl+C (또는 stop.command)
 cd "$(dirname "$0")/IOT" || exit 1
 export PYTHONUTF8=1 PYTHONUNBUFFERED=1
+# 전시 모드 — 책상 위 미니어처 세대(101·102·201·202호)를 시연 시간(1분 = 1초)으로 판정한다. 가상 세대 개발 모드에서는 켜지 않는다
+[ "$1" = "virtual" ] || export ONSALPIM_EXHIBIT=1
 pause_exit() { read -r -p "엔터를 누르면 닫습니다 " _; exit 1; }
 
 # ── 처음 받은 폴더면 필요한 준비를 먼저 한다 (GitHub 에는 패키지·비밀 파일이 없다) ──
