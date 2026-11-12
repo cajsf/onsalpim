@@ -35,25 +35,25 @@
 
 // 세대마다 뭘 달았는지는 아래 표가 정한다. 스케치를 네 벌로 복사하지 않는 이유:
 // 한 벌만 고치고 나머지를 잊는 사고가 반드시 난다. 고칠 곳은 한 군데여야 한다.
-#if   BOARD == 1       // 101호 — 관람객이 손을 흔드는 세대. 제어 규칙도 여기서 보여준다
+#if   BOARD == 1       // 101호 — 가만히 둬서 무활동 단계 경보(생활 확인 → 긴급 확인). 부재 등록도 여기서
   #define HOME_NO      "101"
-  #define HAS_DHT      1
+  #define HAS_DHT      0
   #define HAS_BATT     0
-  #define HAS_ACTUATOR 1
-#elif BOARD == 2       // 102호 — 가만히 둬서 무활동 단계 경보. 부재 등록도 여기서
+  #define HAS_ACTUATOR 0
+#elif BOARD == 2       // 102호 — 입주와 통신 두절. 스위치 USB 허브로 켜고 끈다 (켜면 입주, 끄면 통신 두절)
   #define HOME_NO      "102"
   #define HAS_DHT      0
   #define HAS_BATT     0
   #define HAS_ACTUATOR 0
-#elif BOARD == 3       // 201호 — 노브를 돌려 배터리 부족을 만든다
+#elif BOARD == 3       // 201호 — 관람객이 손을 흔드는 세대. 제어 규칙(창문 서보·RGB)과 온습도도 여기서 보여준다
   #define HOME_NO      "201"
-  #define HAS_DHT      0
-  #define HAS_BATT     1
-  #define HAS_ACTUATOR 0
-#elif BOARD == 4       // 202호 — 처음엔 꽂지 않는다. 꽂으면 2층 입주, 뽑으면 통신 두절
-  #define HOME_NO      "202"
-  #define HAS_DHT      0
+  #define HAS_DHT      1
   #define HAS_BATT     0
+  #define HAS_ACTUATOR 1
+#elif BOARD == 4       // 202호 — 핫팩으로 고온 지속 긴급, 허브에서 전원을 꺼 긴급 유지 + 장치 점검. 노브는 배터리 부족
+  #define HOME_NO      "202"
+  #define HAS_DHT      1
+  #define HAS_BATT     1
   #define HAS_ACTUATOR 0
 #else
   #error "BOARD 는 1~4 중 하나여야 한다"
@@ -117,10 +117,24 @@ const char* ORIGIN  = "SOrigin_BAR2";
   #endif
   const bool LED_COMMON_ANODE = false;
   Servo servo;
+  // 전시 모형(201호)의 덧창은 0~90도만 돈다 — 더 돌면 서보 받침에 닿는다. 90을 넘는 명령은 '다 열림'으로 본다.
+  const int WINDOW_MAX = 90;
+  // 0 → 90 을 보냈는데 덧창이 창문 위쪽으로 돌면 서보 방향이 반대인 것 → true
+  const bool WINDOW_REVERSE = false;
+  int windowAngle(int a) {
+    a = min(a, WINDOW_MAX);
+    return WINDOW_REVERSE ? WINDOW_MAX - a : a;
+  }
 #endif
 
 // PIR 이 튀는 걸 막는 최소 간격. 이보다 짧은 간격의 재발화는 같은 움직임으로 본다.
 const unsigned long EVENT_MIN_MS = 3000;
+
+// 제어 명령(led·window)을 서버에서 읽어 오는 간격. 요청 하나가 TLS 연결을 새로 맺어 수백 ms 걸린다 —
+// 2초마다 둘씩 읽으면 PIR(50ms 폴링)과 5초 보고가 밀린다. 엔진이 4초마다 판정하니 3초면 체감이 같다.
+const unsigned long CMD_POLL_MS = 3000;
+// 요청 하나가 이보다 오래 걸리면 시리얼에 찍는다 — 조립 테스트에서 루프가 밀리는지 보는 용도
+const unsigned long SLOW_REQ_MS = 1500;
 
 String base;   // 이 세대의 컨테이너 경로 /Mobius/{AE}/h{HOME} — setup 에서 정한다. 장치는 모두 이 아래에 있다
 const String pirCnt = "pir", evtCnt = "evt", tempCnt = "temp", humiCnt = "humi", battCnt = "batt";
@@ -141,6 +155,7 @@ void connectWiFi() {
 }
 
 String m2mRequest(const char* method, String path, int ty, String body) {
+  unsigned long tStart = millis();
   if (!client.connect(HOST, 443)) {
     Serial.println("[에러] 서버 접속 실패");
     return "";
@@ -165,6 +180,8 @@ String m2mRequest(const char* method, String path, int ty, String body) {
     if (!client.connected() && !client.available()) break;
   }
   client.stop();
+  unsigned long took = millis() - tStart;
+  if (took > SLOW_REQ_MS) Serial.println("  [느림] " + String(method) + " " + path + " " + String(took) + "ms");
   return resp;
 }
 
@@ -192,7 +209,8 @@ void makeCNT(String parent, String rn, String lblJson) {
 
 void postCIN(String cnt, String value) {
   String body = "{\"m2m:cin\":{\"con\":\"" + value + "\"}}";
-  m2mRequest("POST", base + "/" + cnt, 4, body);
+  String st = statusOf(m2mRequest("POST", base + "/" + cnt, 4, body));
+  if (st != "201") Serial.println("  [경고] " + cnt + " 올리기 실패: " + st + " (201 이 아님 — 서버 접속·라벨·키 확인)");
 }
 
 #if HAS_ACTUATOR
@@ -241,7 +259,7 @@ void setup() {
     servo.attach(SERVO_PIN);
   #endif
   pinMode(R_PIN, OUTPUT); pinMode(G_PIN, OUTPUT); pinMode(B_PIN, OUTPUT);
-  servo.write(0);
+  servo.write(windowAngle(0));
   setLED(0, 0, 0);
 #endif
 #if defined(ARDUINO_ARCH_ESP32)
@@ -327,7 +345,7 @@ void loop() {
 
 #if HAS_ACTUATOR
   // ④ 제어 명령 확인 — 규칙 엔진이 올린 값을 그대로 실행한다 (판단하지 않는다)
-  if (nowMs - lastCmd >= 2000UL) {
+  if (nowMs - lastCmd >= CMD_POLL_MS) {
     lastCmd = nowMs;
     String led = getLatest("led");
     if (led == "ON") setLED(255, 255, 255);
@@ -336,7 +354,7 @@ void loop() {
     String sv = getLatest("window");
     if (sv.length() > 0) {
       int angle = sv.toInt();
-      if (angle >= 0 && angle <= 180) servo.write(angle);
+      if (angle >= 0 && angle <= 180) servo.write(windowAngle(angle));
     }
   }
 #endif
